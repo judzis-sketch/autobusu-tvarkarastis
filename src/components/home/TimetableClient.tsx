@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { getTimetableForRoute } from '@/lib/actions';
@@ -11,9 +11,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, MapPin } from 'lucide-react';
 
-const Map = dynamic(() => import('@/components/home/Map'), { 
+const Map = dynamic(() => import('@/components/home/Map'), {
   ssr: false,
-  loading: () => <Skeleton className="h-[500px] w-full" />
+  loading: () => <Skeleton className="h-[500px] w-full" />,
 });
 
 type TimetableClientProps = {
@@ -38,6 +38,8 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
       setTimetable(tt);
     });
   }, [selectedRouteId]);
+
+  const stopsWithCoords = useMemo(() => timetable.filter(s => s.coords && s.coords.length === 2), [timetable]);
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
@@ -110,7 +112,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
             <CardDescription>Stotelės pažymėtos žemėlapyje.</CardDescription>
         </CardHeader>
         <CardContent className="h-[calc(100%-120px)]">
-             <Map timetable={timetable} />
+             <Map stops={stopsWithCoords} />
         </CardContent>
       </Card>
     </div>
