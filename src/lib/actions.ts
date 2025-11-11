@@ -3,10 +3,11 @@
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, writeBatch, doc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { db } from './firebase';
+import { getDb } from './firebase-admin';
 import type { Route, TimetableEntry } from './types';
 
 export async function getRoutes(): Promise<Route[]> {
+  const db = getDb();
   if (!db) return [];
   try {
     const q = query(collection(db, 'routes'), orderBy('createdAt', 'desc'));
@@ -19,6 +20,7 @@ export async function getRoutes(): Promise<Route[]> {
 }
 
 export async function getTimetableForRoute(routeId: string): Promise<TimetableEntry[]> {
+  const db = getDb();
   if (!db) return [];
   try {
     const q = query(collection(db, `routes/${routeId}/timetable`), orderBy('createdAt', 'asc'));
@@ -41,6 +43,7 @@ const multipleRoutesSchema = z.object({
 
 
 export async function addMultipleRoutesAction(values: z.infer<typeof multipleRoutesSchema>): Promise<{ success: boolean; error?: string, newRoutes?: Route[] }> {
+    const db = getDb();
     if (!db) return { success: false, error: 'Duomenų bazė nepasiekiama.' };
 
     const validatedFields = multipleRoutesSchema.safeParse(values);
@@ -61,13 +64,11 @@ export async function addMultipleRoutesAction(values: z.infer<typeof multipleRou
 
         routes.forEach(route => {
             if (route.name && route.number) {
-                // Correctly create a new document reference within the 'routes' collection
                 const docRef = doc(collection(db, 'routes'));
                 batch.set(docRef, {
                     ...route,
                     createdAt: serverTimestamp()
                 });
-                // Temporarily add data for immediate UI update
                 newRoutesData.push({ id: docRef.id, ...route, createdAt: new Date() });
             }
         });
@@ -93,6 +94,7 @@ const timetableSchema = z.object({
 });
 
 export async function addTimetableEntryAction(values: z.infer<typeof timetableSchema>): Promise<{ success: boolean, error?: string }> {
+   const db = getDb();
    if (!db) return { success: false, error: 'Duomenų bazė nepasiekiama.' };
    const validatedFields = timetableSchema.safeParse(values);
 
