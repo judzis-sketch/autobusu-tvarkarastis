@@ -5,7 +5,7 @@ type Leaflet = typeof import('leaflet');
 type StopWithCoords = TimetableEntry & { coords: [number, number] };
 
 export class MapController {
-  private map: Map;
+  private map: Map | null = null;
   private L: Leaflet;
   private markers: Marker[] = [];
   private defaultCenter: LatLngTuple = [54.6872, 25.2797]; // Vilnius center
@@ -13,11 +13,15 @@ export class MapController {
 
   constructor(containerId: string, leaflet: Leaflet) {
     this.L = leaflet;
-    this.map = this.L.map(containerId).setView(this.defaultCenter, this.defaultZoom);
+    // Check if the map is already initialized in this container
+    const container = document.getElementById(containerId);
+    if (container && !(container as any)._leaflet_id) {
+      this.map = this.L.map(containerId).setView(this.defaultCenter, this.defaultZoom);
 
-    this.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(this.map);
+      this.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(this.map);
+    }
   }
 
   private clearMarkers() {
@@ -26,6 +30,7 @@ export class MapController {
   }
 
   public updateStops(stops: StopWithCoords[]) {
+    if (!this.map) return;
     this.clearMarkers();
 
     if (stops.length === 0) {
@@ -40,13 +45,20 @@ export class MapController {
           ${(stop.times || []).join(', ')}
         </div>
       `;
-      const marker = this.L.marker(stop.coords).addTo(this.map).bindPopup(popupContent);
+      const marker = this.L.marker(stop.coords).addTo(this.map!).bindPopup(popupContent);
       this.markers.push(marker);
     });
 
     const bounds = this.L.latLngBounds(stops.map(s => s.coords));
     if (bounds.isValid()) {
       this.map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }
+
+  public destroy() {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
     }
   }
 }

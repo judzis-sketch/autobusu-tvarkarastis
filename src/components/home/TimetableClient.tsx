@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useMemo, useRef } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { getTimetableForRoute } from '@/lib/actions';
 import { MapController } from '@/lib/map-controller';
@@ -20,14 +20,17 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  const mapControllerRef = useRef<MapController | null>(null);
+  // We will store the map controller instance in state to ensure it's handled by React's lifecycle
+  const [mapController, setMapController] = useState<MapController | null>(null);
 
   const selectedRoute = initialRoutes.find(r => r.id === selectedRouteId);
 
   useEffect(() => {
-    // Initialize the map controller once the component mounts
-    if (!mapControllerRef.current) {
-        // Dynamically import leaflet only on the client side
+    // This effect initializes the map and should only run once.
+    let controller: MapController | null = null;
+    
+    // Check if map is already initialized to prevent re-initialization
+    if (document.getElementById('map') && !document.getElementById('map')?.hasChildNodes()) {
         import('leaflet').then(L => {
              // This is to fix the missing icon issue with react-leaflet
             const markerIcon2x = '/_next/static/media/marker-icon-2x.b4553f17.png';
@@ -42,17 +45,22 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
                 shadowUrl: markerShadow,
             });
 
-            if (document.getElementById('map')) {
-                 mapControllerRef.current = new MapController('map', L);
-            }
+            controller = new MapController('map', L);
+            setMapController(controller);
         });
     }
-  }, []);
+
+    // Cleanup function to destroy the map instance when the component unmounts
+    return () => {
+        controller?.destroy();
+        setMapController(null);
+    }
+  }, []); // Empty dependency array ensures this runs only on mount and unmount
 
   useEffect(() => {
     if (!selectedRouteId) {
       setTimetable([]);
-      mapControllerRef.current?.updateStops([]);
+      mapController?.updateStops([]);
       return;
     }
     
@@ -60,9 +68,9 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
       const tt = await getTimetableForRoute(selectedRouteId);
       setTimetable(tt);
       const stopsWithCoords = tt.filter(s => s.coords && s.coords.length === 2) as (TimetableEntry & { coords: [number, number] })[];
-      mapControllerRef.current?.updateStops(stopsWithCoords);
+      mapController?.updateStops(stopsWithCoords);
     });
-  }, [selectedRouteId]);
+  }, [selectedRouteId, mapController]);
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
