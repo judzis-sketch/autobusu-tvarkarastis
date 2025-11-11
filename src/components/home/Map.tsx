@@ -6,6 +6,7 @@ import L from 'leaflet';
 import type { TimetableEntry } from '@/lib/types';
 import { useEffect } from 'react';
 
+// This is to fix the missing icon issue with react-leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -17,6 +18,7 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x.src,
   shadowUrl: markerShadow.src,
 });
+
 
 type StopsWithCoords = (TimetableEntry & { coords: [number, number] })[];
 

@@ -112,7 +112,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
             <CardDescription>Stotelės pažymėtos žemėlapyje.</CardDescription>
         </CardHeader>
         <CardContent className="h-[calc(100%-120px)]">
-             <MemoizedMap stops={stopsWithCoords} />
+             <MemoizedMap key={selectedRouteId} stops={stopsWithCoords} />
         </CardContent>
       </Card>
     </div>
