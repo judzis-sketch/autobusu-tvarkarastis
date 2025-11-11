@@ -7,6 +7,7 @@ import { db } from './firebase';
 import type { Route, TimetableEntry } from './types';
 
 export async function getRoutes(): Promise<Route[]> {
+  if (!db) return [];
   try {
     const q = query(collection(db, 'routes'), orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
@@ -18,6 +19,7 @@ export async function getRoutes(): Promise<Route[]> {
 }
 
 export async function getTimetableForRoute(routeId: string): Promise<TimetableEntry[]> {
+  if (!db) return [];
   try {
     const q = query(collection(db, `routes/${routeId}/timetable`), orderBy('createdAt', 'asc'));
     const snap = await getDocs(q);
@@ -34,6 +36,7 @@ const routeSchema = z.object({
 });
 
 export async function addRouteAction(values: z.infer<typeof routeSchema>): Promise<{ success: boolean, error?: string, newRoute?: Route }> {
+  if (!db) return { success: false, error: 'Duomenų bazė nepasiekiama.' };
   const validatedFields = routeSchema.safeParse(values);
 
   if (!validatedFields.success) {
@@ -61,6 +64,7 @@ const timetableSchema = z.object({
 });
 
 export async function addTimetableEntryAction(values: z.infer<typeof timetableSchema>): Promise<{ success: boolean, error?: string }> {
+   if (!db) return { success: false, error: 'Duomenų bazė nepasiekiama.' };
    const validatedFields = timetableSchema.safeParse(values);
 
    if (!validatedFields.success) {
