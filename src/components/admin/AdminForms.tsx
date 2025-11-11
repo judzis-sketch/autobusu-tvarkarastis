@@ -2,22 +2,27 @@
 
 import type { Route } from '@/lib/types';
 import { useState, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addRouteAction, addTimetableEntryAction } from '@/lib/actions';
+import { addMultipleRoutesAction, addTimetableEntryAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
 });
+
+const multipleRoutesSchema = z.object({
+  routes: z.array(routeSchema),
+});
+
 
 const timetableSchema = z.object({
   routeId: z.string({ required_error: 'Prašome pasirinkti maršrutą.' }),
@@ -36,9 +41,16 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
 
-  const routeForm = useForm<z.infer<typeof routeSchema>>({
-    resolver: zodResolver(routeSchema),
-    defaultValues: { number: '', name: '' },
+  const routeForm = useForm<z.infer<typeof multipleRoutesSchema>>({
+    resolver: zodResolver(multipleRoutesSchema),
+    defaultValues: {
+      routes: [{ number: '', name: '' }],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: routeForm.control,
+    name: 'routes',
   });
 
   const timetableForm = useForm<z.infer<typeof timetableSchema>>({
@@ -46,13 +58,15 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
     defaultValues: { routeId: '', stop: '', times: '', coords: '' },
   });
 
-  const handleAddRoute = async (values: z.infer<typeof routeSchema>) => {
+  const handleAddRoute = async (values: z.infer<typeof multipleRoutesSchema>) => {
     startTransitionRoute(async () => {
-      const result = await addRouteAction(values);
+      const result = await addMultipleRoutesAction(values);
       if (result.success) {
-        toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas.' });
-        routeForm.reset();
-        if(result.newRoute) setRoutes(prev => [...prev, result.newRoute!]);
+        toast({ title: 'Pavyko!', description: 'Maršrutai sėkmingai pridėti.' });
+        routeForm.reset({ routes: [{ number: '', name: '' }] });
+        if(result.newRoutes) {
+          setRoutes(prev => [...result.newRoutes!, ...prev]);
+        }
       } else {
         toast({
           title: 'Klaida!',
@@ -83,43 +97,70 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
     <div className="max-w-3xl mx-auto space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>Naujas maršrutas</CardTitle>
+          <CardTitle>Nauji maršrutai</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...routeForm}>
-            <form onSubmit={routeForm.handleSubmit(handleAddRoute)} className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <FormField
-                  control={routeForm.control}
-                  name="number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nr.</FormLabel>
-                      <FormControl>
-                        <Input placeholder="10G" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={routeForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>Pavadinimas</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Stotis - Centras" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <form onSubmit={routeForm.handleSubmit(handleAddRoute)} className="space-y-6">
+              <div className="space-y-4">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr,2fr,auto] gap-4 items-start">
+                    <FormField
+                      control={routeForm.control}
+                      name={`routes.${index}.number`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className={index !== 0 ? 'sr-only' : ''}>Nr.</FormLabel>
+                          <FormControl>
+                            <Input placeholder="10G" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={routeForm.control}
+                      name={`routes.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className={index !== 0 ? 'sr-only' : ''}>Pavadinimas</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Stotis - Centras" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <div className={index !== 0 ? 'mt-0' : 'mt-8'}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => remove(index)}
+                          disabled={fields.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <span className="sr-only">Pašalinti</span>
+                        </Button>
+                      </div>
+                  </div>
+                ))}
               </div>
-              <Button type="submit" disabled={isPendingRoute}>
-                {isPendingRoute && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Pridėti maršrutą
-              </Button>
+               <div className="flex items-center gap-4">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => append({ number: '', name: '' })}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Pridėti eilutę
+                  </Button>
+                <Button type="submit" disabled={isPendingRoute}>
+                  {isPendingRoute && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Pridėti maršrutus
+                </Button>
+               </div>
             </form>
           </Form>
         </CardContent>
@@ -138,7 +179,7 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Maršrutas</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="-- Pasirinkti maršrutą --" />

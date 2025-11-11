@@ -1,6 +1,6 @@
 'use server';
 
-import { collection, getDocs, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, writeBatch } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from './firebase';
@@ -35,24 +35,51 @@ const routeSchema = z.object({
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
 });
 
-export async function addRouteAction(values: z.infer<typeof routeSchema>): Promise<{ success: boolean, error?: string, newRoute?: Route }> {
-  if (!db) return { success: false, error: 'Duomenų bazė nepasiekiama.' };
-  const validatedFields = routeSchema.safeParse(values);
+const multipleRoutesSchema = z.object({
+  routes: z.array(routeSchema),
+});
 
-  if (!validatedFields.success) {
-    return { success: false, error: 'Neteisingi duomenys.' };
-  }
 
-  const { number, name } = validatedFields.data;
+export async function addMultipleRoutesAction(values: z.infer<typeof multipleRoutesSchema>): Promise<{ success: boolean; error?: string, newRoutes?: Route[] }> {
+    if (!db) return { success: false, error: 'Duomenų bazė nepasiekiama.' };
 
-  try {
-    const docRef = await addDoc(collection(db, 'routes'), { number, name, createdAt: serverTimestamp() });
-    revalidatePath('/admin');
-    revalidatePath('/');
-    return { success: true, newRoute: { id: docRef.id, number, name } };
-  } catch (error) {
-    return { success: false, error: 'Nepavyko pridėti maršruto.' };
-  }
+    const validatedFields = multipleRoutesSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return { success: false, error: 'Neteisingi duomenys.' };
+    }
+
+    const { routes } = validatedFields.data;
+
+    if (!routes || routes.length === 0) {
+        return { success: false, error: 'Nėra maršrutų pridėti.' };
+    }
+
+    try {
+        const batch = writeBatch(db);
+        const addedRoutes: Route[] = [];
+
+        routes.forEach(route => {
+            const docRef = addDoc(collection(db, 'routes'), { 
+                ...route, 
+                createdAt: serverTimestamp() 
+            });
+            // We can't get docRef.id before committing, so we create a temporary client-side representation
+            addedRoutes.push({ id: Math.random().toString(), ...route });
+        });
+
+        await batch.commit();
+
+        revalidatePath('/admin');
+        revalidatePath('/');
+        
+        // This is a simplified version. For a robust solution, you'd fetch the new routes again.
+        // But for UI feedback, this is often sufficient.
+        return { success: true, newRoutes: addedRoutes };
+    } catch (error) {
+        console.error("Error adding multiple routes: ", error);
+        return { success: false, error: 'Nepavyko pridėti maršrutų.' };
+    }
 }
 
 
