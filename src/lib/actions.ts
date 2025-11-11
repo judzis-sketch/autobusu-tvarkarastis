@@ -61,11 +61,13 @@ export async function addMultipleRoutesAction(values: z.infer<typeof multipleRou
 
         routes.forEach(route => {
             if (route.name && route.number) {
+                // Correctly create a new document reference within the 'routes' collection
                 const docRef = doc(collection(db, 'routes'));
-                batch.set(docRef, { 
-                    ...route, 
-                    createdAt: serverTimestamp() 
+                batch.set(docRef, {
+                    ...route,
+                    createdAt: serverTimestamp()
                 });
+                // Temporarily add data for immediate UI update
                 newRoutesData.push({ id: docRef.id, ...route, createdAt: new Date() });
             }
         });
