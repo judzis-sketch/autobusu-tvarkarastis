@@ -1,6 +1,6 @@
 'use server';
 
-import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, writeBatch, doc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from './firebase';
@@ -57,15 +57,17 @@ export async function addMultipleRoutesAction(values: z.infer<typeof multipleRou
 
     try {
         const batch = writeBatch(db);
-        const addedRoutes: Route[] = [];
+        const newRoutesData: Route[] = [];
 
         routes.forEach(route => {
-            const docRef = addDoc(collection(db, 'routes'), { 
-                ...route, 
-                createdAt: serverTimestamp() 
-            });
-            // We can't get docRef.id before committing, so we create a temporary client-side representation
-            addedRoutes.push({ id: Math.random().toString(), ...route });
+            if (route.name && route.number) {
+                const docRef = doc(collection(db, 'routes'));
+                batch.set(docRef, { 
+                    ...route, 
+                    createdAt: serverTimestamp() 
+                });
+                newRoutesData.push({ id: docRef.id, ...route, createdAt: new Date() });
+            }
         });
 
         await batch.commit();
@@ -73,9 +75,7 @@ export async function addMultipleRoutesAction(values: z.infer<typeof multipleRou
         revalidatePath('/admin');
         revalidatePath('/');
         
-        // This is a simplified version. For a robust solution, you'd fetch the new routes again.
-        // But for UI feedback, this is often sufficient.
-        return { success: true, newRoutes: addedRoutes };
+        return { success: true, newRoutes: newRoutesData };
     } catch (error) {
         console.error("Error adding multiple routes: ", error);
         return { success: false, error: 'Nepavyko pridėti maršrutų.' };
