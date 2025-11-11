@@ -1,20 +1,15 @@
 'use client';
 
-import { useState, useEffect, useTransition, useMemo } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useEffect, useTransition, useMemo, useRef } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { getTimetableForRoute } from '@/lib/actions';
+import { MapController } from '@/lib/map-controller';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, MapPin } from 'lucide-react';
-
-const Map = dynamic(() => import('@/components/home/Map'), {
-  ssr: false,
-  loading: () => <Skeleton className="h-[500px] w-full" />,
-});
 
 type TimetableClientProps = {
   initialRoutes: Route[];
@@ -25,21 +20,49 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [isPending, startTransition] = useTransition();
 
+  const mapControllerRef = useRef<MapController | null>(null);
+
   const selectedRoute = initialRoutes.find(r => r.id === selectedRouteId);
+
+  useEffect(() => {
+    // Initialize the map controller once the component mounts
+    if (!mapControllerRef.current) {
+        // Dynamically import leaflet only on the client side
+        import('leaflet').then(L => {
+             // This is to fix the missing icon issue with react-leaflet
+            const markerIcon2x = '/_next/static/media/marker-icon-2x.b4553f17.png';
+            const markerIcon = '/_next/static/media/marker-icon.7c2c9535.png';
+            const markerShadow = '/_next/static/media/marker-shadow.a0c6a589.png';
+            
+            // @ts-ignore
+            delete L.Icon.Default.prototype._getIconUrl;
+            L.Icon.Default.mergeOptions({
+                iconUrl: markerIcon,
+                iconRetinaUrl: markerIcon2x,
+                shadowUrl: markerShadow,
+            });
+
+            if (document.getElementById('map')) {
+                 mapControllerRef.current = new MapController('map', L);
+            }
+        });
+    }
+  }, []);
 
   useEffect(() => {
     if (!selectedRouteId) {
       setTimetable([]);
+      mapControllerRef.current?.updateStops([]);
       return;
     }
     
     startTransition(async () => {
       const tt = await getTimetableForRoute(selectedRouteId);
       setTimetable(tt);
+      const stopsWithCoords = tt.filter(s => s.coords && s.coords.length === 2) as (TimetableEntry & { coords: [number, number] })[];
+      mapControllerRef.current?.updateStops(stopsWithCoords);
     });
   }, [selectedRouteId]);
-
-  const stopsWithCoords = useMemo(() => timetable.filter(s => s.coords && s.coords.length === 2) as (TimetableEntry & { coords: [number, number] })[], [timetable]);
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">
@@ -112,7 +135,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
             <CardDescription>Stotelės pažymėtos žemėlapyje.</CardDescription>
         </CardHeader>
         <CardContent className="h-[calc(100%-120px)]">
-             <Map stops={stopsWithCoords} />
+             <div id="map" className="h-full w-full rounded-lg z-0" />
         </CardContent>
       </Card>
     </div>
