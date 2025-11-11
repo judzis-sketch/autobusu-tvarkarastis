@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getFirestore, initializeFirestore, Firestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,33 +10,31 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-function getFirebaseApp() {
-    if (getApps().length > 0) {
-        return getApp();
-    }
-    // Don't initialize if the config is not provided
-    if (!firebaseConfig.projectId) {
-        return null;
-    }
-    return initializeApp(firebaseConfig);
-}
+let app: FirebaseApp | null = null;
+let firestore: Firestore | null = null;
 
-function getDb() {
-    const app = getFirebaseApp();
-    if (!app) {
-        return null;
+function initialize() {
+    if (!firebaseConfig.projectId) {
+        console.warn("Firebase config not found. Skipping initialization.");
+        return;
     }
-    // When running in a server-side environment, it's possible for getFirestore to be called multiple times,
-    // which can lead to a crash. By using initializeFirestore, we can avoid this issue.
-    // We also use CACHE_SIZE_UNLIMITED to avoid a warning about the cache size being too small.
+    
+    if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+
     try {
-        return getFirestore(app);
+        firestore = getFirestore(app);
     } catch (e) {
-        return initializeFirestore(app, {
+        firestore = initializeFirestore(app, {
             cacheSizeBytes: CACHE_SIZE_UNLIMITED,
         });
     }
 }
 
+// Initialize on module load
+initialize();
 
-export const db = getDb();
+export const db = firestore;
