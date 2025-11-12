@@ -2,7 +2,7 @@
 
 import type { Route, TimetableEntry } from '@/lib/types';
 import { useState, useTransition, useEffect, useMemo } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { getRoutes, getTimetableForRoute } from '@/lib/actions';
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, PlusCircle, Trash2, MapPin } from 'lucide-react';
 import { useFirestore } from '@/firebase';
-import { addDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import {
@@ -71,11 +71,6 @@ const routeSchema = z.object({
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
 });
 
-const multipleRoutesSchema = z.object({
-  routes: z.array(routeSchema),
-});
-
-
 const timetableSchema = z.object({
   routeId: z.string({ required_error: 'Prašome pasirinkti maršrutą.' }),
   stop: z.string().min(1, 'Stotelės pavadinimas yra privalomas'),
@@ -113,16 +108,12 @@ export default function AdminForms() {
     fetchRoutes();
   }, []);
 
-  const routeForm = useForm<z.infer<typeof multipleRoutesSchema>>({
-    resolver: zodResolver(multipleRoutesSchema),
+  const routeForm = useForm<z.infer<typeof routeSchema>>({
+    resolver: zodResolver(routeSchema),
     defaultValues: {
-      routes: [{ number: '', name: '' }],
+      number: '',
+      name: '',
     },
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control: routeForm.control,
-    name: 'routes',
   });
 
   const timetableForm = useForm<z.infer<typeof timetableSchema>>({
@@ -144,22 +135,17 @@ export default function AdminForms() {
       timetableForm.setValue('coords', `${newCoords[0].toFixed(6)}, ${newCoords[1].toFixed(6)}`);
   };
 
-  const handleAddRoute = (values: z.infer<typeof multipleRoutesSchema>) => {
+  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
       const routesCollectionRef = collection(firestore, 'routes');
+      const newRoute = {
+          ...values,
+          createdAt: serverTimestamp()
+      };
+      addDocumentNonBlocking(routesCollectionRef, newRoute);
       
-      for (const routeData of values.routes) {
-          if (routeData.name && routeData.number) {
-              const newRoute = {
-                  ...routeData,
-                  createdAt: serverTimestamp()
-              };
-              addDocumentNonBlocking(routesCollectionRef, newRoute);
-          }
-      }
-      
-      toast({ title: 'Pavyko!', description: 'Maršrutai sėkmingai pridėti į eilę.' });
-      routeForm.reset({ routes: [{ number: '', name: '' }] });
+      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas į eilę.' });
+      routeForm.reset();
       await fetchRoutes(); // Refresh routes list
     });
   };
@@ -233,70 +219,44 @@ export default function AdminForms() {
     <div className="max-w-4xl mx-auto space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>Nauji maršrutai</CardTitle>
+          <CardTitle>Naujas maršrutas</CardTitle>
+          <CardDescription>Įveskite naujo maršruto informaciją.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...routeForm}>
-            <form onSubmit={routeForm.handleSubmit(handleAddRoute)} className="space-y-6">
-              <div className="space-y-4">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr,2fr,auto] gap-4 items-start">
-                    <FormField
-                      control={routeForm.control}
-                      name={`routes.${index}.number`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className={index !== 0 ? 'sr-only' : ''}>Nr.</FormLabel>
-                          <FormControl>
-                            <Input placeholder="10G" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={routeForm.control}
-                      name={`routes.${index}.name`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className={index !== 0 ? 'sr-only' : ''}>Pavadinimas</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Stotis - Centras" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <div className={index !== 0 ? 'mt-0' : 'mt-8'}>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(index)}
-                          disabled={fields.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                          <span className="sr-only">Pašalinti</span>
-                        </Button>
-                      </div>
-                  </div>
-                ))}
+            <form onSubmit={routeForm.handleSubmit(handleAddRoute)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={routeForm.control}
+                  name="number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Numeris</FormLabel>
+                      <FormControl>
+                        <Input placeholder="10G" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={routeForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pavadinimas</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Stotis - Centras" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-               <div className="flex items-center gap-4">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => append({ number: '', name: '' })}
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Pridėti eilutę
-                  </Button>
-                <Button type="submit" disabled={isPendingRoute}>
-                  {isPendingRoute && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Pridėti maršrutus
-                </Button>
-               </div>
+              <Button type="submit" disabled={isPendingRoute}>
+                {isPendingRoute && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Pridėti maršrutą
+              </Button>
             </form>
           </Form>
         </CardContent>
@@ -437,5 +397,3 @@ export default function AdminForms() {
     </div>
   );
 }
-
-    
