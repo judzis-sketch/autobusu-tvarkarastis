@@ -75,11 +75,11 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
 
     // Add markers
     const currentMarker = L.marker(stopPositions[0], { icon: redIcon }).addTo(map);
-    currentMarker.bindPopup(`<b>Išvykimas:</b><br/>${currentStop.stop}`).openPopup();
+    currentMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.times.join(', ')}`).openPopup();
     markersRef.current.push(currentMarker);
 
     const nextMarker = L.marker(stopPositions[1], { icon: redIcon }).addTo(map);
-    nextMarker.bindPopup(`<b>Atvykimas:</b><br/>${nextStop.stop}`);
+    nextMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.times.join(', ')}`);
     markersRef.current.push(nextMarker);
     
     // Fit bounds to markers initially
