@@ -13,14 +13,25 @@
 3.  Projekto nustatymuose (`Project settings` -> `General`), rask `Your apps` sekciją ir pridėk naują `Web app`.
 4.  Nukopijuok `firebaseConfig` objektą.
 5.  Sukurk `.env.local` failą projekto šakninėje direktorijoje.
-6.  Pridėk Firebase konfigūracijos raktus į `.env.local` failą, pakeisdamas `<...>` su savo reikšmėmis:
+6.  Pridėk Firebase konfigūracijos raktus į `.env.local` failą, pakeisdamas `<...>` su savo reikšmėmis.
+    **SVARBU:** Failas turi turėti ir `NEXT_PUBLIC_` kintamuosius (kliento pusei) ir kintamuosius be `NEXT_PUBLIC_` (serverio pusei).
+
     ```
+    # Client-side variables
     NEXT_PUBLIC_FIREBASE_API_KEY=<YOUR_API_KEY>
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=<YOUR_AUTH_DOMAIN>
     NEXT_PUBLIC_FIREBASE_PROJECT_ID=<YOUR_PROJECT_ID>
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<YOUR_STORAGE_BUCKET>
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<YOUR_MESSAGING_SENDER_ID>
     NEXT_PUBLIC_FIREBASE_APP_ID=<YOUR_APP_ID>
+
+    # Server-side variables
+    FIREBASE_API_KEY=<YOUR_API_KEY>
+    FIREBASE_AUTH_DOMAIN=<YOUR_AUTH_DOMAIN>
+    FIREBASE_PROJECT_ID=<YOUR_PROJECT_ID>
+    FIREBASE_STORAGE_BUCKET=<YOUR_STORAGE_BUCKET>
+    FIREBASE_MESSAGING_SENDER_ID=<YOUR_MESSAGING_SENDER_ID>
+    FIREBASE_APP_ID=<YOUR_APP_ID>
     ```
 7.  Firebase konsolėje, eik į `Firestore Database` ir sukurk duomenų bazę. Pradėk `test mode` arba nustatyk atitinkamas saugumo taisykles.
 
