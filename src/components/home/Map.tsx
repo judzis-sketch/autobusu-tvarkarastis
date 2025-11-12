@@ -3,18 +3,18 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import type { TimetableEntry } from '@/lib/types';
 import { useEffect, FC } from 'react';
-import { Icon } from 'leaflet';
 
-// This is a workaround for a bug in react-leaflet where the default icon path is not resolved correctly.
-const DefaultIcon = new Icon({
-    iconUrl: '/marker-icon.png',
-    iconRetinaUrl: '/marker-icon-2x.png',
-    shadowUrl: '/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
+// This needs to be in a try/catch for Next.js server-side rendering
+try {
+    const L = require('leaflet');
+    L.Icon.Default.mergeOptions({
+        iconUrl: '/marker-icon.png',
+        iconRetinaUrl: '/marker-icon-2x.png',
+        shadowUrl: '/marker-shadow.png',
+    });
+} catch (error) {
+    // On the server, this will fail, but it's not needed there.
+}
 
 interface MapProps {
   stops: TimetableEntry[];
@@ -50,7 +50,7 @@ export default function Map({ stops }: MapProps) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       {stopsWithCoords.map((stop, index) => (
-        <Marker key={stop.id || index} position={stop.coords as [number, number]} icon={DefaultIcon}>
+        <Marker key={stop.id || index} position={stop.coords as [number, number]}>
           <Popup>
             <b>{stop.stop}</b><br />
             Laikai: {stop.times.join(', ')}
