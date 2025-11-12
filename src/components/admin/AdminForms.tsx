@@ -150,12 +150,11 @@ export default function AdminForms() {
       
       for (const routeData of values.routes) {
           if (routeData.name && routeData.number) {
-              const docRef = doc(routesCollectionRef);
               const newRoute = {
                   ...routeData,
                   createdAt: serverTimestamp()
               };
-              setDocumentNonBlocking(docRef, newRoute, {});
+              addDocumentNonBlocking(routesCollectionRef, newRoute);
           }
       }
       
