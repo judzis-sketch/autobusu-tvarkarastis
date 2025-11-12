@@ -1,43 +1,55 @@
 'use client';
 
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
+  const firestore = useFirestore(); // This might not be ready immediately on first render
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    // Wait until both user loading is complete and firestore instance is available
+    if (isUserLoading || !firestore) {
+      return; 
+    }
+
+    if (!user) {
       router.replace('/login');
-    } else if (user) {
-      const checkAdminStatus = async () => {
-        setIsCheckingAdmin(true);
+      return;
+    }
+
+    const checkAdminStatus = async () => {
+      setIsCheckingAdmin(true);
+      try {
         const adminDocRef = doc(firestore, 'roles_admin', user.uid);
         const adminDocSnap = await getDoc(adminDocRef);
         if (adminDocSnap.exists()) {
           setIsAdmin(true);
         } else {
-          // If not an admin, deny access. You might want to redirect
-          // to a specific 'access-denied' page or just back to home.
           console.warn('Access denied. User is not an admin.');
           router.replace('/'); 
         }
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        router.replace('/'); // Redirect on error as well
+      } finally {
         setIsCheckingAdmin(false);
-      };
+      }
+    };
 
-      checkAdminStatus();
-    }
-  }, [user, isUserLoading, router, firestore]);
+    checkAdminStatus();
+  }, [user, isUserLoading, firestore, router]);
 
-  if (isUserLoading || isCheckingAdmin) {
+  // Combined loading state
+  const isLoading = isUserLoading || isCheckingAdmin || !firestore;
+
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -49,6 +61,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Fallback, although the useEffect should have already redirected.
+  // Fallback rendering null while redirects are happening
   return null;
 }

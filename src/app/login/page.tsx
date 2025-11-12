@@ -9,32 +9,46 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(true); // Start true to show loader initially
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isUserLoading } = useUser();
-
+  
   useEffect(() => {
-    // If user is already logged in, redirect them away from login page
-    if (!isUserLoading && user) {
-      router.replace('/admin');
-    }
-  }, [user, isUserLoading, router]);
+    // This listener handles both initial auth state check and subsequent changes
+    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+      if (user) {
+        // User is logged in, redirect to admin page
+        toast({
+          title: 'Sėkmingai prisijungėte!',
+          description: 'Valdymo skydelis kraunamas...',
+        });
+        router.replace('/admin');
+        // Redirection is handled, but we keep the loader until the new page loads
+      } else {
+        // User is not logged in, stop showing the initial loader
+        setIsRedirecting(false);
+        setIsLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, router, toast]);
+
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // We need to handle the sign-in result to show errors
     try {
       await initiateEmailSignIn(auth, email, password);
-      // The onAuthStateChanged listener will handle the redirect on success
+      // onAuthStateChanged listener will handle the redirect on success.
     } catch (error: any) {
       console.error(error);
       let description = 'Patikrinkite įvestus duomenis.';
@@ -49,28 +63,9 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-  
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // User signed in
-        toast({
-          title: 'Sėkmingai prisijungėte!',
-          description: 'Valdymo skydelis kraunamas...',
-        });
-        router.push('/admin');
-      } else {
-        // User is signed out.
-        setIsLoading(false);
-      }
-    });
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, [auth, router, toast]);
-
-
-  if (isUserLoading || user) {
+  // Show a loader while we're checking the initial auth state
+  if (isRedirecting) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
