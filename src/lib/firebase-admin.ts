@@ -7,30 +7,26 @@ function initializeForServer(): { app: App; db: Firestore } {
   let app: App;
 
   if (apps.length === 0) {
-    try {
-      // Try to initialize with default credentials (works in App Hosting)
-      app = initializeApp();
-    } catch (e) {
-      console.warn("Default initialization failed. Falling back to env vars.", e);
-      // Fallback for local development or other environments
-      if (process.env.FIREBASE_PRIVATE_KEY) {
-        app = initializeApp({
-          credential: credential.cert({
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            // Replace newline characters with actual newlines
-            privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-          }),
-        });
-      } else {
-         console.error("Firebase Admin initialization failed. Missing FIREBASE_PRIVATE_KEY env var.")
-         // This will likely cause subsequent Firestore operations to fail.
-         // As a last resort, try initializing without any credentials.
-         // This might work for emulators or unauthenticated access in some cases, but not for production Firestore.
-         app = initializeApp({
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-         });
-      }
+    // This path is for environments where service account credentials are set in environment variables.
+    // It's a more reliable approach for Vercel, local dev, etc.
+    if (process.env.FIREBASE_PRIVATE_KEY) {
+      app = initializeApp({
+        credential: credential.cert({
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          // The private key from the .env.local file needs to have its newlines restored.
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
+    } else {
+       // This path is for environments like Firebase App Hosting or Cloud Run,
+       // where default application credentials are automatically available.
+       try {
+         app = initializeApp();
+       } catch (e) {
+          console.error("Firebase Admin initialization failed. Ensure service account credentials are set in your environment variables (.env.local) or that you are running in a supported Google Cloud environment.");
+          throw e;
+       }
     }
   } else {
     app = apps[0];
