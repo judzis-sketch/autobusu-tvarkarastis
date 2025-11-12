@@ -1,15 +1,17 @@
 'use server';
 
+import { LatLngTuple } from 'leaflet';
+
 /**
  * Decodes a polyline string into an array of [latitude, longitude] coordinates.
  * @param str - The encoded polyline string.
  * @returns An array of coordinate pairs.
  */
-function decodePolyline(str: string): [number, number][] {
+function decodePolyline(str: string): LatLngTuple[] {
     let index = 0,
         lat = 0,
         lng = 0,
-        coordinates: [number, number][] = [],
+        coordinates: LatLngTuple[] = [],
         shift = 0,
         result = 0,
         byte = null,
@@ -99,7 +101,7 @@ export async function getRouteDistance(
 export async function getRoute(
   startCoords: [number, number],
   endCoords: [number, number]
-): Promise<{ distance: number; geometry: [number, number][] } | null> {
+): Promise<{ distance: number; geometry: LatLngTuple[] } | null> {
   const [startLat, startLng] = startCoords;
   const [endLat, endLng] = endCoords;
 
