@@ -764,7 +764,7 @@ export default function AdminForms() {
                 <div>
                   <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                      {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                      {route.days && route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
                   </div>
                 </div>
                 <AlertDialog>
@@ -861,3 +861,5 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
