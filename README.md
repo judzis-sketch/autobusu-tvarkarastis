@@ -14,10 +14,15 @@
 4.  Nukopijuok `firebaseConfig` objektą.
 5.  Sukurk `.env.local` failą projekto šakninėje direktorijoje.
 6.  Pridėk Firebase konfigūracijos raktus į `.env.local` failą, pakeisdamas `<...>` su savo reikšmėmis.
-    **SVARBU:** Failas turi turėti ir `NEXT_PUBLIC_` kintamuosius (kliento pusei) ir kintamuosius be `NEXT_PUBLIC_` (serverio pusei).
+
+    **Serverio kintamųjų (`FIREBASE_CLIENT_EMAIL` ir `FIREBASE_PRIVATE_KEY`) gavimas:**
+    a. Firebase konsolėje, eik į `Project settings` -> `Service accounts`.
+    b. Pasirink `Firebase Admin SDK` ir `Node.js`.
+    c. Spausk `Generate new private key`.
+    d. Atsisiųstame JSON faile rask `client_email` ir `private_key` reikšmes. Nukopijuok jas į atitinkamus laukus `.env.local` faile. `private_key` reikšmę kopijuok su `-----BEGIN PRIVATE KEY-----` ir `-----END PRIVATE KEY-----\n` dalimis.
 
     ```
-    # Client-side variables
+    # Client-side variables (from web app config)
     NEXT_PUBLIC_FIREBASE_API_KEY=<YOUR_API_KEY>
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=<YOUR_AUTH_DOMAIN>
     NEXT_PUBLIC_FIREBASE_PROJECT_ID=<YOUR_PROJECT_ID>
@@ -25,13 +30,9 @@
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<YOUR_MESSAGING_SENDER_ID>
     NEXT_PUBLIC_FIREBASE_APP_ID=<YOUR_APP_ID>
 
-    # Server-side variables (used for Server Actions)
-    FIREBASE_API_KEY=<YOUR_API_KEY>
-    FIREBASE_AUTH_DOMAIN=<YOUR_AUTH_DOMAIN>
-    FIREBASE_PROJECT_ID=<YOUR_PROJECT_ID>
-    FIREBASE_STORAGE_BUCKET=<YOUR_STORAGE_BUCKET>
-    FIREBASE_MESSAGING_SENDER_ID=<YOUR_MESSAGING_SENDER_ID>
-    FIREBASE_APP_ID=<YOUR_APP_ID>
+    # Server-side variables for Firebase Admin SDK (from service account JSON file)
+    FIREBASE_CLIENT_EMAIL=<YOUR_SERVICE_ACCOUNT_CLIENT_EMAIL>
+    FIREBASE_PRIVATE_KEY=<YOUR_SERVICE_ACCOUNT_PRIVATE_KEY>
     ```
 7.  Firebase konsolėje, eik į `Firestore Database` ir sukurk duomenų bazę. Pradėk `test mode` arba nustatyk atitinkamas saugumo taisykles.
 8.  Firebase konsolėje, eik į `Authentication` -> `Sign-in method` ir įjunk `Email/Password` prisijungimo būdą.
@@ -61,3 +62,5 @@
 ## 3) Build & deploy
 `npm run build` — paruošimui deploy.
 Deploy: Vercel / Netlify / Firebase Hosting (rekomenduojama HTTPS, kad PWA veiktų pilnai).
+
+```
