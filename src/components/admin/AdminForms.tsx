@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addMultipleRoutesAction, addTimetableEntryAction, getRoutes } from '@/lib/actions';
+import { getRoutes } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
-import { useAuth } from '@/firebase';
+import { useFirestore } from '@/firebase';
+import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp, doc } from 'firebase/firestore';
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -38,17 +40,27 @@ export default function AdminForms() {
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
-  const auth = useAuth();
+  const firestore = useFirestore();
 
   useEffect(() => {
     const fetchRoutes = async () => {
       setIsLoadingRoutes(true);
-      const fetchedRoutes = await getRoutes();
-      setRoutes(fetchedRoutes);
-      setIsLoadingRoutes(false);
+      try {
+        const fetchedRoutes = await getRoutes();
+        setRoutes(fetchedRoutes);
+      } catch (error) {
+        console.error("Failed to fetch routes:", error);
+        toast({
+          title: 'Klaida gaunant maršrutus',
+          description: 'Nepavyko gauti maršrutų sąrašo. Patikrinkite konsolę.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingRoutes(false);
+      }
     };
     fetchRoutes();
-  }, []);
+  }, [toast]);
 
   const routeForm = useForm<z.infer<typeof multipleRoutesSchema>>({
     resolver: zodResolver(multipleRoutesSchema),
@@ -68,37 +80,59 @@ export default function AdminForms() {
   });
 
   const handleAddRoute = (values: z.infer<typeof multipleRoutesSchema>) => {
-    startTransitionRoute(async () => {
-      const result = await addMultipleRoutesAction(values);
-      if (result.success) {
-        toast({ title: 'Pavyko!', description: 'Maršrutai sėkmingai pridėti.' });
-        routeForm.reset({ routes: [{ number: '', name: '' }] });
-        if(result.newRoutes) {
-          setRoutes(prev => [...(result.newRoutes || []), ...prev].sort((a, b) => (b.createdAt as any) - (a.createdAt as any)));
+    startTransitionRoute(() => {
+      const routesCollectionRef = collection(firestore, 'routes');
+      const newRoutesData: Route[] = [];
+
+      values.routes.forEach(routeData => {
+        if (routeData.name && routeData.number) {
+            const docRef = doc(routesCollectionRef);
+            const newRoute = {
+                ...routeData,
+                createdAt: serverTimestamp()
+            };
+            setDocumentNonBlocking(docRef, newRoute, {});
+            newRoutesData.push({ id: docRef.id, ...routeData, createdAt: new Date() });
         }
-      } else {
-        toast({
-          title: 'Klaida!',
-          description: result.error,
-          variant: 'destructive',
-        });
-      }
+      });
+      
+      toast({ title: 'Pavyko!', description: 'Maršrutai sėkmingai pridėti į eilę.' });
+      routeForm.reset({ routes: [{ number: '', name: '' }] });
+      setRoutes(prev => [...newRoutesData, ...prev].sort((a, b) => (b.createdAt as any) - (a.createdAt as any)));
     });
   };
-
+  
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
-    startTransitionTimetable(async () => {
-      const result = await addTimetableEntryAction(values);
-      if (result.success) {
-        toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
+    startTransitionTimetable(() => {
+        const { routeId, stop, times, coords } = values;
+
+        const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
+        if(parsedTimes.length === 0) {
+            toast({ title: 'Klaida!', description: 'Nurodykite bent vieną laiką.', variant: 'destructive'});
+            return;
+        }
+        
+        let parsedCoords: [number, number] | undefined = undefined;
+        if (coords) {
+          const parts = coords.split(',').map((p) => parseFloat(p.trim()));
+          if (parts.length === 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) {
+            parsedCoords = [parts[0], parts[1]];
+          } else {
+             toast({ title: 'Klaida!', description: 'Neteisingas koordinačių formatas. Turi būti "platumą, ilguma".', variant: 'destructive'});
+             return;
+          }
+        }
+
+        const payload: any = { stop, times: parsedTimes, createdAt: serverTimestamp() };
+        if (parsedCoords) {
+          payload.coords = parsedCoords;
+        }
+        
+        const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
+        addDocumentNonBlocking(timetableColRef, payload);
+        
+        toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas į eilę.' });
         timetableForm.reset();
-      } else {
-        toast({
-          title: 'Klaida!',
-          description: result.error,
-          variant: 'destructive',
-        });
-      }
     });
   };
   
