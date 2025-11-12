@@ -76,7 +76,7 @@ export default function TimetableClient() {
     }
     const nextStop = timetable[index + 1];
 
-    if (stop.coords && nextStop.coords && stop.distanceToNext) {
+    if (stop.coords && nextStop.coords) {
       setSelectedStopDetail({ current: stop, next: nextStop });
     }
   };
@@ -159,7 +159,7 @@ export default function TimetableClient() {
                     ) : timetable && timetable.length > 0 ? (
                       <div className="space-y-4">
                         {timetable.map((s, i) => {
-                           const canOpenMap = s.coords && i < timetable.length - 1 && timetable[i+1].coords && s.distanceToNext;
+                           const canOpenMap = s.coords && i < timetable.length - 1 && timetable[i+1].coords;
                            return (
                             <div key={s.id || i} className="border-b pb-3">
                                <Button 
