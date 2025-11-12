@@ -88,15 +88,31 @@ export default function AdminForms() {
  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
       const routesCollectionRef = collection(firestore, 'routes');
-      const newRoute = {
+      const newRouteData = {
           ...values,
           createdAt: serverTimestamp()
       };
-      addDocumentNonBlocking(routesCollectionRef, newRoute);
       
-      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas.' });
-      routeForm.reset();
-      setTimeout(() => fetchRoutes(), 500); 
+      try {
+        const docRef = await addDocumentNonBlocking(routesCollectionRef, newRouteData);
+        
+        if (docRef) {
+            const newRoute: Route = { id: docRef.id, ...values };
+            setRoutes(prev => [newRoute, ...prev].sort((a,b) => a.number.localeCompare(b.number)));
+            
+            toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas.' });
+            routeForm.reset();
+        } else {
+             // Fallback to refetching if optimistic update fails
+            toast({ title: 'Pavyko!', description: 'Maršrutas pridedamas, sąrašas tuoj atsinaujins.' });
+            routeForm.reset();
+            setTimeout(() => fetchRoutes(), 1000); 
+        }
+
+      } catch (error) {
+          toast({ title: 'Klaida!', description: 'Nepavyko pridėti maršruto.', variant: 'destructive'});
+          console.error("Error adding route:", error);
+      }
     });
   };
   
