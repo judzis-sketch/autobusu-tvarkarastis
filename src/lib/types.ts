@@ -3,12 +3,12 @@ export type TimetableEntry = {
   stop: string;
   times: string[];
   coords?: [number, number];
-  createdAt?: any;
+  createdAt?: string;
 };
 
 export type Route = {
   id?: string;
   number: string;
   name: string;
-  createdAt?: any;
+  createdAt?: string;
 };

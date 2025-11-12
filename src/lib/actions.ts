@@ -24,8 +24,15 @@ export async function addRoute(data: unknown) {
   revalidatePath('/admin');
   revalidatePath('/');
 
-  // Grąžiname naujai sukurto dokumento duomenis su ID
-  return { id: docRef.id, ...parsedData };
+  const newRouteDoc = await docRef.get();
+  const newRouteData = newRouteDoc.data();
+
+  // Grąžiname naujai sukurto dokumento duomenis su ID ir konvertuotu laiku
+  return {
+    id: docRef.id,
+    ...parsedData,
+    createdAt: (newRouteData?.createdAt as Timestamp)?.toDate().toISOString(),
+  };
 }
 
 export async function getRoutes(): Promise<Route[]> {
@@ -38,7 +45,16 @@ export async function getRoutes(): Promise<Route[]> {
       return [];
     }
     
-    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Route, 'id'>) }));
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        number: data.number,
+        name: data.name,
+        // Konvertuojame Timestamp į ISO string
+        createdAt: (data.createdAt as Timestamp)?.toDate().toISOString(),
+      } as Route;
+    });
   } catch (error) {
     console.error('Error getting routes: ', error);
     if (getApps().length === 0) {
@@ -62,7 +78,14 @@ export async function getTimetableForRoute(
         return [];
     }
 
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as TimetableEntry));
+    return snap.docs.map((d) => {
+        const data = d.data();
+        return { 
+            id: d.id, 
+            ...data,
+            createdAt: (data.createdAt as Timestamp)?.toDate().toISOString(),
+        } as TimetableEntry
+    });
   } catch (error) {
     console.error('Error getting timetable: ', error);
     return [];
