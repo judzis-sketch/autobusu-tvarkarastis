@@ -54,7 +54,7 @@ export default function AdminForms() {
     setIsLoadingRoutes(true);
     try {
       const fetchedRoutes = await getRoutes();
-      setRoutes(fetchedRoutes);
+      setRoutes(fetchedRoutes.sort((a,b) => a.number.localeCompare(b.number)));
     } catch (error) {
       console.error("Failed to fetch routes:", error);
       toast({
@@ -94,21 +94,11 @@ export default function AdminForms() {
       };
       
       try {
-        const docRef = await addDocumentNonBlocking(routesCollectionRef, newRouteData);
-        
-        if (docRef) {
-            const newRoute: Route = { id: docRef.id, ...values };
-            setRoutes(prev => [newRoute, ...prev].sort((a,b) => a.number.localeCompare(b.number)));
-            
-            toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas.' });
-            routeForm.reset();
-        } else {
-             // Fallback to refetching if optimistic update fails
-            toast({ title: 'Pavyko!', description: 'Maršrutas pridedamas, sąrašas tuoj atsinaujins.' });
-            routeForm.reset();
-            setTimeout(() => fetchRoutes(), 1000); 
-        }
-
+        await addDocumentNonBlocking(routesCollectionRef, newRouteData);
+        toast({ title: 'Pavyko!', description: 'Maršrutas pridedamas. Sąrašas atsinaujins po akimirkos.' });
+        routeForm.reset();
+        // Fetch routes again to get the latest list including the new one
+        setTimeout(() => fetchRoutes(), 1000); 
       } catch (error) {
           toast({ title: 'Klaida!', description: 'Nepavyko pridėti maršruto.', variant: 'destructive'});
           console.error("Error adding route:", error);
@@ -150,12 +140,15 @@ export default function AdminForms() {
         await batch.commit();
     };
     
-    deleteDocumentNonBlocking(routeRef, preDelete);
-    
-    setRoutes(prev => prev.filter(r => r.id !== routeId));
-    toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
-
-    setIsDeleting(null);
+    deleteDocumentNonBlocking(routeRef, preDelete).then(() => {
+      setRoutes(prev => prev.filter(r => r.id !== routeId));
+      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
+      setIsDeleting(null);
+    }).catch(error => {
+      console.error("Error deleting route: ", error);
+      toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive'});
+      setIsDeleting(null);
+    })
   }
   
   if (isLoadingRoutes) {
