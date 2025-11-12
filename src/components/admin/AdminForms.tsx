@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useMemo, useEffect } from 'react';
+import { useState, useTransition, useMemo, useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -154,9 +154,10 @@ export default function AdminForms() {
       name: '',
     },
   });
+  
+  const handleCalculateDistance = useCallback(async (currentCoords?: { lat?: number, lng?: number }) => {
+      const coordsToUse = currentCoords || getValues('coords');
 
-  const handleCalculateDistance = async () => {
-      const currentCoords = getValues('coords');
       if (!lastStopCoords) {
           toast({
               title: 'Negalima apskaičiuoti',
@@ -165,7 +166,7 @@ export default function AdminForms() {
           });
           return;
       }
-      if (!currentCoords || !currentCoords.lat || !currentCoords.lng) {
+      if (!coordsToUse || !coordsToUse.lat || !coordsToUse.lng) {
           toast({
               title: 'Negalima apskaičiuoti',
               description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
@@ -176,7 +177,7 @@ export default function AdminForms() {
 
       setIsCalculatingDistance(true);
       try {
-          const distanceInMeters = await getRouteDistance(lastStopCoords, [currentCoords.lat, currentCoords.lng]);
+          const distanceInMeters = await getRouteDistance(lastStopCoords, [coordsToUse.lat, coordsToUse.lng]);
           if (distanceInMeters !== null) {
               const distanceInKm = distanceInMeters / 1000;
               setValue('distanceToNext', String(distanceInKm.toFixed(3)));
@@ -201,7 +202,14 @@ export default function AdminForms() {
       } finally {
           setIsCalculatingDistance(false);
       }
-  };
+  }, [getValues, lastStopCoords, setValue, toast]);
+
+
+  const handleCoordsChange = useCallback((lat: number, lng: number) => {
+      setValue('coords.lat', lat, { shouldValidate: true });
+      setValue('coords.lng', lng, { shouldValidate: true });
+      handleCalculateDistance({ lat, lng });
+  }, [setValue, handleCalculateDistance]);
 
   const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
@@ -552,15 +560,15 @@ export default function AdminForms() {
                       </FormItem>
                       )}
                       />
-                      <Button type="button" variant="outline" size="sm" onClick={handleCalculateDistance} disabled={isCalculatingDistance || !lastStopCoords}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => handleCalculateDistance()} disabled={isCalculatingDistance || !lastStopCoords}>
                           {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
-                          Apskaičiuoti atstumą pagal kelius
+                          Apskaičiuoti atstumą rankiniu būdu
                       </Button>
                   </div>
                   
                 <div>
                   <FormLabel>Naujos stotelės koordinatės (pasirinktinai)</FormLabel>
-                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą.</p>
+                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą. Atstumas apskaičiuojamas automatiškai.</p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                       <Controller
                           control={control}
@@ -590,10 +598,7 @@ export default function AdminForms() {
                   <div className="mt-4 h-64 w-full rounded-md overflow-hidden border">
                       <AdminMap
                           coords={watchedCoords}
-                          onCoordsChange={(lat, lng) => {
-                              setValue('coords.lat', lat, { shouldValidate: true });
-                              setValue('coords.lng', lng, { shouldValidate: true });
-                          }}
+                          onCoordsChange={handleCoordsChange}
                           stopPositions={stopPositions}
                           lastStopPosition={lastStopCoords}
                       />
