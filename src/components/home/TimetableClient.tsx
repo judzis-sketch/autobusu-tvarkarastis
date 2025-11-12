@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { getTimetableForRoute } from '@/lib/actions';
 import { MapController } from '@/lib/map-controller';
@@ -19,15 +19,14 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [isPending, startTransition] = useTransition();
-  const [mapController, setMapController] = useState<MapController | null>(null);
+  const mapControllerRef = useRef<MapController | null>(null);
 
   const selectedRoute = initialRoutes.find(r => r.id === selectedRouteId);
 
   useEffect(() => {
-    let controller: MapController | null = null;
     const mapElement = document.getElementById('map');
     
-    if (mapElement && !(mapElement as any)._leaflet_id) {
+    if (mapElement && !mapControllerRef.current) {
         import('leaflet').then(L => {
             // This is a workaround for a known issue with leaflet and Next.js
             const markerIcon2x = '/_next/static/media/marker-icon-2x.b4553f17.png';
@@ -42,27 +41,24 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
                 shadowUrl: markerShadow,
             });
 
-            controller = new MapController('map', L);
-            setMapController(controller);
+            if (!mapControllerRef.current) {
+              mapControllerRef.current = new MapController('map', L);
+            }
         });
     }
 
     return () => {
-      // Use the controller from the closure to avoid issues with state updates
-      if (controller) {
-        controller.destroy();
-      } else if (mapController) {
-        // Fallback for cases where controller from closure is not set
-        mapController.destroy();
+      if (mapControllerRef.current) {
+        mapControllerRef.current.destroy();
+        mapControllerRef.current = null;
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!selectedRouteId) {
       setTimetable([]);
-      mapController?.updateStops([]);
+      mapControllerRef.current?.updateStops([]);
       return;
     }
     
@@ -70,9 +66,9 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
       const tt = await getTimetableForRoute(selectedRouteId);
       setTimetable(tt);
       const stopsWithCoords = tt.filter(s => s.coords && s.coords.length === 2) as (TimetableEntry & { coords: [number, number] })[];
-      mapController?.updateStops(stopsWithCoords);
+      mapControllerRef.current?.updateStops(stopsWithCoords);
     });
-  }, [selectedRouteId, mapController]);
+  }, [selectedRouteId]);
 
   return (
     <div className="grid lg:grid-cols-2 gap-8">

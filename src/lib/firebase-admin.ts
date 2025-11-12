@@ -1,6 +1,6 @@
 // lib/firebase-admin.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getFirestore, type Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -17,10 +17,19 @@ let db: Firestore;
 function initialize() {
     if (getApps().length === 0) {
         app = initializeApp(firebaseConfig);
+        db = initializeFirestore(app, {
+          cacheSizeBytes: CACHE_SIZE_UNLIMITED
+        });
     } else {
         app = getApp();
+        try {
+           db = getFirestore(app);
+        } catch(e) {
+           db = initializeFirestore(app, {
+            cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+          });
+        }
     }
-    db = getFirestore(app);
 }
 
 initialize();
