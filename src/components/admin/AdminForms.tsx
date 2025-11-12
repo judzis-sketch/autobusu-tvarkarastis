@@ -186,34 +186,38 @@ export default function AdminForms() {
 
   const handleDeleteRoute = async (routeId: string) => {
     setIsDeleting(routeId);
-    try {
-      const routeRef = doc(firestore, 'routes', routeId);
-      const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
-      
-      const batch = writeBatch(firestore);
-      const timetableSnapshot = await getDocs(timetableRef);
-      timetableSnapshot.docs.forEach((doc) => {
-          batch.delete(doc.ref);
-      });
-      
-      deleteDocumentNonBlocking(routeRef, async () => {
+    const routeRef = doc(firestore, 'routes', routeId);
+    const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
+    
+    // This function will be executed by deleteDocumentNonBlocking
+    const preDelete = async () => {
+        const batch = writeBatch(firestore);
+        const timetableSnapshot = await getDocs(timetableRef);
+        timetableSnapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
         await batch.commit();
-        return Promise.resolve();
+    };
+    
+    deleteDocumentNonBlocking(routeRef, preDelete)
+      .then(() => {
+        toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
+        setRoutes(prev => prev.filter(r => r.id !== routeId));
+      })
+      .catch((e: any) => {
+        console.error("Deletion failed:", e);
+        toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto. Patikrinkite konsolę.', variant: 'destructive' });
+      })
+      .finally(() => {
+        setIsDeleting(null);
       });
-
-      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.'});
-      setRoutes(prev => prev.filter(r => r.id !== routeId));
-
-    } catch (e: any) {
-        toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto tvarkaraščio įrašų.', variant: 'destructive'});
-        console.error(e);
-    }
-    setIsDeleting(null);
   }
   
   if (isLoadingRoutes) {
     return <div className="flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
+
+  const selectedRouteId = timetableForm.watch('routeId');
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -341,6 +345,7 @@ export default function AdminForms() {
             </Form>
             <div className="h-[400px] w-full rounded-md overflow-hidden border">
               <MapContainer
+                  key={selectedRouteId || 'no-route'}
                   center={[54.6872, 25.2797]}
                   zoom={12}
                   style={{ height: '100%', width: '100%' }}
