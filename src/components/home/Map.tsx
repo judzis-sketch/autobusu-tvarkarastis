@@ -3,24 +3,6 @@
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import type { TimetableEntry } from '@/lib/types';
 import { useEffect } from 'react';
-import L from 'leaflet';
-
-// Leaflet's default icon path issue with bundlers like Webpack/Vite/Turbopack
-// This is a workaround to manually set the paths for the marker icons
-// It can cause issues with some bundlers, but it's a common fix.
-// If issues persist, consider hosting icons publicly or using a different icon solution.
-try {
-  // @ts-ignore
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: '/marker-icon-2x.png',
-    iconUrl: '/marker-icon.png',
-    shadowUrl: '/marker-shadow.png',
-  });
-} catch (e) {
-  console.error("Could not apply Leaflet icon fix", e);
-}
-
 
 type StopWithCoords = TimetableEntry & { coords: [number, number] };
 
@@ -36,10 +18,7 @@ function ChangeView({ stops }: { stops: StopWithCoords[] }) {
   const map = useMap();
   useEffect(() => {
     if (stops.length > 0) {
-      const bounds = new L.LatLngBounds(stops.map(s => s.coords));
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50] });
-      }
+      map.fitBounds(stops.map(s => s.coords) as [number, number][], { padding: [50, 50] });
     } else {
       map.setView(defaultCenter, defaultZoom);
     }
