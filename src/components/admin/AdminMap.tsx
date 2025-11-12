@@ -1,10 +1,11 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, Polyline } from 'react-leaflet';
 
 interface AdminMapProps {
   coords?: { lat?: number; lng?: number };
   onCoordsChange: (lat: number, lng: number) => void;
+  stopPositions: [number, number][];
 }
 
 function MapEvents({ onCoordsChange }: { onCoordsChange: (lat: number, lng: number) => void }) {
@@ -16,7 +17,7 @@ function MapEvents({ onCoordsChange }: { onCoordsChange: (lat: number, lng: numb
   return null;
 }
 
-export default function AdminMap({ coords, onCoordsChange }: AdminMapProps) {
+export default function AdminMap({ coords, onCoordsChange, stopPositions }: AdminMapProps) {
   const position: [number, number] = coords && coords.lat && coords.lng ? [coords.lat, coords.lng] : [54.6872, 25.2797]; // Default to Vilnius
   
   // Using a key that changes with position will force React to re-create the component
@@ -30,9 +31,21 @@ export default function AdminMap({ coords, onCoordsChange }: AdminMapProps) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+      {/* Show existing stops */}
+      {stopPositions.map((pos, index) => (
+          <Marker key={`stop-${index}`} position={pos}></Marker>
+      ))}
+
+      {/* Show line between existing stops */}
+      {stopPositions.length > 1 && (
+        <Polyline positions={stopPositions} color="blue" />
+      )}
+
+      {/* Show marker for new stop being added */}
       {coords && coords.lat && coords.lng && (
         <Marker position={[coords.lat, coords.lng]} />
       )}
+      
       <MapEvents onCoordsChange={onCoordsChange} />
     </MapContainer>
   );

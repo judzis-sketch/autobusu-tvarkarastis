@@ -1,7 +1,7 @@
 'use client';
 
-import type { Route } from '@/lib/types';
-import { useState, useTransition } from 'react';
+import type { Route, TimetableEntry } from '@/lib/types';
+import { useState, useTransition, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -72,6 +72,7 @@ const timetableSchema = z.object({
   routeId: z.string({ required_error: 'Prašome pasirinkti maršrutą.' }),
   stop: z.string().min(1, 'Stotelės pavadinimas yra privalomas'),
   times: z.string().min(5, 'Laikai yra privalomi (pvz., 08:00)'),
+  distanceToNext: z.string().optional(),
   coords: z.object({
     lat: z.number().optional(),
     lng: z.number().optional(),
@@ -92,6 +93,21 @@ export default function AdminForms() {
 
   const { data: routes, isLoading: isLoadingRoutes } = useCollection<Route>(routesQuery);
 
+  const timetableForm = useForm<z.infer<typeof timetableSchema>>({
+    resolver: zodResolver(timetableSchema),
+    defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: 54.6872, lng: 25.2797 } },
+  });
+  const { setValue, watch } = timetableForm;
+  const watchedCoords = watch('coords');
+  const watchedRouteId = watch('routeId');
+
+  const timetableQuery = useMemoFirebase(() => {
+    if (!firestore || !watchedRouteId) return null;
+    return query(collection(firestore, `routes/${watchedRouteId}/timetable`), orderBy('createdAt', 'asc'));
+  }, [firestore, watchedRouteId]);
+  const { data: timetableStops } = useCollection<TimetableEntry>(timetableQuery);
+  const stopPositions = useMemo(() => timetableStops?.map(s => s.coords).filter(Boolean) as [number, number][] || [], [timetableStops]);
+
 
   const routeForm = useForm<z.infer<typeof routeSchema>>({
     resolver: zodResolver(routeSchema),
@@ -100,14 +116,6 @@ export default function AdminForms() {
       name: '',
     },
   });
-
-  const timetableForm = useForm<z.infer<typeof timetableSchema>>({
-    resolver: zodResolver(timetableSchema),
-    defaultValues: { routeId: '', stop: '', times: '', coords: { lat: 54.6872, lng: 25.2797 } },
-  });
-  const { setValue, watch } = timetableForm;
-  const watchedCoords = watch('coords');
-
 
   const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
@@ -139,7 +147,7 @@ export default function AdminForms() {
 
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(async () => {
-      const { routeId, stop, times, coords } = values;
+      const { routeId, stop, times, coords, distanceToNext } = values;
 
       const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
       if (parsedTimes.length === 0) {
@@ -170,6 +178,20 @@ export default function AdminForms() {
         payload.coords = [coords.lat, coords.lng];
       }
 
+      if (distanceToNext) {
+        const distance = parseFloat(distanceToNext);
+        if (!isNaN(distance)) {
+            payload.distanceToNext = distance;
+        } else {
+            toast({
+                title: 'Klaida!',
+                description: 'Atstumas turi būti skaičius.',
+                variant: 'destructive',
+            });
+            return;
+        }
+      }
+
       const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
 
       try {
@@ -178,7 +200,7 @@ export default function AdminForms() {
           title: 'Pavyko!',
           description: 'Tvarkaraščio įrašas pridėtas.',
         });
-        timetableForm.reset({ routeId: '', stop: '', times: '', coords: { lat: 54.6872, lng: 25.2797 } });
+        timetableForm.reset({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '', coords: { lat: 54.6872, lng: 25.2797 } });
       } catch (error) {
         toast({
           title: 'Klaida!',
@@ -352,6 +374,19 @@ export default function AdminForms() {
                   </FormItem>
                 )}
               />
+               <FormField
+                control={timetableForm.control}
+                name="distanceToNext"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Atstumas iki kitos stotelės (metrais, nebūtina)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="850" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
                 
               <div>
                 <FormLabel>Stotelės koordinatės (pasirinktinai)</FormLabel>
@@ -389,6 +424,7 @@ export default function AdminForms() {
                             setValue('coords.lat', lat);
                             setValue('coords.lng', lng);
                         }}
+                        stopPositions={stopPositions}
                     />
                 </div>
               </div>

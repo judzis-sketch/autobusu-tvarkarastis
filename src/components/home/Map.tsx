@@ -1,6 +1,6 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import type { TimetableEntry } from '@/lib/types';
 
 interface MapProps {
@@ -17,6 +17,7 @@ export default function Map({ stops }: MapProps) {
   }, [] as [number, number][]);
 
   const defaultCenter: [number, number] = [54.6872, 25.2797]; // Vilnius
+  const polylinePositions = stops.map(s => s.coords).filter(Boolean) as [number, number][];
 
   return (
     <MapContainer
@@ -39,6 +40,9 @@ export default function Map({ stops }: MapProps) {
             </Popup>
           </Marker>
         ) : null
+      )}
+       {polylinePositions.length > 1 && (
+        <Polyline positions={polylinePositions} color="blue" />
       )}
     </MapContainer>
   );

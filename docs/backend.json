@@ -56,6 +56,10 @@
           "items": {
             "type": "number"
           }
+        },
+        "distanceToNext": {
+          "type": "number",
+          "description": "The distance in meters to the next stop in the sequence."
         }
       },
       "required": [

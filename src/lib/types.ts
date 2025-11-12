@@ -3,6 +3,7 @@ export type TimetableEntry = {
   stop: string;
   times: string[];
   coords?: [number, number];
+  distanceToNext?: number; // Distance in meters to the next stop
   createdAt?: string;
 };
 
