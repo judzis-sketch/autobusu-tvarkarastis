@@ -5,17 +5,28 @@ import { useState, useTransition, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getRoutes } from '@/lib/actions';
+import { getRoutes, deleteRouteAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp, doc } from 'firebase/firestore';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -40,25 +51,27 @@ export default function AdminForms() {
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const firestore = useFirestore();
 
+  const fetchRoutes = async () => {
+    setIsLoadingRoutes(true);
+    try {
+      const fetchedRoutes = await getRoutes();
+      setRoutes(fetchedRoutes);
+    } catch (error) {
+      console.error("Failed to fetch routes:", error);
+      toast({
+        title: 'Klaida gaunant maršrutus',
+        description: 'Nepavyko gauti maršrutų sąrašo. Patikrinkite konsolę.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingRoutes(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchRoutes = async () => {
-      setIsLoadingRoutes(true);
-      try {
-        const fetchedRoutes = await getRoutes();
-        setRoutes(fetchedRoutes);
-      } catch (error) {
-        console.error("Failed to fetch routes:", error);
-        toast({
-          title: 'Klaida gaunant maršrutus',
-          description: 'Nepavyko gauti maršrutų sąrašo. Patikrinkite konsolę.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoadingRoutes(false);
-      }
-    };
     fetchRoutes();
   }, [toast]);
 
@@ -80,25 +93,23 @@ export default function AdminForms() {
   });
 
   const handleAddRoute = (values: z.infer<typeof multipleRoutesSchema>) => {
-    startTransitionRoute(() => {
+    startTransitionRoute(async () => {
       const routesCollectionRef = collection(firestore, 'routes');
-      const newRoutesData: Route[] = [];
-
-      values.routes.forEach(routeData => {
-        if (routeData.name && routeData.number) {
-            const docRef = doc(routesCollectionRef);
-            const newRoute = {
-                ...routeData,
-                createdAt: serverTimestamp()
-            };
-            setDocumentNonBlocking(docRef, newRoute, {});
-            newRoutesData.push({ id: docRef.id, ...routeData, createdAt: new Date() });
-        }
-      });
+      
+      for (const routeData of values.routes) {
+          if (routeData.name && routeData.number) {
+              const docRef = doc(routesCollectionRef);
+              const newRoute = {
+                  ...routeData,
+                  createdAt: serverTimestamp()
+              };
+              setDocumentNonBlocking(docRef, newRoute, {});
+          }
+      }
       
       toast({ title: 'Pavyko!', description: 'Maršrutai sėkmingai pridėti į eilę.' });
       routeForm.reset({ routes: [{ number: '', name: '' }] });
-      setRoutes(prev => [...newRoutesData, ...prev].sort((a, b) => (b.createdAt as any) - (a.createdAt as any)));
+      await fetchRoutes(); // Refresh routes list
     });
   };
   
@@ -135,6 +146,18 @@ export default function AdminForms() {
         timetableForm.reset();
     });
   };
+
+  const handleDeleteRoute = async (routeId: string) => {
+    setIsDeleting(routeId);
+    const result = await deleteRouteAction(routeId);
+    if(result.success) {
+      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.'});
+      setRoutes(prev => prev.filter(r => r.id !== routeId));
+    } else {
+      toast({ title: 'Klaida!', description: result.error, variant: 'destructive'});
+    }
+    setIsDeleting(null);
+  }
   
   if (isLoadingRoutes) {
     return <div className="flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -289,6 +312,45 @@ export default function AdminForms() {
               </Button>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+            <CardTitle>Ištrinti maršrutą</CardTitle>
+            <CardDescription>Pasirinkite maršrutą, kurį norite ištrinti. Šis veiksmas negrįžtamas.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="space-y-2">
+                {routes.map((route) => (
+                    <div key={route.id} className="flex items-center justify-between p-2 border rounded-md">
+                        <div>
+                            <span className="font-bold">{route.number}</span> — <span>{route.name}</span>
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon" disabled={isDeleting === route.id}>
+                                  {isDeleting === route.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Atšaukti</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">
+                                        Taip, ištrinti
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+                ))}
+            </div>
         </CardContent>
       </Card>
     </div>
