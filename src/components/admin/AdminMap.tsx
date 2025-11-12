@@ -19,6 +19,10 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
     const polylineRef = useRef<L.Polyline | null>(null);
     const stopMarkersRef = useRef<L.Marker[]>([]);
 
+    const redIcon = new L.Icon.Default({ className: 'marker-red' });
+    const greyIcon = new L.Icon.Default({ className: 'marker-grey' });
+    const defaultIcon = new L.Icon.Default();
+
     useEffect(() => {
         if (mapRef.current && !mapInstanceRef.current) {
             // Create map instance ONLY if it doesn't exist
@@ -34,9 +38,9 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
                 props.onCoordsChange(e.latlng.lat, e.latlng.lng);
             });
         }
-    }, [mapRef, props.onCoordsChange]); // Only run when mapRef changes
+    }, [mapRef, props.onCoordsChange]);
 
-    // Effect to update the new stop marker
+    // Effect to update the new stop marker (red)
     useEffect(() => {
         const map = mapInstanceRef.current;
         if (!map) return;
@@ -47,7 +51,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             if (markerRef.current) {
                 markerRef.current.setLatLng(latLng);
             } else {
-                markerRef.current = L.marker(latLng).addTo(map);
+                markerRef.current = L.marker(latLng, { icon: redIcon }).addTo(map);
             }
             map.setView(latLng);
         } else {
@@ -57,9 +61,9 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
                 markerRef.current = null;
             }
         }
-    }, [props.coords]);
+    }, [props.coords, redIcon]);
     
-    // Effect to update existing stops and polyline
+    // Effect to update existing stops (grey) and polyline
     useEffect(() => {
         const map = mapInstanceRef.current;
         if (!map) return;
@@ -70,7 +74,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
 
         // Add new stop markers
         props.stopPositions.forEach(pos => {
-            const stopMarker = L.marker(pos).addTo(map);
+            const stopMarker = L.marker(pos, { icon: greyIcon }).addTo(map);
             stopMarkersRef.current.push(stopMarker);
         });
 
@@ -78,15 +82,15 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         if (polylineRef.current) {
             polylineRef.current.setLatLngs(props.stopPositions);
         } else if (props.stopPositions.length > 1) {
-            polylineRef.current = L.polyline(props.stopPositions, { color: 'blue' }).addTo(map);
+            polylineRef.current = L.polyline(props.stopPositions, { color: 'grey' }).addTo(map);
         } else if (polylineRef.current) {
             polylineRef.current.remove();
             polylineRef.current = null;
         }
 
-    }, [props.stopPositions]);
+    }, [props.stopPositions, greyIcon]);
 
-     // Effect to update the last stop marker
+     // Effect to update the last stop marker (blue)
     useEffect(() => {
         const map = mapInstanceRef.current;
         if (!map) return;
@@ -97,11 +101,11 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         }
 
         if (props.lastStopPosition) {
-             const icon = new L.Icon.Default({ className: 'hue-rotate-180' });
-             lastStopMarkerRef.current = L.marker(props.lastStopPosition, { icon }).addTo(map);
+             // Use default blue icon for the last stop
+             lastStopMarkerRef.current = L.marker(props.lastStopPosition, { icon: defaultIcon }).addTo(map);
         }
 
-    }, [props.lastStopPosition]);
+    }, [props.lastStopPosition, defaultIcon]);
 
     return null;
 }

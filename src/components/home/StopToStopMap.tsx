@@ -55,12 +55,14 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
         return;
     }
 
+    const redIcon = new L.Icon.Default({ className: 'marker-red' });
+
     // Add markers
-    const currentMarker = L.marker(stopPositions[0]).addTo(map);
+    const currentMarker = L.marker(stopPositions[0], { icon: redIcon }).addTo(map);
     currentMarker.bindPopup(`<b>Išvykimas:</b><br/>${currentStop.stop}`).openPopup();
     markersRef.current.push(currentMarker);
 
-    const nextMarker = L.marker(stopPositions[1]).addTo(map);
+    const nextMarker = L.marker(stopPositions[1], { icon: redIcon }).addTo(map);
     nextMarker.bindPopup(`<b>Atvykimas:</b><br/>${nextStop.stop}`);
     markersRef.current.push(nextMarker);
     

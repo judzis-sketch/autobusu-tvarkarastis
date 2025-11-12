@@ -86,3 +86,11 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Leaflet icon styles */
+.leaflet-marker-icon.marker-red {
+  filter: hue-rotate(240deg) brightness(0.8);
+}
+.leaflet-marker-icon.marker-grey {
+  filter: grayscale(1) brightness(0.8);
+}

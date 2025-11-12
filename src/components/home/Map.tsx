@@ -49,9 +49,11 @@ export default function Map({ stops }: MapProps) {
       return;
     }
 
+    const redIcon = new L.Icon.Default({ className: 'marker-red' });
+
     // Add markers
     stopPositionsWithData.forEach((stop) => {
-      const marker = L.marker(stop.coords).addTo(map);
+      const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
       marker.bindPopup(`<b>${stop.stop}</b><br/>Laikai: ${stop.times.join(', ')}`);
       layersRef.current.push(marker);
     });
