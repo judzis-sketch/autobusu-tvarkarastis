@@ -89,7 +89,7 @@ Vercel yra Next.js kūrėjų platforma, specialiai pritaikyta tokiems projektams
 
 ### Diegimo žingsniai
 
-#### 1. Kodo įkėlimas į GitHub (būtina atlikti tik vieną kartą)
+#### A. Kodo įkėlimas į GitHub (būtina atlikti tik vieną kartą)
 
 Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas Git saugykloje, pavyzdžiui, **GitHub**.
 
@@ -103,7 +103,7 @@ Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas 
     *   Paspauskite **Create repository**.
 3.  **Paruoškite projektą ir įkelkite kodą:**
     *   Atsidarykite terminalą (komandinę eilutę) savo kompiuteryje, tame aplanke, kur yra Jūsų projektas.
-    *   Įvykdykite šias komandas eilės tvarka:
+    *   Įvykdykite šias komandas eilės tvarka (kiekvieną atskirai):
 
         ```bash
         # Inicializuoja Git Jūsų projekto aplanke
@@ -127,7 +127,7 @@ Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas 
         ```
     *   Atnaujinę puslapį GitHub, turėtumėte pamatyti visus savo projekto failus.
 
-#### 2. Projekto susiejimas su Vercel
+#### B. Projekto susiejimas su Vercel
 
 1.  **Sukurkite Vercel paskyrą**: Apsilankykite [Vercel](https://vercel.com/) ir užsiregistruokite (patogiausia naudoti savo GitHub paskyrą).
 2.  **Sukurkite naują projektą Vercel**:
@@ -143,3 +143,34 @@ Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas 
     *   Vercel automatiškai paruoš programą ir įdiegs ją. Po kelių minučių Jūsų programa bus pasiekiama unikaliu `.vercel.app` adresu. Vėliau galėsite priskirti ir savo domeną.
 
 Sveikiname! Nuo šiol kiekvieną kartą, kai atliksite pakeitimus kode ir įkelsite juos į savo GitHub saugyklą (`git push`), Vercel automatiškai įdiegs naujausią versiją. Jums daugiau niekada nebereikės naudoti FTP.
+
+---
+
+### Trikčių diagnostika: Ką daryti, jei `git push` nepavyksta?
+
+Jei vykdant `git push` komandą gaunate klaidą `Authentication failed` arba `Repository not found`, tai beveik visada reiškia vieną iš dviejų dalykų:
+1.  Jūsų repozitorija yra privati, o kūrimo aplinka neturi teisių jos pasiekti.
+2.  Neteisingai nurodėte repozitorijos nuorodą.
+
+**Sprendimas Nr. 1 (lengviausias): Padarykite repozitoriją viešą (Public).**
+*   Eikite į savo GitHub repozitorijos **Settings**.
+*   Puslapio apačioje raskite "Danger Zone" ir paspauskite **Change visibility**.
+*   Pakeiskite į **Public**.
+*   Pabandykite `git push` komandą dar kartą.
+
+**Sprendimas Nr. 2 (jei repozitorija turi būti privati): Naudokite Personal Access Token (PAT).**
+Nuo 2021 m. GitHub nebepriima paprasto slaptažodžio per komandinę eilutę. Jums reikia susikurti specialų prieigos raktą (token).
+
+1.  **Sukurkite PAT savo GitHub paskyroje:**
+    *   Eikite į **Settings** > **Developer settings** > **Personal access tokens** > **Tokens (classic)**.
+    *   Paspauskite **Generate new token (classic)**.
+    *   Suteikite jam pavadinimą (pvz., `vercel-deploy`), nustatykite galiojimo laiką (rekomenduojama 30 dienų).
+    *   Pažymėkite **`repo`** teisių langelį. Tai leis raktui pasiekti Jūsų repozitorijas.
+    *   Paspauskite **Generate token**.
+    *   **BŪTINAI** nukopijuokite raktą. Jis bus parodytas tik vieną kartą.
+
+2.  **Panaudokite PAT vykdydami `git push` komandą:**
+    *   Kai terminalas paprašys Jūsų slaptažodžio (`Password for 'https://github.com':`), **įklijuokite ne savo slaptažodį, o ką tik nukopijuotą PAT raktą**. Terminale tekstas nebus matomas, bet jis bus įvestas.
+    *   Spauskite **Enter**.
+
+Tai turėtų sėkmingai autentifikuoti Jus ir išsiųsti kodą.
