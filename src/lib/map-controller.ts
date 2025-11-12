@@ -1,5 +1,5 @@
 import type { TimetableEntry } from './types';
-import type { Map, Marker, LatLngBounds, LatLngTuple } from 'leaflet';
+import type { Map, Marker, LatLngBounds, LatLngTuple, Polyline } from 'leaflet';
 
 type Leaflet = typeof import('leaflet');
 type StopWithCoords = TimetableEntry & { coords: [number, number] };
@@ -8,12 +8,12 @@ export class MapController {
   private map: Map | null = null;
   private L: Leaflet;
   private markers: Marker[] = [];
+  private routeLine: Polyline | null = null;
   private defaultCenter: LatLngTuple = [54.6872, 25.2797]; // Vilnius center
   private defaultZoom = 12;
 
   constructor(containerId: string, leaflet: Leaflet) {
     this.L = leaflet;
-    // Check if the map is already initialized in this container
     const container = document.getElementById(containerId);
     if (container && !(container as any)._leaflet_id) {
       this.map = this.L.map(containerId).setView(this.defaultCenter, this.defaultZoom);
@@ -29,14 +29,24 @@ export class MapController {
     this.markers = [];
   }
 
+  private clearRouteLine() {
+    if (this.routeLine) {
+      this.routeLine.remove();
+      this.routeLine = null;
+    }
+  }
+
   public updateStops(stops: StopWithCoords[]) {
     if (!this.map) return;
     this.clearMarkers();
+    this.clearRouteLine();
 
     if (stops.length === 0) {
       this.map.setView(this.defaultCenter, this.defaultZoom);
       return;
     }
+    
+    const latLngs = stops.map(s => s.coords);
 
     stops.forEach(stop => {
       const popupContent = `
@@ -48,8 +58,12 @@ export class MapController {
       const marker = this.L.marker(stop.coords).addTo(this.map!).bindPopup(popupContent);
       this.markers.push(marker);
     });
+    
+    if (latLngs.length > 1) {
+      this.routeLine = this.L.polyline(latLngs, { color: 'hsl(var(--primary))', weight: 4 }).addTo(this.map);
+    }
 
-    const bounds = this.L.latLngBounds(stops.map(s => s.coords));
+    const bounds = this.L.latLngBounds(latLngs);
     if (bounds.isValid()) {
       this.map.fitBounds(bounds, { padding: [50, 50] });
     }

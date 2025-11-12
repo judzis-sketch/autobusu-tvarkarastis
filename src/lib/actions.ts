@@ -3,7 +3,7 @@
 import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, writeBatch, doc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getDb } from './firebase-admin';
+import { getDb } from './firebase';
 import type { Route, TimetableEntry } from './types';
 
 export async function getRoutes(): Promise<Route[]> {

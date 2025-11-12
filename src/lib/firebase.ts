@@ -1,6 +1,5 @@
-'use client';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,17 +13,34 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let db: Firestore;
 
-if (getApps().length === 0) {
-  if (!firebaseConfig.projectId) {
-    throw new Error("Firebase config not found. Skipping initialization.");
+function initialize() {
+  const isServer = typeof window === 'undefined';
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    if(isServer){
+      db = initializeFirestore(app, {
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED
+      });
+    } else {
+      db = getFirestore(app);
+    }
+  } else {
+    app = getApp();
+    try {
+       db = getFirestore(app);
+    } catch(e) {
+       db = initializeFirestore(app, {
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+      });
+    }
   }
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
 }
 
-db = getFirestore(app);
+initialize();
 
 export const getDb = () => {
+  if (!db) {
+    initialize();
+  }
   return db;
 };

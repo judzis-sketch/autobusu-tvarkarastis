@@ -16,23 +16,25 @@ type TimetableClientProps = {
 };
 
 export default function TimetableClient({ initialRoutes }: TimetableClientProps) {
+  const [routes, setRoutes] = useState(initialRoutes);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [isPending, startTransition] = useTransition();
-
-  // We will store the map controller instance in state to ensure it's handled by React's lifecycle
   const [mapController, setMapController] = useState<MapController | null>(null);
 
-  const selectedRoute = initialRoutes.find(r => r.id === selectedRouteId);
+  // When initialRoutes prop changes (due to revalidation), update the state
+  useEffect(() => {
+    setRoutes(initialRoutes);
+  }, [initialRoutes]);
+  
+  const selectedRoute = routes.find(r => r.id === selectedRouteId);
 
   useEffect(() => {
-    // This effect initializes the map and should only run once.
     let controller: MapController | null = null;
+    const mapElement = document.getElementById('map');
     
-    // Check if map is already initialized to prevent re-initialization
-    if (document.getElementById('map') && !document.getElementById('map')?.hasChildNodes()) {
+    if (mapElement && !(mapElement as any)._leaflet_id) {
         import('leaflet').then(L => {
-             // This is to fix the missing icon issue with react-leaflet
             const markerIcon2x = '/_next/static/media/marker-icon-2x.b4553f17.png';
             const markerIcon = '/_next/static/media/marker-icon.7c2c9535.png';
             const markerShadow = '/_next/static/media/marker-shadow.a0c6a589.png';
@@ -50,12 +52,17 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
         });
     }
 
-    // Cleanup function to destroy the map instance when the component unmounts
     return () => {
-        controller?.destroy();
-        setMapController(null);
+      // Use the controller from the closure to avoid issues with state updates
+      if (controller) {
+        controller.destroy();
+      } else if (mapController) {
+        // Fallback for cases where controller from closure is not set
+        mapController.destroy();
+      }
     }
-  }, []); // Empty dependency array ensures this runs only on mount and unmount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!selectedRouteId) {
@@ -86,7 +93,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
                 <SelectValue placeholder="-- Pasirinkite --" />
               </SelectTrigger>
               <SelectContent>
-                {initialRoutes.map((r) => (
+                {routes.map((r) => (
                   <SelectItem key={r.id} value={r.id!}>
                     <span className="font-bold mr-2">{r.number}</span> — <span>{r.name}</span>
                   </SelectItem>
@@ -140,7 +147,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
       <Card className="lg:h-auto min-h-[400px] lg:min-h-0">
          <CardHeader>
             <CardTitle>Maršruto žemėlapis</CardTitle>
-            <CardDescription>Stotelės pažymėtos žemėlapyje.</CardDescription>
+            <CardDescription>Stotelės ir maršruto trasa pažymėtos žemėlapyje.</CardDescription>
         </CardHeader>
         <CardContent className="h-[calc(100%-120px)]">
              <div id="map" className="h-full w-full rounded-lg z-0" />
