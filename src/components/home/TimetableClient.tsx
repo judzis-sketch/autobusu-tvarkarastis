@@ -26,7 +26,10 @@ import { Clock, Loader2, MapPin, List } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the map to avoid SSR issues with Leaflet
-const Map = dynamic(() => import('./Map'), { ssr: false });
+const Map = dynamic(() => import('./Map'), { 
+    ssr: false,
+    loading: () => <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
+});
 
 export default function TimetableClient() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
