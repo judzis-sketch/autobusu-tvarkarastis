@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
 
 // IMPORTANT: These are server-side environment variables.
@@ -17,7 +17,6 @@ let db: Firestore;
 
 function initialize() {
     const apps = getApps();
-    // Check if the "server-app" already exists
     const serverApp = apps.find(a => a.name === 'server-app');
 
     if (serverApp) {
@@ -30,6 +29,7 @@ function initialize() {
      try {
        db = getFirestore(app);
     } catch(e) {
+       // This is a more robust way to initialize Firestore in non-browser environments
        db = initializeFirestore(app, {
         cacheSizeBytes: CACHE_SIZE_UNLIMITED,
       });
