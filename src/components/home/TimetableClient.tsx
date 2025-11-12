@@ -179,7 +179,9 @@ export default function TimetableClient() {
     }
 
     const nextStop = timetable[currentIndex + 1];
-
+    
+    // The button to open map is only enabled if both stops have coordinates.
+    // So we can assume they exist here.
     if (stop.coords && nextStop.coords) {
       setSelectedStopDetail({ current: stop, next: nextStop });
     }
