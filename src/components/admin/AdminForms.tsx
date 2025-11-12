@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getRoutes } from '@/lib/actions';
+import { getRoutes, addRoute } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Loader2, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
-import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 import {
   AlertDialog,
@@ -87,24 +87,11 @@ export default function AdminForms() {
 
  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
-      if (!firestore) {
-        toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive'});
-        return;
-      }
-      const routesCollectionRef = collection(firestore, 'routes');
-      const newRouteData = {
-          ...values,
-          createdAt: serverTimestamp()
-      };
-      
       try {
-        // Use standard addDoc to ensure data is saved and wait for it
-        await addDoc(routesCollectionRef, newRouteData);
+        await addRoute(values);
         toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai išsaugotas. Atnaujinamas sąrašas...' });
         routeForm.reset();
-        
-        // Fetch fresh data from the server to guarantee consistency
-        await fetchRoutes();
+        await fetchRoutes(); // Fetch fresh data to guarantee consistency
       } catch (error) {
           toast({ title: 'Klaida!', description: 'Nepavyko išsaugoti maršruto.', variant: 'destructive'});
           console.error("Error adding route:", error);
