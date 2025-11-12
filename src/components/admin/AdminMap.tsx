@@ -28,12 +28,16 @@ function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [
     const map = useMap();
 
     useEffect(() => {
-        // This effect updates the internal position and flies to it ONLY when the initial coords prop changes
-        setPosition(coords);
-        if (coords) {
-          map.flyTo(coords, map.getZoom());
+        // This effect updates the internal position and flies to it ONLY when the coords prop changes
+        if (coords && (coords[0] !== position?.[0] || coords[1] !== position?.[1])) {
+            setPosition(coords);
+            if (coords[0] !== 0 && coords[1] !== 0) {
+              map.flyTo(coords, map.getZoom());
+            }
+        } else if (!coords && position) {
+            setPosition(null);
         }
-    }, [coords]); // Intentionally dependent only on initial coords
+    }, [coords, map, position]);
 
     useMapEvents({
         click(e) {
