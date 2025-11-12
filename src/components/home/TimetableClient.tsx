@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 
 import {
   Select,
@@ -22,11 +22,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { getDistance } from '@/lib/distance';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -49,7 +51,9 @@ export default function TimetableClient() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedStopDetail, setSelectedStopDetail] = useState<StopDetail | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFindingLocation, setIsFindingLocation] = useState(false);
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const routesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -77,6 +81,93 @@ export default function TimetableClient() {
       stop.stop.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [timetable, searchQuery]);
+
+
+  const handleFindNearestStop = () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: 'Geolokacija nepalaikoma',
+        description: 'Jūsų naršyklė nepalaiko vietos nustatymo funkcijos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsFindingLocation(true);
+    toast({
+      title: 'Ieškoma Jūsų vietos...',
+      description: 'Prašome suteikti leidimą nustatyti Jūsų buvimo vietą.',
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        toast({
+          title: 'Vieta rasta!',
+          description: 'Ieškoma artimiausios stotelės...',
+        });
+
+        if (!firestore || !routes) {
+          toast({ title: 'Klaida', description: 'Nepavyko gauti maršrutų sąrašo.', variant: 'destructive'});
+          setIsFindingLocation(false);
+          return;
+        }
+
+        let allStops: (TimetableEntry & { routeId: string })[] = [];
+        // Fetch all stops from all routes
+        for (const route of routes) {
+          if (!route.id) continue;
+          const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`), orderBy('createdAt', 'asc'));
+          const stopsSnapshot = await getDocs(stopsQuery);
+          stopsSnapshot.forEach(doc => {
+            const stopData = doc.data() as TimetableEntry;
+            if (stopData.coords) {
+              allStops.push({ ...stopData, id: doc.id, routeId: route.id! });
+            }
+          });
+        }
+        
+        if (allStops.length === 0) {
+            toast({ title: 'Nerasta stotelių', description: 'Sistemoje nerasta stotelių su koordinatėmis.', variant: 'destructive'});
+            setIsFindingLocation(false);
+            return;
+        }
+
+        let nearestStop: (TimetableEntry & { routeId: string }) | null = null;
+        let minDistance = Infinity;
+
+        allStops.forEach(stop => {
+          const distance = getDistance(latitude, longitude, stop.coords![0], stop.coords![1]);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestStop = stop;
+          }
+        });
+
+        if (nearestStop) {
+           toast({
+              title: 'Artimiausia stotelė rasta!',
+              description: `"${nearestStop.stop}" (${(minDistance).toFixed(2)} km). Kraunamas tvarkaraštis...`,
+            });
+            setSelectedRouteId(nearestStop.routeId);
+            setSearchQuery(nearestStop.stop);
+        } else {
+             toast({ title: 'Klaida', description: 'Nepavyko rasti artimiausios stotelės.', variant: 'destructive'});
+        }
+
+
+        setIsFindingLocation(false);
+      },
+      (error) => {
+        toast({
+          title: 'Vietos nustatymo klaida',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setIsFindingLocation(false);
+      }
+    );
+  };
 
 
   const handleStopClick = (stop: TimetableEntry) => {
@@ -119,10 +210,10 @@ export default function TimetableClient() {
           <CardHeader>
             <CardTitle>Pasirinkite maršrutą</CardTitle>
             <CardDescription>
-              Peržiūrėkite norimo maršruto stoteles ir laikus.
+              Peržiūrėkite norimo maršruto stoteles ir laikus arba raskite artimiausią stotelę.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <Select
               onValueChange={(value) => {
                 setSelectedRouteId(value);
@@ -142,6 +233,15 @@ export default function TimetableClient() {
                 ))}
               </SelectContent>
             </Select>
+            <Button 
+                className="w-full" 
+                variant="outline" 
+                onClick={handleFindNearestStop}
+                disabled={isFindingLocation}
+            >
+                {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
+                Rasti artimiausią stotelę
+            </Button>
           </CardContent>
         </Card>
 
