@@ -97,7 +97,7 @@ export default function AdminForms() {
     resolver: zodResolver(timetableSchema),
     defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: 54.6872, lng: 25.2797 } },
   });
-  const { setValue, watch } = timetableForm;
+  const { setValue, watch, control } = timetableForm;
   const watchedCoords = watch('coords');
   const watchedRouteId = watch('routeId');
 
@@ -393,25 +393,25 @@ export default function AdminForms() {
                 <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą.</p>
                 <div className="grid grid-cols-2 gap-4 mt-2">
                     <Controller
-                        control={timetableForm.control}
+                        control={control}
                         name="coords.lat"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Platuma</FormLabel>
                                 <FormControl>
-                                    <Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                    <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
                                 </FormControl>
                             </FormItem>
                         )}
                     />
                     <Controller
-                        control={timetableForm.control}
+                        control={control}
                         name="coords.lng"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Ilguma</FormLabel>
                                 <FormControl>
-                                    <Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                    <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
                                 </FormControl>
                             </FormItem>
                         )}
@@ -421,8 +421,8 @@ export default function AdminForms() {
                     <AdminMap
                         coords={watchedCoords}
                         onCoordsChange={(lat, lng) => {
-                            setValue('coords.lat', lat);
-                            setValue('coords.lng', lng);
+                            setValue('coords.lat', lat, { shouldValidate: true });
+                            setValue('coords.lng', lng, { shouldValidate: true });
                         }}
                         stopPositions={stopPositions}
                     />
