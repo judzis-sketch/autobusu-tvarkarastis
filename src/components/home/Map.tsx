@@ -25,7 +25,7 @@ const ChangeView: FC<{ stops: TimetableEntry[] }> = ({ stops }) => {
   const map = useMap();
   useEffect(() => {
     if (stops && stops.length > 0) {
-      const bounds = stops.map(stop => stop.coords as [number, number]);
+      const bounds = stops.filter(stop => stop.coords).map(stop => stop.coords as [number, number]);
       if (bounds.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50] });
       }
@@ -35,12 +35,13 @@ const ChangeView: FC<{ stops: TimetableEntry[] }> = ({ stops }) => {
 };
 
 export default function Map({ stops }: MapProps) {
-  if (!stops || stops.length === 0) {
+  const stopsWithCoords = stops.filter(s => s.coords && Array.isArray(s.coords) && s.coords.length === 2);
+  
+  if (stopsWithCoords.length === 0) {
     return <div className="h-full w-full bg-muted flex items-center justify-center"><p>Šiam maršrutui nėra stotelių su koordinatėmis.</p></div>;
   }
 
-  // Use the first stop with coordinates as the initial center
-  const initialCenter = stops[0].coords as [number, number];
+  const initialCenter = stopsWithCoords[0].coords as [number, number];
 
   return (
     <MapContainer center={initialCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
@@ -48,15 +49,15 @@ export default function Map({ stops }: MapProps) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      {stops.map((stop, index) => (
-        stop.coords && (
-          <Marker key={stop.id || index} position={stop.coords as [number, number]} icon={DefaultIcon}>
-            <Popup>
-              <b>{stop.stop}</b><br />
-              Laikai: {stop.times.join(', ')}
-            </Popup>
-          </Marker>
-        )
+      {stopsWithCoords.map((stop, index) => (
+        <Marker key={stop.id || index} position={stop.coords as [number, number]} icon={DefaultIcon}>
+          <Popup>
+            <b>{stop.stop}</b><br />
+            Laikai: {stop.times.join(', ')}
+          </Popup>
+        </Marker>
       ))}
-      <ChangeView stops={stops} />
-    </
+      <ChangeView stops={stopsWithCoords} />
+    </MapContainer>
+  );
+}
