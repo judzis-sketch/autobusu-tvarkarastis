@@ -587,6 +587,7 @@ export default function AdminForms() {
       <Card>
         <CardHeader>
           <CardTitle>Pridėti stotelės laikus</CardTitle>
+          <CardDescription>Tvarkykite maršrutus ir pridėkite naujas stoteles su jų laikais.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...timetableForm}>
@@ -600,20 +601,53 @@ export default function AdminForms() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Maršrutas</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="-- Pasirinkti maršrutą --" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {routes && routes.map((r) => (
-                          <SelectItem key={r.id} value={r.id!}>
-                            {r.number} — {r.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                     <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="-- Pasirinkti maršrutą --" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                           {routes && routes.map((route) => (
+                              <div key={route.id} className="relative flex items-center pr-8">
+                                <SelectItem value={route.id!} className="w-full">
+                                  <div className="flex flex-col text-left">
+                                      <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
+                                      {route.days && route.days.length > 0 && (
+                                         <div className="flex flex-wrap gap-1 mt-1">
+                                            {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                                        </div>
+                                      )}
+                                  </div>
+                                </SelectItem>
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingRoute(route); }}>
+                                        <Pencil className="h-4 w-4 text-muted-foreground"/>
+                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                             <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeleting === route.id} onClick={(e) => e.stopPropagation()}>
+                                                {isDeleting === route.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                            Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Atšaukti</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">Taip, ištrinti</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </div>
+                              </div>
+                           ))}
+                        </SelectContent>
+                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -780,75 +814,6 @@ export default function AdminForms() {
           </Form>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Tvarkyti maršrutus</CardTitle>
-          <CardDescription>
-            Redaguokite arba ištrinkite esamus maršrutus. Ištrynimo veiksmas
-            negrįžtamas.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {routes && routes.map((route) => (
-              <div
-                key={route.id}
-                className="flex items-center justify-between p-2 border rounded-md"
-              >
-                <div>
-                  <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                      {route.days && route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
-                  </div>
-                </div>
-                <div className="flex items-center">
-                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingRoute(route)}>
-                      <Pencil className="h-4 w-4 text-muted-foreground"/>
-                   </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive/80 hover:text-destructive"
-                        disabled={isDeleting === route.id}
-                      >
-                        {isDeleting === route.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Ar tikrai norite ištrinti?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Šis veiksmas visam laikui ištrins maršrutą "
-                          {route.number} - {route.name}" ir visus susijusius
-                          tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDeleteRoute(route.id!)}
-                          className="bg-destructive hover:bg-destructive/90"
-                        >
-                          Taip, ištrinti
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
       
       <Dialog open={!!editingStop} onOpenChange={(isOpen) => !isOpen && setEditingStop(null)}>
         <DialogContent>
@@ -929,8 +894,7 @@ export default function AdminForms() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Pavadinimas</FormLabel>
-                      <FormControl>
+                      <FormLabel>Pavadinimas</FormLabel>                      <FormControl>
                         <Input {...field} />
                       </FormControl>
                       <FormMessage />
