@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useAuth, initiateEmailSignIn } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { useAuth, useUser, initiateEmailSignIn } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,26 +18,65 @@ export default function LoginPage() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    // If user is already logged in, redirect them away from login page
+    if (!isUserLoading && user) {
+      router.replace('/admin');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // We need to handle the sign-in result to show errors
     try {
-      // We don't await this, the onAuthStateChanged listener will handle the redirect
-      initiateEmailSignIn(auth, email, password);
+      await initiateEmailSignIn(auth, email, password);
+      // The onAuthStateChanged listener will handle the redirect on success
     } catch (error: any) {
       console.error(error);
+      let description = 'Patikrinkite įvestus duomenis.';
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        description = 'Neteisingas el. paštas arba slaptažodis.';
+      }
       toast({
         title: 'Klaida prisijungiant',
-        description: error.message || 'Patikrinkite įvestus duomenis.',
+        description: description,
         variant: 'destructive',
       });
       setIsLoading(false);
     }
   };
   
-  // The redirect logic will be handled by AuthGuard now. 
-  // If a user is already logged in and tries to access /login, AuthGuard could redirect them away.
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User signed in
+        toast({
+          title: 'Sėkmingai prisijungėte!',
+          description: 'Valdymo skydelis kraunamas...',
+        });
+        router.push('/admin');
+      } else {
+        // User is signed out.
+        setIsLoading(false);
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [auth, router, toast]);
+
+
+  if (isUserLoading || user) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -56,6 +96,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -66,6 +107,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
