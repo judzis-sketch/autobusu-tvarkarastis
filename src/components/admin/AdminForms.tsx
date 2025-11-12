@@ -116,6 +116,8 @@ export default function AdminForms() {
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+  const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
   const firestore = useFirestore();
 
   const routesQuery = useMemoFirebase(() => {
@@ -144,6 +146,10 @@ export default function AdminForms() {
       resolver: zodResolver(editStopSchema),
   });
 
+  const editRouteForm = useForm<z.infer<typeof routeSchema>>({
+    resolver: zodResolver(routeSchema),
+  });
+
   useEffect(() => {
       if (editingStop) {
           editStopForm.reset({
@@ -152,6 +158,16 @@ export default function AdminForms() {
           });
       }
   }, [editingStop, editStopForm]);
+
+  useEffect(() => {
+    if (editingRoute) {
+      editRouteForm.reset({
+        number: editingRoute.number,
+        name: editingRoute.name,
+        days: editingRoute.days || [],
+      });
+    }
+  }, [editingRoute, editRouteForm]);
 
   useEffect(() => {
     const fetchLastStop = async () => {
@@ -431,6 +447,25 @@ export default function AdminForms() {
         toast({ title: 'Klaida!', description: 'Nepavyko atnaujinti stotelės duomenų.', variant: 'destructive'});
     } finally {
         setIsUpdatingStop(false);
+    }
+  };
+
+  const handleUpdateRoute = async (values: z.infer<typeof routeSchema>) => {
+    if (!firestore || !editingRoute?.id) {
+      toast({ title: 'Klaida!', description: 'Nepasirinktas maršrutas redagavimui.', variant: 'destructive' });
+      return;
+    }
+    setIsUpdatingRoute(true);
+    try {
+      const routeRef = doc(firestore, 'routes', editingRoute.id);
+      await updateDoc(routeRef, values);
+      toast({ title: 'Pavyko!', description: 'Maršruto duomenys atnaujinti.' });
+      setEditingRoute(null);
+    } catch (error) {
+      console.error("Error updating route: ", error);
+      toast({ title: 'Klaida!', description: 'Nepavyko atnaujinti maršruto duomenų.', variant: 'destructive' });
+    } finally {
+      setIsUpdatingRoute(false);
     }
   };
 
@@ -748,9 +783,9 @@ export default function AdminForms() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Ištrinti maršrutą</CardTitle>
+          <CardTitle>Tvarkyti maršrutus</CardTitle>
           <CardDescription>
-            Pasirinkite maršrutą, kurį norite ištrinti. Šis veiksmas
+            Redaguokite arba ištrinkite esamus maršrutus. Ištrynimo veiksmas
             negrįžtamas.
           </CardDescription>
         </CardHeader>
@@ -767,42 +802,48 @@ export default function AdminForms() {
                       {route.days && route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
                   </div>
                 </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      disabled={isDeleting === route.id}
-                    >
-                      {isDeleting === route.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Ar tikrai norite ištrinti?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Šis veiksmas visam laikui ištrins maršrutą "
-                        {route.number} - {route.name}" ir visus susijusius
-                        tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDeleteRoute(route.id!)}
-                        className="bg-destructive hover:bg-destructive/90"
+                <div className="flex items-center">
+                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingRoute(route)}>
+                      <Pencil className="h-4 w-4 text-muted-foreground"/>
+                   </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive/80 hover:text-destructive"
+                        disabled={isDeleting === route.id}
                       >
-                        Taip, ištrinti
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                        {isDeleting === route.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Ar tikrai norite ištrinti?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Šis veiksmas visam laikui ištrins maršrutą "
+                          {route.number} - {route.name}" ir visus susijusius
+                          tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Atšaukti</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteRoute(route.id!)}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Taip, ištrinti
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             ))}
           </div>
@@ -858,8 +899,109 @@ export default function AdminForms() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editingRoute} onOpenChange={(isOpen) => !isOpen && setEditingRoute(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Redaguoti maršrutą</DialogTitle>
+            <DialogDescription>
+              Pakeiskite maršruto "{editingRoute?.number} - {editingRoute?.name}" duomenis.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editRouteForm}>
+            <form onSubmit={editRouteForm.handleSubmit(handleUpdateRoute)} className="space-y-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editRouteForm.control}
+                  name="number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Numeris</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editRouteForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pavadinimas</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+               <FormField
+                  control={editRouteForm.control}
+                  name="days"
+                  render={() => (
+                    <FormItem>
+                      <div className="mb-4">
+                        <FormLabel className="text-base">Kursavimo dienos</FormLabel>
+                        <FormDescription>
+                          Pasirinkite dienas, kuriomis maršrutas yra aktyvus.
+                        </FormDescription>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {daysOfWeek.map((day) => (
+                        <FormField
+                          key={day}
+                          control={editRouteForm.control}
+                          name="days"
+                          render={({ field }) => {
+                            return (
+                              <FormItem
+                                key={day}
+                                className="flex flex-row items-start space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(day)}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? field.onChange([...field.value, day])
+                                        : field.onChange(
+                                            field.value?.filter(
+                                              (value) => value !== day
+                                            )
+                                          )
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  {day}
+                                </FormLabel>
+                              </FormItem>
+                            )
+                          }}
+                        />
+                      ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              <DialogFooter>
+                  <DialogClose asChild>
+                      <Button type="button" variant="outline">Atšaukti</Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={isUpdatingRoute}>
+                      {isUpdatingRoute && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Išsaugoti pakeitimus
+                  </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-    
