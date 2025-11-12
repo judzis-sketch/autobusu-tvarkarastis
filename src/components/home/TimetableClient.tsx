@@ -54,6 +54,7 @@ export default function TimetableClient() {
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [isFindingLocation, setIsFindingLocation] = useState(false);
+  const [isSearchingStops, setIsSearchingStops] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -85,9 +86,61 @@ export default function TimetableClient() {
   }, [timetable, activeSearch]);
 
 
-  const handleSearchSubmit = (e: FormEvent) => {
+  const handleSearchSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setActiveSearch(searchInput);
+    if (!searchInput) {
+      setActiveSearch('');
+      return;
+    }
+    
+    // If a route is already selected, search within it
+    if(selectedRouteId) {
+      setActiveSearch(searchInput);
+      return;
+    }
+
+    // If no route is selected, search across all routes
+    if (!firestore || !routes) {
+      toast({ title: 'Klaida', description: 'Maršrutų sąrašas dar neužkrautas.', variant: 'destructive'});
+      return;
+    }
+
+    setIsSearchingStops(true);
+    toast({ title: 'Ieškoma stotelės...', description: `Ieškoma "${searchInput}" visuose maršrutuose.`});
+
+    let foundStop = false;
+    for (const route of routes) {
+      if (!route.id) continue;
+      const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`));
+      const stopsSnapshot = await getDocs(stopsQuery);
+      
+      for (const doc of stopsSnapshot.docs) {
+        const stopData = doc.data() as TimetableEntry;
+        if (stopData.stop.toLowerCase().includes(searchInput.toLowerCase())) {
+          toast({
+            title: 'Stotelė rasta!',
+            description: `Stotelė "${stopData.stop}" rasta maršrute ${route.number}. Kraunamas tvarkaraštis...`,
+          });
+          setSelectedRouteId(route.id);
+          setActiveSearch(searchInput); // Set active search to filter the newly loaded timetable
+          foundStop = true;
+          break; // Exit inner loop
+        }
+      }
+      if (foundStop) {
+        break; // Exit outer loop
+      }
+    }
+
+    if (!foundStop) {
+      toast({
+        title: 'Stotelė nerasta',
+        description: `Stotelė pavadinimu "${searchInput}" nerasta jokiame maršrute.`,
+        variant: 'destructive',
+      });
+    }
+
+    setIsSearchingStops(false);
   }
 
   const handleClearSearch = () => {
@@ -223,31 +276,69 @@ export default function TimetableClient() {
       <div className="flex flex-col gap-8">
         <Card>
           <CardHeader>
-            <CardTitle>Pasirinkite maršrutą</CardTitle>
+            <CardTitle>Maršruto ir stotelės paieška</CardTitle>
             <CardDescription>
-              Peržiūrėkite norimo maršruto stoteles ir laikus arba raskite artimiausią stotelę.
+              Pasirinkite maršrutą arba ieškokite stotelės pagal pavadinimą visuose maršrutuose.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Select
-              onValueChange={(value) => {
-                setSelectedRouteId(value);
-                handleClearSearch();
-              }}
-              value={selectedRouteId ?? ''}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="-- Pasirinkite --" />
-              </SelectTrigger>
-              <SelectContent>
-                {routes && routes.map((r) => (
-                  <SelectItem key={r.id} value={r.id!}>
-                    <span className="font-bold mr-2">{r.number}</span> —{' '}
-                    <span>{r.name}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+             <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Stotelės paieška</label>
+                    <div className="relative flex-grow">
+                        <Input 
+                        placeholder="Įveskite stotelės pavadinimą..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        />
+                        {searchInput && (
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                            onClick={handleClearSearch}
+                        >
+                            <X className="h-4 w-4 text-muted-foreground"/>
+                        </Button>
+                        )}
+                    </div>
+                </div>
+                 <Button type="submit" variant="secondary" disabled={isSearchingStops}>
+                    {isSearchingStops ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4 mr-2" />}
+                    Ieškoti stotelės
+                </Button>
+             </form>
+
+            <div className="flex items-center gap-4">
+                <div className="flex-1 border-t"></div>
+                <span className="text-xs text-muted-foreground">ARBA</span>
+                <div className="flex-1 border-t"></div>
+            </div>
+            
+            <div className="space-y-2">
+                 <label className="text-sm font-medium">Pasirinkite maršrutą</label>
+                <Select
+                  onValueChange={(value) => {
+                    setSelectedRouteId(value);
+                    handleClearSearch();
+                  }}
+                  value={selectedRouteId ?? ''}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="-- Pasirinkite iš sąrašo --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {routes && routes.map((r) => (
+                      <SelectItem key={r.id} value={r.id!}>
+                        <span className="font-bold mr-2">{r.number}</span> —{' '}
+                        <span>{r.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+            </div>
+
             <Button 
                 className="w-full" 
                 variant="outline" 
@@ -255,48 +346,12 @@ export default function TimetableClient() {
                 disabled={isFindingLocation}
             >
                 {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
-                Rasti artimiausią stotelę
+                Rasti artimiausią stotelę pagal mano lokaciją
             </Button>
           </CardContent>
         </Card>
 
         {selectedRouteId && (
-          <>
-            <Card>
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Search className="h-5 w-5 text-muted-foreground"/>
-                    Stotelės paieška
-                  </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSearchSubmit} className="flex gap-2">
-                  <div className="relative flex-grow">
-                     <Input 
-                      placeholder="Įveskite stotelės pavadinimą..."
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                    />
-                    {searchInput && (
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                        onClick={handleClearSearch}
-                      >
-                        <X className="h-4 w-4 text-muted-foreground"/>
-                      </Button>
-                    )}
-                  </div>
-                  <Button type="submit" variant="secondary">
-                     <Search className="h-4 w-4 mr-2" />
-                    Ieškoti
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
             <Tabs defaultValue="list">
               <Card className="flex-grow">
                 <CardHeader>
@@ -375,7 +430,6 @@ export default function TimetableClient() {
                 </CardContent>
               </Card>
             </Tabs>
-          </>
         )}
       </div>
 
