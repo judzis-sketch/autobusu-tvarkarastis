@@ -16,7 +16,6 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
-import { AdminMap } from './AdminMap';
 import dynamic from 'next/dynamic';
 
 import {
@@ -30,6 +29,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+const AdminMap = dynamic(() => import('@/components/admin/AdminMap').then(m => m.AdminMap), {
+  ssr: false,
+  loading: () => <div className="h-full w-full bg-muted flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>,
+});
+
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -359,3 +364,5 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
