@@ -2,7 +2,7 @@
 
 import type { Route } from '@/lib/types';
 import { useState, useTransition, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +55,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+import AdminMap from './AdminMap';
+
+
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
@@ -64,6 +67,10 @@ const timetableSchema = z.object({
   routeId: z.string({ required_error: 'Prašome pasirinkti maršrutą.' }),
   stop: z.string().min(1, 'Stotelės pavadinimas yra privalomas'),
   times: z.string().min(5, 'Laikai yra privalomi (pvz., 08:00)'),
+  coords: z.object({
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+  }).optional(),
 });
 
 export default function AdminForms() {
@@ -91,8 +98,11 @@ export default function AdminForms() {
 
   const timetableForm = useForm<z.infer<typeof timetableSchema>>({
     resolver: zodResolver(timetableSchema),
-    defaultValues: { routeId: '', stop: '', times: '' },
+    defaultValues: { routeId: '', stop: '', times: '', coords: { lat: 54.6872, lng: 25.2797 } },
   });
+  const { setValue, watch } = timetableForm;
+  const watchedCoords = watch('coords');
+
 
   const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
@@ -110,6 +120,7 @@ export default function AdminForms() {
           description: 'Maršrutas sėkmingai išsaugotas.',
         });
         routeForm.reset();
+        // The useCollection hook will automatically update the routes list
       } catch (error) {
         toast({
           title: 'Klaida!',
@@ -123,7 +134,7 @@ export default function AdminForms() {
 
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(async () => {
-      const { routeId, stop, times } = values;
+      const { routeId, stop, times, coords } = values;
 
       const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
       if (parsedTimes.length === 0) {
@@ -149,6 +160,10 @@ export default function AdminForms() {
         times: parsedTimes,
         createdAt: serverTimestamp(),
       };
+      
+      if (coords && coords.lat && coords.lng) {
+        payload.coords = [coords.lat, coords.lng];
+      }
 
       const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
 
@@ -158,7 +173,7 @@ export default function AdminForms() {
           title: 'Pavyko!',
           description: 'Tvarkaraščio įrašas pridėtas.',
         });
-        timetableForm.reset();
+        timetableForm.reset({ routeId: '', stop: '', times: '', coords: { lat: 54.6872, lng: 25.2797 } });
       } catch (error) {
         toast({
           title: 'Klaida!',
@@ -331,6 +346,48 @@ export default function AdminForms() {
                   </FormItem>
                 )}
               />
+                
+              <div>
+                <FormLabel>Stotelės koordinatės (pasirinktinai)</FormLabel>
+                <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą.</p>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                    <Controller
+                        control={timetableForm.control}
+                        name="coords.lat"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Platuma</FormLabel>
+                                <FormControl>
+                                    <Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                    <Controller
+                        control={timetableForm.control}
+                        name="coords.lng"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Ilguma</FormLabel>
+                                <FormControl>
+                                    <Input type="number" step="any" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                 <div className="mt-4 h-64 w-full rounded-md overflow-hidden border">
+                    <AdminMap
+                        coords={watchedCoords}
+                        onCoordsChange={(lat, lng) => {
+                            setValue('coords.lat', lat);
+                            setValue('coords.lng', lng);
+                        }}
+                    />
+                </div>
+              </div>
+
+
               <Button
                 type="submit"
                 variant="secondary"
