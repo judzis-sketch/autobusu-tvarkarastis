@@ -2,24 +2,32 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
-import { getTimetableForRoute } from '@/lib/actions';
+import { getRoutes, getTimetableForRoute } from '@/lib/actions';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, Loader2, MapPin } from 'lucide-react';
 
-type TimetableClientProps = {
-  initialRoutes: Route[];
-};
-
-export default function TimetableClient({ initialRoutes }: TimetableClientProps) {
+export default function TimetableClient() {
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [isLoadingRoutes, setIsLoadingRoutes] = useState(true);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  const selectedRoute = initialRoutes.find(r => r.id === selectedRouteId);
+  const selectedRoute = routes.find(r => r.id === selectedRouteId);
+
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      setIsLoadingRoutes(true);
+      const fetchedRoutes = await getRoutes();
+      setRoutes(fetchedRoutes);
+      setIsLoadingRoutes(false);
+    };
+    fetchRoutes();
+  }, []);
 
   useEffect(() => {
     if (!selectedRouteId) {
@@ -32,6 +40,10 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
       setTimetable(tt);
     });
   }, [selectedRouteId]);
+
+  if (isLoadingRoutes) {
+    return <div className="flex justify-center items-center pt-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -46,7 +58,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
               <SelectValue placeholder="-- Pasirinkite --" />
             </SelectTrigger>
             <SelectContent>
-              {initialRoutes.map((r) => (
+              {routes.map((r) => (
                 <SelectItem key={r.id} value={r.id!}>
                   <span className="font-bold mr-2">{r.number}</span> — <span>{r.name}</span>
                 </SelectItem>

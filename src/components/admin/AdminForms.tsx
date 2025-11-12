@@ -1,11 +1,11 @@
 'use client';
 
 import type { Route } from '@/lib/types';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addMultipleRoutesAction, addTimetableEntryAction } from '@/lib/actions';
+import { addMultipleRoutesAction, addTimetableEntryAction, getRoutes } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,16 +32,23 @@ const timetableSchema = z.object({
   coords: z.string().optional(),
 });
 
-type AdminFormsProps = {
-  routes: Route[];
-};
-
-export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
-  const [routes, setRoutes] = useState(initialRoutes);
+export default function AdminForms() {
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [isLoadingRoutes, setIsLoadingRoutes] = useState(true);
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
   const auth = useAuth();
+
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      setIsLoadingRoutes(true);
+      const fetchedRoutes = await getRoutes();
+      setRoutes(fetchedRoutes);
+      setIsLoadingRoutes(false);
+    };
+    fetchRoutes();
+  }, []);
 
   const routeForm = useForm<z.infer<typeof multipleRoutesSchema>>({
     resolver: zodResolver(multipleRoutesSchema),
@@ -94,6 +101,10 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
       }
     });
   };
+  
+  if (isLoadingRoutes) {
+    return <div className="flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
