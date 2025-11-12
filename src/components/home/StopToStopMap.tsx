@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TimetableEntry } from '@/lib/types';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getRoute } from '@/lib/osrm';
+import { Loader2 } from 'lucide-react';
 
 interface StopToStopMapProps {
   currentStop: TimetableEntry;
@@ -15,6 +17,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(true);
 
   // Initialize map
   useEffect(() => {
@@ -42,34 +45,70 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
       polylineRef.current.remove();
       polylineRef.current = null;
     }
+    
+    setIsLoadingRoute(true);
 
     const stopPositions = [currentStop.coords, nextStop.coords].filter(Boolean) as [number, number][];
 
-    if (stopPositions.length === 0) return;
+    if (stopPositions.length < 2) {
+        setIsLoadingRoute(false);
+        return;
+    }
 
     // Add markers
     const currentMarker = L.marker(stopPositions[0]).addTo(map);
     currentMarker.bindPopup(`<b>Išvykimas:</b><br/>${currentStop.stop}`).openPopup();
     markersRef.current.push(currentMarker);
 
-    if (stopPositions.length > 1) {
-        const nextMarker = L.marker(stopPositions[1]).addTo(map);
-        nextMarker.bindPopup(`<b>Atvykimas:</b><br/>${nextStop.stop}`);
-        markersRef.current.push(nextMarker);
-    }
+    const nextMarker = L.marker(stopPositions[1]).addTo(map);
+    nextMarker.bindPopup(`<b>Atvykimas:</b><br/>${nextStop.stop}`);
+    markersRef.current.push(nextMarker);
     
-    // Add polyline
-    if (stopPositions.length > 1) {
-      polylineRef.current = L.polyline(stopPositions, { color: 'red' }).addTo(map);
-    }
-    
-    // Fit bounds
-    if (stopPositions.length > 0) {
-      const bounds = L.latLngBounds(stopPositions);
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
+    // Fit bounds to markers initially
+    const bounds = L.latLngBounds(stopPositions);
+    map.fitBounds(bounds, { padding: [50, 50] });
+
+    // Fetch and draw route geometry
+    const fetchAndDrawRoute = async () => {
+        try {
+            const route = await getRoute(stopPositions[0], stopPositions[1]);
+            if (route && route.geometry && route.geometry.length > 0) {
+                 if (polylineRef.current) {
+                    polylineRef.current.remove();
+                }
+                polylineRef.current = L.polyline(route.geometry, { color: 'red' }).addTo(map);
+                
+                // Fit bounds to the route geometry
+                const routeBounds = polylineRef.current.getBounds();
+                map.fitBounds(routeBounds, { padding: [50, 50] });
+            }
+        } catch (error) {
+            console.error("Failed to fetch route geometry:", error);
+            // Fallback to a straight line on error
+            if (polylineRef.current) {
+                polylineRef.current.remove();
+            }
+            polylineRef.current = L.polyline(stopPositions, { color: 'red', dashArray: '5, 5' }).addTo(map);
+        } finally {
+            setIsLoadingRoute(false);
+        }
+    };
+
+    fetchAndDrawRoute();
 
   }, [currentStop, nextStop]);
 
-  return <div ref={mapRef} style={{ height: '100%', width: '100%' }} />;
+  return (
+    <div className="relative h-full w-full">
+        {isLoadingRoute && (
+             <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">
+                 <div className="flex items-center gap-2 rounded-md bg-background p-3 shadow-md">
+                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                     <span className="text-muted-foreground">Kraunamas maršrutas...</span>
+                 </div>
+             </div>
+        )}
+        <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
+    </div>
+    );
 }
