@@ -30,7 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2, Route as RouteIcon } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -59,6 +59,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+import { ScrollArea } from '../ui/scroll-area';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
@@ -110,7 +112,7 @@ export default function AdminForms() {
     if (!firestore || !watchedRouteId) return null;
     return query(collection(firestore, `routes/${watchedRouteId}/timetable`), orderBy('createdAt', 'asc'));
   }, [firestore, watchedRouteId]);
-  const { data: timetableStops } = useCollection<TimetableEntry>(timetableQuery);
+  const { data: timetableStops, isLoading: isLoadingTimetableStops } = useCollection<TimetableEntry>(timetableQuery);
   const stopPositions = useMemo(() => timetableStops?.map(s => s.coords).filter(Boolean) as [number, number][] || [], [timetableStops]);
 
 
@@ -405,7 +407,7 @@ export default function AdminForms() {
           <Form {...timetableForm}>
             <form
               onSubmit={timetableForm.handleSubmit(handleAddTimetable)}
-              className="space-y-4"
+              className="space-y-6"
             >
               <FormField
                 control={timetableForm.control}
@@ -431,91 +433,127 @@ export default function AdminForms() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={timetableForm.control}
-                name="stop"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stotelės pavadinimas</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Vinco Kudirkos aikštė" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={timetableForm.control}
-                name="times"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Laikai (atskirti kableliu)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="08:00, 08:30, 09:15" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-                <div className="space-y-2">
-                    <FormField
-                    control={timetableForm.control}
-                    name="distanceToNext"
-                    render={({ field }) => (
+
+              {watchedRouteId && (
+                 <Collapsible>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="outline" className="w-full">
+                            <ListOrdered className="mr-2 h-4 w-4" />
+                            Esamos maršruto stotelės ({timetableStops?.length ?? 0})
+                            <ChevronDown className="ml-auto h-4 w-4" />
+                        </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                       <ScrollArea className="h-40 mt-2 rounded-md border p-2">
+                         {isLoadingTimetableStops ? (
+                           <div className="flex justify-center items-center h-full">
+                             <Loader2 className="h-5 w-5 animate-spin" />
+                           </div>
+                         ) : timetableStops && timetableStops.length > 0 ? (
+                            <ol className="list-decimal list-inside space-y-2">
+                              {timetableStops.map((stop, index) => (
+                                <li key={stop.id || index} className="text-sm">
+                                  <span className="font-semibold">{stop.stop}</span>
+                                  <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
+                                </li>
+                              ))}
+                            </ol>
+                         ) : (
+                           <p className="text-sm text-muted-foreground text-center pt-4">Šiam maršrutui stotelių dar nepridėta.</p>
+                         )}
+                       </ScrollArea>
+                    </CollapsibleContent>
+                 </Collapsible>
+              )}
+
+
+              <div className="space-y-4 pt-4 border-t">
+                <FormField
+                  control={timetableForm.control}
+                  name="stop"
+                  render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Atstumas iki kitos stotelės (kilometrais)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="any" placeholder="0.85" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                      <FormLabel>Naujos stotelės pavadinimas</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Vinco Kudirkos aikštė" {...field} />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
-                    )}
-                    />
-                    <Button type="button" variant="outline" size="sm" onClick={handleCalculateDistance} disabled={isCalculatingDistance || !lastStopCoords}>
-                        {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
-                        Apskaičiuoti atstumą pagal kelius
-                    </Button>
-                </div>
-                
-              <div>
-                <FormLabel>Stotelės koordinatės (pasirinktinai)</FormLabel>
-                <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą.</p>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                    <Controller
-                        control={control}
-                        name="coords.lat"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Platuma</FormLabel>
-                                <FormControl>
-                                    <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
-                    <Controller
-                        control={control}
-                        name="coords.lng"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Ilguma</FormLabel>
-                                <FormControl>
-                                    <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                 <div className="mt-4 h-64 w-full rounded-md overflow-hidden border">
-                    <AdminMap
-                        coords={watchedCoords}
-                        onCoordsChange={(lat, lng) => {
-                            setValue('coords.lat', lat, { shouldValidate: true });
-                            setValue('coords.lng', lng, { shouldValidate: true });
-                        }}
-                        stopPositions={stopPositions}
-                        lastStopPosition={lastStopCoords}
-                    />
+                  )}
+                />
+                <FormField
+                  control={timetableForm.control}
+                  name="times"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Laikai (atskirti kableliu)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="08:00, 08:30, 09:15" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                  <div className="space-y-2">
+                      <FormField
+                      control={timetableForm.control}
+                      name="distanceToNext"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Atstumas iki kitos stotelės (kilometrais)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="any" placeholder="0.85" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={handleCalculateDistance} disabled={isCalculatingDistance || !lastStopCoords}>
+                          {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
+                          Apskaičiuoti atstumą pagal kelius
+                      </Button>
+                  </div>
+                  
+                <div>
+                  <FormLabel>Naujos stotelės koordinatės (pasirinktinai)</FormLabel>
+                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą.</p>
+                  <div className="grid grid-cols-2 gap-4 mt-2">
+                      <Controller
+                          control={control}
+                          name="coords.lat"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Platuma</FormLabel>
+                                  <FormControl>
+                                      <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                  </FormControl>
+                              </FormItem>
+                          )}
+                      />
+                      <Controller
+                          control={control}
+                          name="coords.lng"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Ilguma</FormLabel>
+                                  <FormControl>
+                                      <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                  </FormControl>
+                              </FormItem>
+                          )}
+                      />
+                  </div>
+                  <div className="mt-4 h-64 w-full rounded-md overflow-hidden border">
+                      <AdminMap
+                          coords={watchedCoords}
+                          onCoordsChange={(lat, lng) => {
+                              setValue('coords.lat', lat, { shouldValidate: true });
+                              setValue('coords.lng', lng, { shouldValidate: true });
+                          }}
+                          stopPositions={stopPositions}
+                          lastStopPosition={lastStopCoords}
+                      />
+                  </div>
                 </div>
               </div>
 
@@ -523,12 +561,12 @@ export default function AdminForms() {
               <Button
                 type="submit"
                 variant="secondary"
-                disabled={isPendingTimetable}
+                disabled={isPendingTimetable || !watchedRouteId}
               >
                 {isPendingTimetable && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Pridėti laikus
+                Pridėti stotelę ir laikus
               </Button>
             </form>
           </Form>
