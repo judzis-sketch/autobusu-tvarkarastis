@@ -71,16 +71,22 @@ import {
 } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { ScrollArea } from '../ui/scroll-area';
+import { Checkbox } from '../ui/checkbox';
+import { Badge } from '../ui/badge';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
   loading: () => <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
 });
 
+const daysOfWeek = ["Pirmadienis", "Antradienis", "Trečiadienis", "Ketvirtadienis", "Penktadienis", "Šeštadienis", "Sekmadienis"] as const;
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
+  days: z.array(z.string()).refine(value => value.length > 0, {
+    message: "Pasirinkite bent vieną savaitės dieną."
+  })
 });
 
 const timetableSchema = z.object({
@@ -181,6 +187,7 @@ export default function AdminForms() {
     defaultValues: {
       number: '',
       name: '',
+      days: [],
     },
   });
   
@@ -440,14 +447,14 @@ export default function AdminForms() {
         <CardHeader>
           <CardTitle>Naujas maršrutas</CardTitle>
           <CardDescription>
-            Įveskite naujo maršruto informaciją.
+            Įveskite naujo maršruto informaciją ir pasirinkite, kuriomis dienomis jis kursuoja.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...routeForm}>
             <form
               onSubmit={routeForm.handleSubmit(handleAddRoute)}
-              className="space-y-4"
+              className="space-y-6"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -477,6 +484,59 @@ export default function AdminForms() {
                   )}
                 />
               </div>
+
+               <FormField
+                  control={routeForm.control}
+                  name="days"
+                  render={() => (
+                    <FormItem>
+                      <div className="mb-4">
+                        <FormLabel className="text-base">Kursavimo dienos</FormLabel>
+                        <FormDescription>
+                          Pasirinkite dienas, kuriomis maršrutas yra aktyvus.
+                        </FormDescription>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {daysOfWeek.map((day) => (
+                        <FormField
+                          key={day}
+                          control={routeForm.control}
+                          name="days"
+                          render={({ field }) => {
+                            return (
+                              <FormItem
+                                key={day}
+                                className="flex flex-row items-start space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(day)}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? field.onChange([...field.value, day])
+                                        : field.onChange(
+                                            field.value?.filter(
+                                              (value) => value !== day
+                                            )
+                                          )
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  {day}
+                                </FormLabel>
+                              </FormItem>
+                            )
+                          }}
+                        />
+                      ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+
               <Button type="submit" disabled={isPendingRoute}>
                 {isPendingRoute && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -701,8 +761,10 @@ export default function AdminForms() {
                 className="flex items-center justify-between p-2 border rounded-md"
               >
                 <div>
-                  <span className="font-bold">{route.number}</span> —{' '}
-                  <span>{route.name}</span>
+                  <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                      {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                  </div>
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

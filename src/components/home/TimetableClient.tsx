@@ -29,6 +29,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { getDistance } from '@/lib/distance';
+import { Badge } from '../ui/badge';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -272,6 +273,11 @@ export default function TimetableClient() {
                     <div>
                       <CardTitle>Maršrutas: {selectedRoute?.number}</CardTitle>
                       <CardDescription>{selectedRoute?.name}</CardDescription>
+                      {selectedRoute?.days && selectedRoute.days.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                            {selectedRoute.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                        </div>
+                      )}
                     </div>
                     <TabsList>
                       <TabsTrigger value="list"><List className="h-4 w-4 mr-2" />Sąrašas</TabsTrigger>

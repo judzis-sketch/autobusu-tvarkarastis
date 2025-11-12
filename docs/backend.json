@@ -17,12 +17,29 @@
         "name": {
           "type": "string",
           "description": "The route name (e.g., 'Centras - Stotis')."
+        },
+        "days": {
+          "type": "array",
+          "description": "An array of strings indicating the days of the week the route operates.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Pirmadienis",
+              "Antradienis",
+              "Trečiadienis",
+              "Ketvirtadienis",
+              "Penktadienis",
+              "Šeštadienis",
+              "Sekmadienis"
+            ]
+          }
         }
       },
       "required": [
         "id",
         "number",
-        "name"
+        "name",
+        "days"
       ]
     },
     "TimetableEntry": {

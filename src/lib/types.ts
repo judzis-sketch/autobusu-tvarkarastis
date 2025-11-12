@@ -14,5 +14,6 @@ export type Route = {
   id?: string;
   number: string;
   name: string;
+  days: string[];
   createdAt?: string;
 };
