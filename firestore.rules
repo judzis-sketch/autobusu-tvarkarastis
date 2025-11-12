@@ -1,0 +1,100 @@
+/**
+ * @fileoverview Firestore Security Rules for Prototyping.
+ *
+ * Core Philosophy: This ruleset enforces a strict admin-only write access model,
+ * allowing only users designated as admins to create, update, or delete data.
+ * Read access is generally open to all users, including unauthenticated users.
+ *
+ * Data Structure:
+ * - /routes/{routeId}: Stores bus route information.
+ * - /routes/{routeId}/timetable/{timetableEntryId}: Stores timetable entries for routes.
+ * - /users/{userId}: Stores user profile information.
+ * - /roles_admin/{userId}: Indicates admin status for a user (document existence implies admin).
+ *
+ * Key Security Decisions:
+ * - Admin-Only Writes: All `create`, `update`, and `delete` operations are restricted to administrators.
+ * - Public Reads: All `get` and `list` operations are open to all users.
+ * - Admin Role Check: The `isAdmin()` function uses a `get()` call to the `/roles_admin/{userId}` collection to determine admin status.
+ *
+ * Denormalization for Authorization:
+ * - Admin Role: The `isAdmin()` function checks for the existence of a document in the `/roles_admin/{userId}` collection to authorize admin-only actions.
+ *
+ * Structural Segregation:
+ * - The separation of admin roles into the `/roles_admin/{userId}` collection allows for explicit control over administrative privileges.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows anyone to read routes, but only admins can create, update, or delete them.
+     * @path /routes/{routeId}
+     * @allow (get, list): Any user can read route information.
+     * @allow (create, update, delete): Only admins can modify route information.
+     * @deny (create, update, delete): Non-admins cannot modify route information.
+     * @principle Enforces admin-only writes for route data.
+     */
+    match /routes/{routeId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Allows anyone to read timetable entries, but only admins can create, update, or delete them.
+     * @path /routes/{routeId}/timetable/{timetableEntryId}
+     * @allow (get, list): Any user can read timetable entries.
+     * @allow (create, update, delete): Only admins can modify timetable entries.
+     * @deny (create, update, delete): Non-admins cannot modify timetable entries.
+     * @principle Enforces admin-only writes for timetable data.
+     */
+    match /routes/{routeId}/timetable/{timetableEntryId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Allows a user to read their own profile and admins to read any profile.  No write access is granted.
+     * @path /users/{userId}
+     * @allow (get): The user can read their own profile, or an admin can read any profile.
+     * @allow (list): The user can list their own profile, or an admin can list any profile.
+     * @deny (create, update, delete): No one can create, update, or delete user documents using these rules.
+     * @principle Restricts user profile management, requiring other functions to handle profile updates.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Allows only admins to manage admin roles by creating or deleting documents in this collection.
+     * @path /roles_admin/{userId}
+     * @allow (create, delete): Only admins can assign or revoke admin roles.
+     * @deny (get, list, update): Regular users cannot read, list, or update admin roles.
+     * @principle Restricts admin role management to existing administrators.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "entities": {
+    "Route": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Route",
+      "type": "object",
+      "description": "Represents a bus route with a unique identifier, number, and name.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Route entity."
+        },
+        "number": {
+          "type": "string",
+          "description": "The route number (e.g., '10')."
+        },
+        "name": {
+          "type": "string",
+          "description": "The route name (e.g., 'Centras - Stotis')."
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "name"
+      ]
+    },
+    "TimetableEntry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TimetableEntry",
+      "type": "object",
+      "description": "Represents a timetable entry for a specific route, including the stop name, times, and optional coordinates.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the TimetableEntry entity."
+        },
+        "routeId": {
+          "type": "string",
+          "description": "Reference to Route. (Relationship: Route 1:N TimetableEntry)"
+        },
+        "stop": {
+          "type": "string",
+          "description": "The name of the bus stop."
+        },
+        "times": {
+          "type": "array",
+          "description": "An array of scheduled times for the bus stop.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "coords": {
+          "type": "array",
+          "description": "The coordinates (latitude and longitude) of the bus stop.",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "routeId",
+        "stop",
+        "times"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application. This entity stores user information, excluding authentication details.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "username": {
+          "type": "string",
+          "description": "The username of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "A boolean indicating whether the user is an administrator."
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "isAdmin"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/routes/{routeId}",
+        "definition": {
+          "entityName": "Route",
+          "schema": {
+            "$ref": "#/backend/entities/Route"
+          },
+          "description": "Stores bus route information. Only admins can create, update, or delete routes. Includes 'routeId' parameter.",
+          "params": [
+            {
+              "name": "routeId",
+              "description": "The unique identifier for the route."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/routes/{routeId}/timetable/{timetableEntryId}",
+        "definition": {
+          "entityName": "TimetableEntry",
+          "schema": {
+            "$ref": "#/backend/entities/TimetableEntry"
+          },
+          "description": "Stores timetable entries for a specific route. Only admins can create, update, or delete timetable entries. Includes 'routeId' and 'timetableEntryId' parameters.",
+          "params": [
+            {
+              "name": "routeId",
+              "description": "The unique identifier for the route."
+            },
+            {
+              "name": "timetableEntryId",
+              "description": "The unique identifier for the timetable entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. Only the user and admins can read user profile information.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores admin role assignments. If a document exists for a user ID in this collection, that user is considered an admin. Only admins can assign admin roles.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure that only system administrators can modify the data, while still allowing all users to view the data. This is achieved by leveraging a combination of dedicated collections for Routes and TimetableEntries, along with a separate collection for admin users.\n\n1.  **Authorization Independence**: The structure inherently supports authorization independence.  There is no need to fetch parent documents to validate access to child documents.\n2.  **Segregation for Admin Access**:  Routes and TimetableEntries can only be created or edited by admins.\n3.  **QAPs Support**: The segregation of data and the roles collection enables secure listing operations. Unauthenticated users can `list` routes and timetable entries without needing authentication. Only authenticated admins can `create`, `update`, or `delete`.\n\nTo achieve this the database relies on path based security for the admin roles and explicit `get` to validate admin credentials."
+  }
+}
