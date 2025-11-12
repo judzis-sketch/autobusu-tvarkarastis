@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useEffect, useMemo } from 'react';
+import { useState, useTransition, useEffect, useMemo, memo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,9 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, PlusCircle, Trash2, MapPin } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
-import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import {
@@ -28,23 +28,30 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Icon } from 'leaflet';
+import type { Icon as LeafletIconType, LatLng } from 'leaflet';
 
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
 const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
 const useMapEvents = dynamic(() => import('react-leaflet').then(mod => mod.useMapEvents), { ssr: false });
 
-// This is a workaround for a bug in react-leaflet where the default icon path is not resolved correctly.
-const DefaultIcon = new Icon({
-    iconUrl: '/marker-icon.png',
-    iconRetinaUrl: '/marker-icon-2x.png',
-    shadowUrl: '/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
+let DefaultIcon: LeafletIconType;
+// This needs to be in a try/catch for Next.js server-side rendering
+try {
+  const L = require('leaflet');
+  DefaultIcon = new L.Icon({
+      iconUrl: '/marker-icon.png',
+      iconRetinaUrl: '/marker-icon-2x.png',
+      shadowUrl: '/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  });
+} catch (error) {
+  // On the server, DefaultIcon will be undefined, but it's not used there.
+}
+
 
 function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void; coords: [number, number] | null }) {
     const [position, setPosition] = useState<[number, number] | null>(coords);
@@ -59,12 +66,34 @@ function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [
 
     useEffect(() => {
         setPosition(coords);
-    }, [coords]);
+        if (coords) {
+          map.flyTo(coords, map.getZoom());
+        }
+    }, [coords, map]);
 
     return position === null ? null : (
         <Marker position={position} icon={DefaultIcon} />
     );
 }
+
+const AdminMap = memo(function AdminMap({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void, coords: [number, number] | null }) {
+  // Memoizing the component to prevent re-renders when the parent's state changes unnecessarily.
+  // The key prop on this component will ensure it's re-created when the route changes.
+  return (
+    <MapContainer
+      center={[54.6872, 25.2797]}
+      zoom={12}
+      style={{ height: '100%', width: '100%' }}
+    >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      />
+      <LocationMarker onCoordsChange={onCoordsChange} coords={coords} />
+    </MapContainer>
+  );
+});
+
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -135,7 +164,7 @@ export default function AdminForms() {
       timetableForm.setValue('coords', `${newCoords[0].toFixed(6)}, ${newCoords[1].toFixed(6)}`);
   };
 
-  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
+ const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
       const routesCollectionRef = collection(firestore, 'routes');
       const newRoute = {
@@ -144,9 +173,10 @@ export default function AdminForms() {
       };
       addDocumentNonBlocking(routesCollectionRef, newRoute);
       
-      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas į eilę.' });
+      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas.' });
       routeForm.reset();
-      await fetchRoutes(); // Refresh routes list
+      // A small delay to allow Firestore to process the addition before refetching
+      setTimeout(() => fetchRoutes(), 500); 
     });
   };
   
@@ -179,7 +209,7 @@ export default function AdminForms() {
         const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
         addDocumentNonBlocking(timetableColRef, payload);
         
-        toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas į eilę.' });
+        toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
         timetableForm.reset();
     });
   };
@@ -199,6 +229,7 @@ export default function AdminForms() {
         await batch.commit();
     };
     
+    // Using a promise-based approach to handle UI updates
     deleteDocumentNonBlocking(routeRef, preDelete)
       .then(() => {
         toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
@@ -206,7 +237,9 @@ export default function AdminForms() {
       })
       .catch((e: any) => {
         console.error("Deletion failed:", e);
-        toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto. Patikrinkite konsolę.', variant: 'destructive' });
+        // The FirestorePermissionError is thrown by the global listener,
+        // so we just show a generic message here.
+        toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto. Patikrinkite konsolę dėl teisių klaidų.', variant: 'destructive' });
       })
       .finally(() => {
         setIsDeleting(null);
@@ -280,7 +313,10 @@ export default function AdminForms() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Maršrutas</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                      <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          timetableForm.reset({ routeId: value, stop: '', times: '', coords: '' }); // Reset form when route changes
+                      }} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="-- Pasirinkti maršrutą --" />
@@ -344,18 +380,11 @@ export default function AdminForms() {
               </form>
             </Form>
             <div className="h-[400px] w-full rounded-md overflow-hidden border">
-              <MapContainer
+              <AdminMap
                   key={selectedRouteId || 'no-route'}
-                  center={[54.6872, 25.2797]}
-                  zoom={12}
-                  style={{ height: '100%', width: '100%' }}
-              >
-                  <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  <LocationMarker onCoordsChange={handleCoordsChange} coords={selectedMarkerCoords} />
-              </MapContainer>
+                  onCoordsChange={handleCoordsChange}
+                  coords={selectedMarkerCoords}
+              />
             </div>
           </div>
         </CardContent>
