@@ -1,66 +1,100 @@
-# PWA Autobusų tvarkaraštis — instrukcija (Next.js)
+# Autobusų tvarkaraščio PWA: diegimo ir naudojimo instrukcija
 
-## Trumpai
-Ši versija sukurta naudojant Next.js, prideda administravimo panelę ir žemėlapį (Leaflet). Ji siūlo modernią vartotojo sąsają ir patirtį, naudojant ShadCN komponentus ir Tailwind CSS.
+Šis dokumentas paaiškina, kaip sukonfigūruoti ir įdiegti Next.js pagrindu sukurtą autobusų tvarkaraščių programą.
 
-## Reikalinga įranga
-- Node.js (v18+)
-- Firebase paskyra
+## Procesas trumpai
 
-## 1) Įdiegimas
-1.  `npm install`
-2.  Susikurk Firebase projektą: https://console.firebase.google.com/
-3.  Projekto nustatymuose (`Project settings` -> `General`), rask `Your apps` sekciją ir pridėk naują `Web app`.
-4.  Nukopijuok `firebaseConfig` objektą.
-5.  Sukurk `.env.local` failą projekto šakninėje direktorijoje.
-6.  Pridėk Firebase konfigūracijos raktus į `.env.local` failą, pakeisdamas `<...>` su savo reikšmėmis.
+Programos paleidimas susideda iš dviejų pagrindinių dalių:
+1.  **Konfigūracija**: Vieną kartą atliekami veiksmai, skirti susieti programą su Jūsų „Firebase“ paskyra (duomenų baze, autentifikacija).
+2.  **Įdiegimas (Deployment)**: Programos kodo paruošimas ir įkėlimas į hostingo platformą (pvz., Vercel), kad ji būtų pasiekiama internete.
 
-    **Serverio kintamųjų (`FIREBASE_CLIENT_EMAIL` ir `FIREBASE_PRIVATE_KEY`) gavimas:**
-    a. Firebase konsolėje, eik į `Project settings` -> `Service accounts`.
-    b. Pasirink `Firebase Admin SDK` ir `Node.js`.
-    c. Spausk `Generate new private key`.
-    d. Atsisiųstame JSON faile rask `client_email` ir `private_key` reikšmes. Nukopijuok jas į atitinkamus laukus `.env.local` faile. `private_key` reikšmę kopijuok su `-----BEGIN PRIVATE KEY-----` ir `-----END PRIVATE KEY-----\n` dalimis.
+---
+
+## 1. Paruošiamieji darbai (būtina atlikti tik vieną kartą)
+
+Šiuos veiksmus reikia atlikti norint, kad programa naudotų Jūsų asmeninę, o ne kūrimo metu naudotą duomenų bazę.
+
+### A. Firebase projekto sukūrimas
+
+1.  Apsilankykite [Firebase konsolėje](https://console.firebase.google.com/) ir prisijunkite su savo Google paskyra.
+2.  Spauskite **„Create a project“** (sukurti projektą).
+3.  Sekite instrukcijas, kad sukurtumėte projektą. Galite išjungti „Google Analytics“ šiame etape, jei nenorite jo naudoti.
+
+### B. Reikiamų Firebase paslaugų įjungimas
+
+Jums reikės įjungti dvi pagrindines paslaugas.
+
+#### „Firestore“ duomenų bazė (maršrutams saugoti):
+1.  Savo projekto Firebase konsolėje, kairiajame meniu pasirinkite **Build** > **Firestore Database**.
+2.  Spauskite **„Create database“**.
+3.  Pasirinkite **Start in test mode** (tai leis programai laisvai rašyti ir skaityti duomenis kūrimo metu).
+4.  Pasirinkite serverio lokaciją (rekomenduojama `eur3 (europe-west)`).
+5.  Spauskite **Enable**.
+
+#### Autentifikacija (administratoriaus prisijungimui):
+1.  Kairiajame meniu pasirinkite **Build** > **Authentication**.
+2.  Spauskite **„Get started“**.
+3.  **Sign-in method** skiltyje pasirinkite **Email/Password** ir įjunkite šį metodą.
+4.  **Users** skiltyje spauskite **„Add user“** ir sukurkite vartotoją, kuris bus administratorius (įveskite jo el. paštą ir slaptažodį).
+
+### C. Programos konfigūracijos sukūrimas (.env.local failas)
+
+Šiame žingsnyje sujungsime programos kodą su Jūsų sukurtu Firebase projektu.
+
+1.  Atsidarykite savo projektą kodu ir sukurkite naują failą pagrindinėje direktorijoje pavadinimu `.env.local`.
+2.  Į šį failą nukopijuokite visą žemiau esantį turinį:
 
     ```
-    # Client-side variables (from web app config)
-    NEXT_PUBLIC_FIREBASE_API_KEY=<YOUR_API_KEY>
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=<YOUR_AUTH_DOMAIN>
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID=<YOUR_PROJECT_ID>
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<YOUR_STORAGE_BUCKET>
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<YOUR_MESSAGING_SENDER_ID>
-    NEXT_PUBLIC_FIREBASE_APP_ID=<YOUR_APP_ID>
+    # Client-side (naršyklės) kintamieji
+    NEXT_PUBLIC_FIREBASE_API_KEY=<JŪSŲ_API_KEY>
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=<JŪSŲ_AUTH_DOMAIN>
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID=<JŪSŲ_PROJECT_ID>
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<JŪSŲ_STORAGE_BUCKET>
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<JŪSŲ_MESSAGING_SENDER_ID>
+    NEXT_PUBLIC_FIREBASE_APP_ID=<JŪSŲ_APP_ID>
 
-    # Server-side variables for Firebase Admin SDK (from service account JSON file)
-    FIREBASE_CLIENT_EMAIL=<YOUR_SERVICE_ACCOUNT_CLIENT_EMAIL>
-    FIREBASE_PRIVATE_KEY=<YOUR_SERVICE_ACCOUNT_PRIVATE_KEY>
+    # Server-side kintamieji (slapti)
+    FIREBASE_CLIENT_EMAIL=<JŪSŲ_SERVICE_ACCOUNT_CLIENT_EMAIL>
+    FIREBASE_PRIVATE_KEY=<JŪSŲ_SERVICE_ACCOUNT_PRIVATE_KEY>
     ```
-7.  Firebase konsolėje, eik į `Firestore Database` ir sukurk duomenų bazę. Pradėk `test mode` arba nustatyk atitinkamas saugumo taisykles.
-8.  Firebase konsolėje, eik į `Authentication` -> `Sign-in method` ir įjunk `Email/Password` prisijungimo būdą.
-9.  `Authentication` -> `Users` skiltyje pridėk naują vartotoją, kuris bus administratorius.
 
-### Firestore struktūra (pavyzdys)
+3.  Dabar reikia užpildyti `<...>` laukus Jūsų unikaliomis reikšmėmis. Jas rasite Firebase konsolėje.
 
-`routes` (collection)
-  - `{routeId}` (document)
-    - `number`: "10"
-    - `name`: "Centras — Stotis"
-    - `createdAt`: Timestamp
-    - `timetable` (subcollection)
-       - `{timetableEntryId}` (document)
-          - `stop`: "Stotelė A"
-          - `times`: ["08:00","08:30","09:00"]
-          - `coords`: [54.6872, 25.2797]  // optional
-          - `createdAt`: Timestamp
+#### Kur rasti reikšmes?
 
-`roles_admin` (collection)
- - `{userId}` (document)
-    - (šis dokumentas yra tuščias, svarbu tik jo egzistavimas)
+*   **Client-side kintamieji (vieši):**
+    a. Firebase konsolėje, viršuje kairėje spauskite krumpliaratį ir pasirinkite **Project settings**.
+    b. **General** skiltyje, apačioje raskite **Your apps** sekciją.
+    c. Spauskite **Web app** (`</>`) piktogramą, kad sukurtumėte naują arba pamatytumėte esamą konfigūraciją.
+    d. Iššokusiame lange pasirinkite **Config** ir matysite `firebaseConfig` objektą. Nukopijuokite atitinkamas reikšmes (`apiKey`, `authDomain` ir t.t.) į `.env.local` failą.
 
-## 2) Vystymas
-`npm run dev` — atidaryti aplikaciją lokaliai. Aplikacija veiks adresu `http://localhost:9002`.
+*   **Server-side kintamieji (slapti):**
+    a. Firebase konsolėje, eikite į **Project settings** > **Service accounts**.
+    b. Pasirinkite **Firebase Admin SDK** ir **Node.js**.
+    c. Spauskite **`Generate new private key`**.
+    d. Jums bus atsiųstas JSON failas. Atidarykite jį ir raskite `client_email` ir `private_key` reikšmes.
+    e. Nukopijuokite jas į atitinkamus laukus `.env.local` faile. **Svarbu:** `private_key` reikšmę kopijuokite visą, kartu su `-----BEGIN PRIVATE KEY-----` ir `-----END PRIVATE KEY-----\n` dalimis.
 
-## 3) Build & deploy
-`npm run build` — paruošimui deploy.
-Deploy: Vercel / Netlify / Firebase Hosting (rekomenduojama HTTPS, kad PWA veiktų pilnai).
+Kai baigsite, Jūsų `.env.local` failas atrodys panašiai į pavyzdį, tik su Jūsų unikaliais duomenimis.
 
-```
+---
+
+## 2. Programos įdiegimas į serverį (Deployment)
+
+Kai visi paruošiamieji darbai atlikti, galite įkelti programą į internetą. Rekomenduojame naudoti **Vercel**, nes ši platforma yra sukurta specialiai Next.js projektams ir yra ypač patogi.
+
+1.  **Sukurkite Vercel paskyrą**: Apsilankykite [Vercel](https://vercel.com/) ir užsiregistruokite (galite naudoti savo GitHub, GitLab ar Bitbucket paskyrą).
+2.  **Įkelkite kodą į Git repozitoriją**: Jei Jūsų kodas dar nėra Git repozitorijoje (pvz., GitHub), įkelkite jį.
+3.  **Sukurkite naują projektą Vercel**:
+    *   Vercel valdymo panelėje spauskite **„Add New...“** > **„Project“**.
+    *   Pasirinkite Git repozitoriją, kurioje yra Jūsų kodas.
+    *   Vercel automatiškai atpažins, kad tai yra Next.js projektas.
+4.  **Sukonfigūruokite aplinkos kintamuosius (Environment Variables)**:
+    *   Projekto nustatymuose raskite **Environment Variables** skiltį.
+    *   Jums reikės sukurti visus kintamuosius, kuriuos aprašėte `.env.local` faile. **Vercel aplinkoje `.env.local` failas nenaudojamas, todėl kintamuosius būtina suvesti rankiniu būdu.**
+    *   Nukopijuokite kiekvieną kintamąjį (pvz., `NEXT_PUBLIC_FIREBASE_API_KEY`) ir jo reikšmę iš savo `.env.local` failo į Vercel.
+5.  **Įdiekite projektą**:
+    *   Spauskite **„Deploy“**.
+    *   Vercel automatiškai paruoš programą (`npm run build`) ir įdiegs ją. Po kelių minučių Jūsų programa bus pasiekiama unikaliu `.vercel.app` adresu. Vėliau galėsite priskirti ir savo domeną.
+
+Sveikiname! Jūsų programa veikia internete. Dabar galite prisijungti kaip administratorius ir pradėti vesti maršrutų duomenis.
