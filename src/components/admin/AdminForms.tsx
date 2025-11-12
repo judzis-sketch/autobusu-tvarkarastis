@@ -89,6 +89,7 @@ export default function AdminForms() {
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeletingStop, setIsDeletingStop] = useState<string | null>(null);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   const firestore = useFirestore();
@@ -337,6 +338,28 @@ export default function AdminForms() {
     }
   };
 
+  const handleDeleteStop = async (stopId: string) => {
+    if (!firestore || !watchedRouteId) {
+      toast({ title: 'Klaida!', description: 'Maršrutas nepasirinktas arba duomenų bazė nepasiekiama.', variant: 'destructive'});
+      return;
+    }
+    setIsDeletingStop(stopId);
+    try {
+      const stopRef = doc(firestore, `routes/${watchedRouteId}/timetable`, stopId);
+      await deleteDoc(stopRef);
+      toast({ title: 'Pavyko!', description: 'Stotelė sėkmingai ištrinta.' });
+    } catch (error) {
+       console.error('Error deleting stop: ', error);
+      toast({
+        title: 'Klaida!',
+        description: 'Nepavyko ištrinti stotelės.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingStop(null);
+    }
+  };
+
   if (isLoadingRoutes) {
     return (
       <div className="flex justify-center items-center">
@@ -444,17 +467,38 @@ export default function AdminForms() {
                         </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                       <ScrollArea className="h-40 mt-2 rounded-md border p-2">
+                       <ScrollArea className="h-60 mt-2 rounded-md border p-2">
                          {isLoadingTimetableStops ? (
                            <div className="flex justify-center items-center h-full">
                              <Loader2 className="h-5 w-5 animate-spin" />
                            </div>
                          ) : timetableStops && timetableStops.length > 0 ? (
-                            <ol className="list-decimal list-inside space-y-2">
+                            <ol className="list-decimal list-inside space-y-1">
                               {timetableStops.map((stop, index) => (
-                                <li key={stop.id || index} className="text-sm">
-                                  <span className="font-semibold">{stop.stop}</span>
-                                  <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
+                                <li key={stop.id || index} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
+                                  <div>
+                                    <span className="font-semibold">{stop.stop}</span>
+                                    <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
+                                  </div>
+                                   <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeletingStop === stop.id}>
+                                          {isDeletingStop === stop.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Šis veiksmas visam laikui ištrins stotelę "{stop.stop}". Šio veiksmo negalima anuliuoti.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Atšaukti</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDeleteStop(stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                 </li>
                               ))}
                             </ol>
