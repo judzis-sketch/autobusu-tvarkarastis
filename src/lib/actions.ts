@@ -1,12 +1,12 @@
 'use server';
 
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { addDoc, FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getDb } from './firebase-admin'; // Use server-side firebase
+import { getDb } from './firebase-admin';
 import type { Route, TimetableEntry } from './types';
-import { getApps } from 'firebase/app';
+import { getApps } from 'firebase-admin/app';
+import { collection, getDocs, query, orderBy, addDoc, Timestamp } from 'firebase-admin/firestore';
+
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -17,10 +17,9 @@ export async function addRoute(data: unknown) {
     const db = getDb();
     const parsedData = routeSchema.parse(data);
 
-    const routesCollection = collection(db, 'routes');
-    await addDoc(routesCollection, {
+    await addDoc(collection(db, 'routes'), {
       ...parsedData,
-      createdAt: FieldValue.serverTimestamp(),
+      createdAt: Timestamp.now(),
     });
 
     revalidatePath('/admin');
@@ -37,7 +36,6 @@ export async function getRoutes(): Promise<Route[]> {
     console.error("Error getting routes: ", error);
     if (getApps().length === 0) {
         console.error("Firebase not initialized on the server. Check your environment variables.")
-        return [];
     }
     throw error;
   }

@@ -15,7 +15,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Loader2, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
-import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 import {
   AlertDialog,
@@ -91,7 +90,7 @@ export default function AdminForms() {
         await addRoute(values);
         toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai išsaugotas. Atnaujinamas sąrašas...' });
         routeForm.reset();
-        await fetchRoutes(); // Fetch fresh data to guarantee consistency
+        await fetchRoutes();
       } catch (error) {
           toast({ title: 'Klaida!', description: 'Nepavyko išsaugoti maršruto.', variant: 'destructive'});
           console.error("Error adding route:", error);
@@ -109,6 +108,11 @@ export default function AdminForms() {
             return;
         }
         
+        if (!firestore) {
+            toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
+            return;
+        }
+
         const payload: any = { stop, times: parsedTimes, createdAt: serverTimestamp() };
         
         const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
@@ -124,29 +128,37 @@ export default function AdminForms() {
     });
   };
 
-  const handleDeleteRoute = (routeId: string) => {
+  const handleDeleteRoute = async (routeId: string) => {
     setIsDeleting(routeId);
-    const routeRef = doc(firestore, 'routes', routeId);
     
-    const preDelete = async () => {
-        const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
-        const batch = writeBatch(firestore);
+    if (!firestore) {
+        toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
+        setIsDeleting(null);
+        return;
+    }
+
+    const routeRef = doc(firestore, 'routes', routeId);
+    const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
+    const batch = writeBatch(firestore);
+
+    try {
         const timetableSnapshot = await getDocs(timetableRef);
         timetableSnapshot.docs.forEach((doc) => {
             batch.delete(doc.ref);
         });
+        batch.delete(routeRef);
+        
         await batch.commit();
-    };
-    
-    deleteDocumentNonBlocking(routeRef, preDelete).then(() => {
-      setRoutes(prev => prev.filter(r => r.id !== routeId));
-      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
-      setIsDeleting(null);
-    }).catch(error => {
-      console.error("Error deleting route: ", error);
-      toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive'});
-      setIsDeleting(null);
-    })
+
+        setRoutes(prev => prev.filter(r => r.id !== routeId));
+        toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
+
+    } catch (error) {
+        console.error("Error deleting route: ", error);
+        toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive'});
+    } finally {
+        setIsDeleting(null);
+    }
   }
   
   if (isLoadingRoutes) {
