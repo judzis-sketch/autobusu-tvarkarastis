@@ -173,12 +173,13 @@ export default function AdminForms() {
 
       setIsCalculatingDistance(true);
       try {
-          const distance = await getRouteDistance(lastStopCoords, [currentCoords.lat, currentCoords.lng]);
-          if (distance !== null) {
-              setValue('distanceToNext', String(Math.round(distance)));
+          const distanceInMeters = await getRouteDistance(lastStopCoords, [currentCoords.lat, currentCoords.lng]);
+          if (distanceInMeters !== null) {
+              const distanceInKm = distanceInMeters / 1000;
+              setValue('distanceToNext', String(distanceInKm.toFixed(3)));
               toast({
                   title: 'Atstumas apskaičiuotas',
-                  description: `Apytikslis atstumas iki kitos stotelės: ${Math.round(distance)} m.`,
+                  description: `Apytikslis atstumas iki kitos stotelės: ${distanceInKm.toFixed(3)} km.`,
               });
           } else {
               toast({
@@ -261,9 +262,9 @@ export default function AdminForms() {
       }
 
       if (distanceToNext) {
-        const distance = parseFloat(distanceToNext);
-        if (!isNaN(distance)) {
-            payload.distanceToNext = distance;
+        const distanceInKm = parseFloat(distanceToNext);
+        if (!isNaN(distanceInKm)) {
+            payload.distanceToNext = distanceInKm * 1000; // Convert km to meters for storage
         } else {
             toast({
                 title: 'Klaida!',
@@ -462,9 +463,9 @@ export default function AdminForms() {
                     name="distanceToNext"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Atstumas iki kitos stotelės (metrais)</FormLabel>
+                        <FormLabel>Atstumas iki kitos stotelės (kilometrais)</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="850" {...field} />
+                          <Input type="number" step="any" placeholder="0.85" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
