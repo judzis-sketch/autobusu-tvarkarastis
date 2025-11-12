@@ -1,11 +1,11 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useEffect, useMemo, useCallback } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getRoutes, getTimetableForRoute } from '@/lib/actions';
+import { getRoutes } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,15 +38,10 @@ const timetableSchema = z.object({
   routeId: z.string({ required_error: 'Prašome pasirinkti maršrutą.' }),
   stop: z.string().min(1, 'Stotelės pavadinimas yra privalomas'),
   times: z.string().min(5, 'Laikai yra privalomi (pvz., 08:00)'),
-  coords: z.string().optional(),
 });
 
-interface AdminFormsProps {
-    coords: [number, number] | null;
-    onCoordsChange: (coords: [number, number] | null) => void;
-}
 
-export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) {
+export default function AdminForms() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(true);
   const { toast } = useToast();
@@ -86,16 +81,8 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
 
   const timetableForm = useForm<z.infer<typeof timetableSchema>>({
     resolver: zodResolver(timetableSchema),
-    defaultValues: { routeId: '', stop: '', times: '', coords: '' },
+    defaultValues: { routeId: '', stop: '', times: '' },
   });
-
-   useEffect(() => {
-    if (coords) {
-        timetableForm.setValue('coords', `${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}`);
-    } else {
-        timetableForm.setValue('coords', '');
-    }
-  }, [coords, timetableForm]);
 
 
  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
@@ -115,7 +102,7 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
   
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(() => {
-        const { routeId, stop, times, coords } = values;
+        const { routeId, stop, times } = values;
 
         const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
         if(parsedTimes.length === 0) {
@@ -123,28 +110,13 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
             return;
         }
         
-        let parsedCoords: [number, number] | undefined = undefined;
-        if (coords) {
-          const parts = coords.split(',').map((p) => parseFloat(p.trim()));
-          if (parts.length === 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])) {
-            parsedCoords = [parts[0], parts[1]];
-          } else {
-             toast({ title: 'Klaida!', description: 'Neteisingas koordinačių formatas. Turi būti "platumą, ilguma".', variant: 'destructive'});
-             return;
-          }
-        }
-
         const payload: any = { stop, times: parsedTimes, createdAt: serverTimestamp() };
-        if (parsedCoords) {
-          payload.coords = parsedCoords;
-        }
         
         const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
         addDocumentNonBlocking(timetableColRef, payload);
         
         toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
         timetableForm.reset();
-        onCoordsChange(null); // Reset coords on parent to clear map
     });
   };
 
@@ -234,10 +206,7 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Maršrutas</FormLabel>
-                      <Select onValueChange={(value) => {
-                          field.onChange(value);
-                          onCoordsChange(null);
-                      }} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="-- Pasirinkti maršrutą --" />
@@ -276,19 +245,6 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
                       <FormLabel>Laikai (atskirti kableliu)</FormLabel>
                       <FormControl>
                         <Input placeholder="08:00, 08:30, 09:15" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={timetableForm.control}
-                  name="coords"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Koordinatės (pasirinkta žemėlapyje)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Spustelėkite žemėlapyje" {...field} readOnly />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
