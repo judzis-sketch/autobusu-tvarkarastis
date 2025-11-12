@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useEffect, useMemo, memo, useCallback } from 'react';
+import { useState, useTransition, useEffect, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,7 +16,6 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
-import dynamic from 'next/dynamic';
 
 import {
   AlertDialog,
@@ -30,12 +29,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const AdminMap = dynamic(() => import('@/components/admin/AdminMap').then(m => m.AdminMap), {
-  ssr: false,
-  loading: () => <div className="h-full w-full bg-muted flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>,
-});
-
-
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
@@ -48,7 +41,12 @@ const timetableSchema = z.object({
   coords: z.string().optional(),
 });
 
-export default function AdminForms() {
+interface AdminFormsProps {
+    coords: [number, number] | null;
+    onCoordsChange: (coords: [number, number]) => void;
+}
+
+export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [isLoadingRoutes, setIsLoadingRoutes] = useState(true);
   const { toast } = useToast();
@@ -91,19 +89,12 @@ export default function AdminForms() {
     defaultValues: { routeId: '', stop: '', times: '', coords: '' },
   });
 
-  const coordsValue = timetableForm.watch('coords');
-  const selectedMarkerCoords = useMemo(() => {
-    if (!coordsValue) return null;
-    const parts = coordsValue.split(',').map(p => parseFloat(p.trim()));
-    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-        return [parts[0], parts[1]] as [number, number];
+   useEffect(() => {
+    if (coords) {
+        timetableForm.setValue('coords', `${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}`);
     }
-    return null;
-  }, [coordsValue]);
+  }, [coords, timetableForm]);
 
-  const handleCoordsChange = useCallback((newCoords: [number, number]) => {
-      timetableForm.setValue('coords', `${newCoords[0].toFixed(6)}, ${newCoords[1].toFixed(6)}`);
-  }, [timetableForm]);
 
  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
@@ -116,7 +107,6 @@ export default function AdminForms() {
       
       toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai pridėtas.' });
       routeForm.reset();
-      // A small delay to allow Firestore to process the addition before refetching
       setTimeout(() => fetchRoutes(), 500); 
     });
   };
@@ -152,6 +142,7 @@ export default function AdminForms() {
         
         toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
         timetableForm.reset();
+        onCoordsChange([0, 0]); // Reset coords on parent to clear map
     });
   };
 
@@ -171,19 +162,15 @@ export default function AdminForms() {
     
     deleteDocumentNonBlocking(routeRef, preDelete);
     
-    // Optimistic UI update
     setRoutes(prev => prev.filter(r => r.id !== routeId));
     toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
 
-    // No need for finally or catch here, errors are handled globally
     setIsDeleting(null);
   }
   
   if (isLoadingRoutes) {
     return <div className="flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-
-  const selectedRouteId = timetableForm.watch('routeId');
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -237,7 +224,6 @@ export default function AdminForms() {
           <CardTitle>Pridėti stotelės laikus</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Form {...timetableForm}>
               <form onSubmit={timetableForm.handleSubmit(handleAddTimetable)} className="space-y-4">
                 <FormField
@@ -248,7 +234,7 @@ export default function AdminForms() {
                       <FormLabel>Maršrutas</FormLabel>
                       <Select onValueChange={(value) => {
                           field.onChange(value);
-                          timetableForm.reset({ routeId: value, stop: '', times: '', coords: '' }); // Reset form when route changes
+                          timetableForm.reset({ routeId: value, stop: '', times: '', coords: '' });
                       }} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -298,9 +284,9 @@ export default function AdminForms() {
                   name="coords"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Koordinatės (pasirinkti žemėlapyje)</FormLabel>
+                      <FormLabel>Koordinatės (pasirinkta žemėlapyje)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Platuma, Ilguma" {...field} />
+                        <Input placeholder="Platuma, Ilguma" {...field} readOnly />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -312,14 +298,6 @@ export default function AdminForms() {
                 </Button>
               </form>
             </Form>
-            <div className="h-[400px] w-full rounded-md overflow-hidden border">
-              <AdminMap
-                  key={selectedRouteId || 'no-route'}
-                  onCoordsChange={handleCoordsChange}
-                  coords={selectedMarkerCoords}
-              />
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -364,5 +342,3 @@ export default function AdminForms() {
     </div>
   );
 }
-
-    
