@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type App } from 'firebase-admin/app';
+import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -10,23 +10,17 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID,
 };
 
-let app: FirebaseApp;
+let app: App;
 let db: Firestore;
 
 function initializeForServer() {
     const apps = getApps();
     if (apps.length === 0) {
-        app = initializeApp(firebaseConfig);
+        app = initializeApp(); // No config needed with application default credentials
     } else {
         app = apps[0];
     }
-     try {
-       db = getFirestore(app);
-    } catch(e) {
-       db = initializeFirestore(app, {
-        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-      });
-    }
+    db = getFirestore(app);
 }
 
 initializeForServer();

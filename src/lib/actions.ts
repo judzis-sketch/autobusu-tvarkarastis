@@ -1,6 +1,7 @@
 'use server';
 
-import { collection, getDocs, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { addDoc, FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getDb } from './firebase-admin'; // Use server-side firebase
@@ -16,11 +17,11 @@ export async function addRoute(data: unknown) {
     const db = getDb();
     const parsedData = routeSchema.parse(data);
 
-    const newRouteData = {
-        ...parsedData,
-        createdAt: serverTimestamp()
-    };
-    await addDoc(collection(db, 'routes'), newRouteData);
+    const routesCollection = collection(db, 'routes');
+    await addDoc(routesCollection, {
+      ...parsedData,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
     revalidatePath('/admin');
     revalidatePath('/');
