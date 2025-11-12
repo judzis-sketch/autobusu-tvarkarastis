@@ -81,20 +81,28 @@ Kai baigsite, Jūsų `.env.local` failas atrodys panašiai į pavyzdį, tik su J
 
 ## 2. Programos įdiegimas į serverį (Deployment)
 
-Kai visi paruošiamieji darbai atlikti, galite įkelti programą į internetą. Rekomenduojame naudoti **Vercel**, nes ši platforma yra sukurta specialiai Next.js projektams ir yra ypač patogi.
+### Modernus būdas be FTP
 
-1.  **Sukurkite Vercel paskyrą**: Apsilankykite [Vercel](https://vercel.com/) ir užsiregistruokite (galite naudoti savo GitHub, GitLab ar Bitbucket paskyrą).
-2.  **Įkelkite kodą į Git repozitoriją**: Jei Jūsų kodas dar nėra Git repozitorijoje (pvz., GitHub), įkelkite jį.
+Užuot kėlus failus rankiniu būdu per FTP, šiuolaikinės aplikacijos yra diegiamos naudojant **Git pagrįstą procesą**. Tai yra daug paprasčiau, greičiau ir patikimiau.
+
+**Rekomenduojama platforma: [Vercel](https://vercel.com/)**
+
+Vercel yra Next.js kūrėjų platforma, specialiai pritaikyta tokiems projektams. Ji siūlo gausų nemokamą planą.
+
+### Diegimo žingsniai
+
+1.  **Įkelkite kodą į Git repozitoriją**: Jei Jūsų kodas dar nėra Git repozitorijoje (pvz., [GitHub](https://github.com/)), būtinai įkelkite jį. Tai yra būtinas žingsnis automatizuotam diegimui.
+2.  **Sukurkite Vercel paskyrą**: Apsilankykite [Vercel](https://vercel.com/) ir užsiregistruokite (patogiausia naudoti savo GitHub, GitLab ar Bitbucket paskyrą).
 3.  **Sukurkite naują projektą Vercel**:
     *   Vercel valdymo panelėje spauskite **„Add New...“** > **„Project“**.
-    *   Pasirinkite Git repozitoriją, kurioje yra Jūsų kodas.
-    *   Vercel automatiškai atpažins, kad tai yra Next.js projektas.
+    *   Suraskite ir pasirinkite Git repozitoriją, kurioje yra Jūsų programos kodas.
+    *   Vercel automatiškai atpažins, kad tai yra Next.js projektas ir pritaikys reikiamus nustatymus.
 4.  **Sukonfigūruokite aplinkos kintamuosius (Environment Variables)**:
     *   Projekto nustatymuose raskite **Environment Variables** skiltį.
-    *   Jums reikės sukurti visus kintamuosius, kuriuos aprašėte `.env.local` faile. **Vercel aplinkoje `.env.local` failas nenaudojamas, todėl kintamuosius būtina suvesti rankiniu būdu.**
-    *   Nukopijuokite kiekvieną kintamąjį (pvz., `NEXT_PUBLIC_FIREBASE_API_KEY`) ir jo reikšmę iš savo `.env.local` failo į Vercel.
+    *   Jums reikės sukurti visus kintamuosius, kuriuos aprašėte `.env.local` faile. **Vercel aplinkoje `.env.local` failas yra ignoruojamas, todėl kintamuosius būtina suvesti rankiniu būdu į Vercel sąsają.**
+    *   Nukopijuokite kiekvieną kintamąjį (pvz., `NEXT_PUBLIC_FIREBASE_API_KEY`) ir jo reikšmę iš savo `.env.local` failo į atitinkamus laukus Vercel platformoje.
 5.  **Įdiekite projektą**:
     *   Spauskite **„Deploy“**.
     *   Vercel automatiškai paruoš programą (`npm run build`) ir įdiegs ją. Po kelių minučių Jūsų programa bus pasiekiama unikaliu `.vercel.app` adresu. Vėliau galėsite priskirti ir savo domeną.
 
-Sveikiname! Jūsų programa veikia internete. Dabar galite prisijungti kaip administratorius ir pradėti vesti maršrutų duomenis.
+Sveikiname! Nuo šiol kiekvieną kartą, kai atliksite pakeitimus kode ir įkelsite juos į savo Git repozitoriją, Vercel automatiškai įdiegs naujausią versiją. Jums daugiau niekada nebereikės naudoti FTP.
