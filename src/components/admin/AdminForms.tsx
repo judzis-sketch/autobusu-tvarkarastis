@@ -43,7 +43,7 @@ const timetableSchema = z.object({
 
 interface AdminFormsProps {
     coords: [number, number] | null;
-    onCoordsChange: (coords: [number, number]) => void;
+    onCoordsChange: (coords: [number, number] | null) => void;
 }
 
 export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) {
@@ -92,6 +92,8 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
    useEffect(() => {
     if (coords) {
         timetableForm.setValue('coords', `${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}`);
+    } else {
+        timetableForm.setValue('coords', '');
     }
   }, [coords, timetableForm]);
 
@@ -142,7 +144,7 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
         
         toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
         timetableForm.reset();
-        onCoordsChange([0, 0]); // Reset coords on parent to clear map
+        onCoordsChange(null); // Reset coords on parent to clear map
     });
   };
 
@@ -173,7 +175,7 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="space-y-8">
       <Card>
         <CardHeader>
           <CardTitle>Naujas maršrutas</CardTitle>
@@ -234,7 +236,7 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
                       <FormLabel>Maršrutas</FormLabel>
                       <Select onValueChange={(value) => {
                           field.onChange(value);
-                          timetableForm.reset({ routeId: value, stop: '', times: '', coords: '' });
+                          onCoordsChange(null);
                       }} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -286,7 +288,7 @@ export default function AdminForms({ coords, onCoordsChange }: AdminFormsProps) 
                     <FormItem>
                       <FormLabel>Koordinatės (pasirinkta žemėlapyje)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Platuma, Ilguma" {...field} readOnly />
+                        <Input placeholder="Spustelėkite žemėlapyje" {...field} readOnly />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

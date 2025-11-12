@@ -7,7 +7,7 @@ import AuthGuard from '@/components/auth/AuthGuard';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
 
-const AdminMap = dynamic(() => import('@/components/admin/AdminMap').then(m => m.AdminMap), {
+const AdminMap = dynamic(() => import('@/components/admin/AdminMap'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-muted flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>,
 });

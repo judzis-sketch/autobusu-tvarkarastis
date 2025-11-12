@@ -2,24 +2,19 @@
 
 import { memo, useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import type { Icon as LeafletIconType, LatLngExpression } from 'leaflet';
+import type { Icon as LeafletIconType } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-let DefaultIcon: LeafletIconType;
 // This needs to be in a try/catch for Next.js server-side rendering
 try {
   const L = require('leaflet');
-  DefaultIcon = new L.Icon({
+  L.Icon.Default.mergeOptions({
       iconUrl: '/marker-icon.png',
       iconRetinaUrl: '/marker-icon-2x.png',
       shadowUrl: '/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
   });
 } catch (error) {
-  // On the server, DefaultIcon will be undefined, but it's not used there.
+  // On the server, this will fail, but it's not needed there.
 }
 
 
@@ -29,12 +24,11 @@ function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [
 
     useEffect(() => {
         // This effect updates the internal position and flies to it ONLY when the coords prop changes
+        // It also handles resetting the marker
         if (coords && (coords[0] !== position?.[0] || coords[1] !== position?.[1])) {
             setPosition(coords);
-            if (coords[0] !== 0 && coords[1] !== 0) {
-              map.flyTo(coords, map.getZoom());
-            }
-        } else if (!coords && position) {
+            map.flyTo(coords, map.getZoom());
+        } else if (coords === null && position !== null) {
             setPosition(null);
         }
     }, [coords, map, position]);
@@ -48,14 +42,17 @@ function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [
     });
 
     return position === null ? null : (
-        <Marker position={position} icon={DefaultIcon} />
+        <Marker position={position} />
     );
 }
 
-// Keep the component wrapped in memo for performance, but the internal logic is what matters.
-const AdminMapComponent = ({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void, coords: [number, number] | null }) => {
+export default function AdminMap({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void, coords: [number, number] | null }) {
+  // We use a key to force a full re-render of the map when coords are reset to null, avoiding initialization issues
+  const mapKey = useMemo(() => coords ? 'map-active' : `map-reset-${Date.now()}`, [coords]);
+
   return (
     <MapContainer
+      key={mapKey}
       center={coords || [54.6872, 25.2797]}
       zoom={12}
       style={{ height: '100%', width: '100%' }}
@@ -68,5 +65,3 @@ const AdminMapComponent = ({ onCoordsChange, coords }: { onCoordsChange: (coords
     </MapContainer>
   );
 };
-
-export const AdminMap = memo(AdminMapComponent);
