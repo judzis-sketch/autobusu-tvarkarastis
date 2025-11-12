@@ -30,7 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -43,7 +43,8 @@ import {
   orderBy,
   deleteDoc,
   limit,
-  getDoc
+  getDoc,
+  updateDoc
 } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { getRouteDistance } from '@/lib/osrm';
@@ -59,6 +60,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -84,6 +94,11 @@ const timetableSchema = z.object({
   }).optional(),
 });
 
+const editStopSchema = z.object({
+  stop: z.string().min(1, "Stotelės pavadinimas yra privalomas"),
+  times: z.string().min(5, "Laikai yra privalomi"),
+});
+
 export default function AdminForms() {
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
@@ -92,6 +107,8 @@ export default function AdminForms() {
   const [isDeletingStop, setIsDeletingStop] = useState<string | null>(null);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
+  const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
+  const [isUpdatingStop, setIsUpdatingStop] = useState(false);
   const firestore = useFirestore();
 
   const routesQuery = useMemoFirebase(() => {
@@ -115,7 +132,19 @@ export default function AdminForms() {
   }, [firestore, watchedRouteId]);
   const { data: timetableStops, isLoading: isLoadingTimetableStops } = useCollection<TimetableEntry>(timetableQuery);
   const stopPositions = useMemo(() => timetableStops?.map(s => s.coords).filter(Boolean) as [number, number][] || [], [timetableStops]);
+  
+  const editStopForm = useForm<z.infer<typeof editStopSchema>>({
+      resolver: zodResolver(editStopSchema),
+  });
 
+  useEffect(() => {
+      if (editingStop) {
+          editStopForm.reset({
+              stop: editingStop.stop,
+              times: editingStop.times.join(', '),
+          });
+      }
+  }, [editingStop, editStopForm]);
 
   useEffect(() => {
     const fetchLastStop = async () => {
@@ -367,6 +396,35 @@ export default function AdminForms() {
       setIsDeletingStop(null);
     }
   };
+  
+  const handleUpdateStop = async (values: z.infer<typeof editStopSchema>) => {
+    if (!firestore || !watchedRouteId || !editingStop?.id) {
+        toast({ title: 'Klaida!', description: 'Nepasirinktas maršrutas arba stotelė redagavimui.', variant: 'destructive'});
+        return;
+    }
+    setIsUpdatingStop(true);
+    const parsedTimes = values.times.split(',').map(t => t.trim()).filter(Boolean);
+    if (parsedTimes.length === 0) {
+        editStopForm.setError('times', { message: 'Nurodykite bent vieną laiką.' });
+        setIsUpdatingStop(false);
+        return;
+    }
+
+    try {
+        const stopRef = doc(firestore, `routes/${watchedRouteId}/timetable`, editingStop.id);
+        await updateDoc(stopRef, {
+            stop: values.stop,
+            times: parsedTimes,
+        });
+        toast({ title: 'Pavyko!', description: 'Stotelės duomenys atnaujinti.' });
+        setEditingStop(null);
+    } catch (error) {
+        console.error("Error updating stop: ", error);
+        toast({ title: 'Klaida!', description: 'Nepavyko atnaujinti stotelės duomenų.', variant: 'destructive'});
+    } finally {
+        setIsUpdatingStop(false);
+    }
+  };
 
   if (isLoadingRoutes) {
     return (
@@ -482,31 +540,36 @@ export default function AdminForms() {
                            </div>
                          ) : timetableStops && timetableStops.length > 0 ? (
                             <ol className="list-decimal list-inside space-y-1">
-                              {timetableStops.map((stop, index) => (
-                                <li key={stop.id || index} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
+                              {timetableStops.map((stop) => (
+                                <li key={stop.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
                                   <div>
                                     <span className="font-semibold">{stop.stop}</span>
                                     <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
                                   </div>
-                                   <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeletingStop === stop.id}>
-                                          {isDeletingStop === stop.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Šis veiksmas visam laikui ištrins stotelę "{stop.stop}". Šio veiksmo negalima anuliuoti.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteStop(stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
+                                   <div className="flex items-center">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
+                                        <Pencil className="h-4 w-4 text-muted-foreground"/>
+                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeletingStop === stop.id}>
+                                            {isDeletingStop === stop.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Šis veiksmas visam laikui ištrins stotelę "{stop.stop}". Šio veiksmo negalima anuliuoti.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Atšaukti</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteStop(stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                  </div>
                                 </li>
                               ))}
                             </ol>
@@ -682,6 +745,56 @@ export default function AdminForms() {
           </div>
         </CardContent>
       </Card>
+      
+      <Dialog open={!!editingStop} onOpenChange={(isOpen) => !isOpen && setEditingStop(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Redaguoti stotelę</DialogTitle>
+            <DialogDescription>
+              Pakeiskite stotelės "{editingStop?.stop}" pavadinimą ir laikus.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editStopForm}>
+            <form onSubmit={editStopForm.handleSubmit(handleUpdateStop)} className="space-y-4 py-4">
+              <FormField
+                control={editStopForm.control}
+                name="stop"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stotelės pavadinimas</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editStopForm.control}
+                name="times"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Laikai (atskirti kableliu)</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                  <DialogClose asChild>
+                      <Button type="button" variant="outline">Atšaukti</Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={isUpdatingStop}>
+                      {isUpdatingStop && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Išsaugoti pakeitimus
+                  </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
