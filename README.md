@@ -142,7 +142,31 @@ Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas 
     *   Spauskite **„Deploy“**.
     *   Vercel automatiškai paruoš programą ir įdiegs ją. Po kelių minučių Jūsų programa bus pasiekiama unikaliu `.vercel.app` adresu. Vėliau galėsite priskirti ir savo domeną.
 
-Sveikiname! Nuo šiol kiekvieną kartą, kai atliksite pakeitimus kode ir įkelsite juos į savo GitHub saugyklą (`git push`), Vercel automatiškai įdiegs naujausią versiją. Jums daugiau niekada nebereikės naudoti FTP.
+---
+
+## 3. Tolimesni pakeitimai ir atnaujinimai
+
+Sėkmingai įdiegus projektą, visi tolimesni pakeitimai į Jūsų puslapį patenka **automatiškai**.
+
+**Darbo eiga:**
+
+1.  **Atliekami pakeitimai:** Jūs (arba aš Jūsų prašymu) atliekate pakeitimus programos kode.
+2.  **Pakeitimai išsaugomi Git istorijoje:** Naudodami terminalą, įvykdote komandas, kurios išsaugo pakeitimus:
+    ```bash
+    # Prideda visus pakeistus failus
+    git add .
+
+    # Įrašo pakeitimus su trumpu komentaru, pvz., "pataisytas mygtukas"
+    git commit -m "Jūsų pakeitimo aprašymas"
+    ```
+3.  **Pakeitimai išsiunčiami į GitHub:**
+    ```bash
+    git push
+    ```
+4.  **Magija įvyksta automatiškai:** Kai tik Vercel pamato, kad atsirado naujų pakeitimų Jūsų GitHub saugykloje, ji automatiškai pradeda naują diegimo procesą. Jums nieko daugiau daryti nebereikia.
+5.  **Pakeitimai atsiranda puslapyje:** Po kelių minučių Jūsų pakeitimai bus matomi gyvai Jūsų `.vercel.app` adrese.
+
+Jums daugiau niekada nebereikės naudoti FTP ar rankiniu būdu kelti failų.
 
 ---
 
