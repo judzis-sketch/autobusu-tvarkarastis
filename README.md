@@ -41,7 +41,7 @@ Jums reikės įjungti dvi pagrindines paslaugas.
 
 Šiame žingsnyje sujungsime programos kodą su Jūsų sukurtu Firebase projektu.
 
-1.  Atsidarykite savo projektą kodu ir sukurkite naują failą pagrindinėje direktorijoje pavadinimu `.env.local`.
+1.  Atsidarykite savo projektą kodu ir sukurkite naują failą **pagrindinėje direktorijoje** (šakniniame aplanke, šalia `package.json` failo) pavadinimu `.env.local`.
 2.  Į šį failą nukopijuokite visą žemiau esantį turinį:
 
     ```
@@ -81,8 +81,6 @@ Kai baigsite, Jūsų `.env.local` failas atrodys panašiai į pavyzdį, tik su J
 
 ## 2. Programos įdiegimas į serverį (Deployment)
 
-### Modernus būdas be FTP
-
 Užuot kėlus failus rankiniu būdu per FTP, šiuolaikinės aplikacijos yra diegiamos naudojant **Git pagrįstą procesą**. Tai yra daug paprasčiau, greičiau ir patikimiau.
 
 **Rekomenduojama platforma: [Vercel](https://vercel.com/)**
@@ -91,18 +89,57 @@ Vercel yra Next.js kūrėjų platforma, specialiai pritaikyta tokiems projektams
 
 ### Diegimo žingsniai
 
-1.  **Įkelkite kodą į Git repozitoriją**: Jei Jūsų kodas dar nėra Git repozitorijoje (pvz., [GitHub](https://github.com/)), būtinai įkelkite jį. Tai yra būtinas žingsnis automatizuotam diegimui.
-2.  **Sukurkite Vercel paskyrą**: Apsilankykite [Vercel](https://vercel.com/) ir užsiregistruokite (patogiausia naudoti savo GitHub, GitLab ar Bitbucket paskyrą).
-3.  **Sukurkite naują projektą Vercel**:
+#### 1. Kodo įkėlimas į GitHub (būtina atlikti tik vieną kartą)
+
+Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas Git saugykloje, pavyzdžiui, **GitHub**.
+
+**Jei niekada to nedarėte, sekite šiuos žingsnius:**
+
+1.  **Sukurkite GitHub paskyrą:** Jei dar neturite, užsiregistruokite [github.com](https://github.com).
+2.  **Sukurkite naują saugyklą (repository):**
+    *   Savo GitHub paskyroje, viršuje dešinėje paspauskite `+` ir pasirinkite **New repository**.
+    *   Įveskite pavadinimą (pvz., `autobusu-tvarkarastis`), galite palikti ją **Public** (vieša).
+    *   **Nesirinkite** jokių papildomų failų (`README`, `.gitignore`).
+    *   Paspauskite **Create repository**.
+3.  **Paruoškite projektą ir įkelkite kodą:**
+    *   Atsidarykite terminalą (komandinę eilutę) savo kompiuteryje, tame aplanke, kur yra Jūsų projektas.
+    *   Įvykdykite šias komandas eilės tvarka:
+
+        ```bash
+        # Inicializuoja Git Jūsų projekto aplanke
+        git init
+
+        # Prideda visus projekto failus įkėlimui
+        git add .
+
+        # "Nufotografuoja" dabartinę kodo versiją
+        git commit -m "Pirmasis įkėlimas"
+
+        # Susieja Jūsų kompiuteryje esantį projektą su GitHub saugykla
+        # Pakeiskite <JŪSŲ_NUORODA> į nuorodą, kurią matote GitHub po saugyklos sukūrimo
+        git remote add origin <JŪSŲ_NUORODA>.git
+
+        # Nustato pagrindinę šaką į "main"
+        git branch -M main
+
+        # Galiausiai, išsiunčia kodą į GitHub
+        git push -u origin main
+        ```
+    *   Atnaujinę puslapį GitHub, turėtumėte pamatyti visus savo projekto failus.
+
+#### 2. Projekto susiejimas su Vercel
+
+1.  **Sukurkite Vercel paskyrą**: Apsilankykite [Vercel](https://vercel.com/) ir užsiregistruokite (patogiausia naudoti savo GitHub paskyrą).
+2.  **Sukurkite naują projektą Vercel**:
     *   Vercel valdymo panelėje spauskite **„Add New...“** > **„Project“**.
-    *   Suraskite ir pasirinkite Git repozitoriją, kurioje yra Jūsų programos kodas.
+    *   Suraskite ir **importuokite** Git repozitoriją, kurią ką tik sukūrėte GitHub.
     *   Vercel automatiškai atpažins, kad tai yra Next.js projektas ir pritaikys reikiamus nustatymus.
-4.  **Sukonfigūruokite aplinkos kintamuosius (Environment Variables)**:
+3.  **Sukonfigūruokite aplinkos kintamuosius (Environment Variables)**:
     *   Projekto nustatymuose raskite **Environment Variables** skiltį.
     *   Jums reikės sukurti visus kintamuosius, kuriuos aprašėte `.env.local` faile. **Vercel aplinkoje `.env.local` failas yra ignoruojamas, todėl kintamuosius būtina suvesti rankiniu būdu į Vercel sąsają.**
     *   Nukopijuokite kiekvieną kintamąjį (pvz., `NEXT_PUBLIC_FIREBASE_API_KEY`) ir jo reikšmę iš savo `.env.local` failo į atitinkamus laukus Vercel platformoje.
-5.  **Įdiekite projektą**:
+4.  **Įdiekite projektą**:
     *   Spauskite **„Deploy“**.
-    *   Vercel automatiškai paruoš programą (`npm run build`) ir įdiegs ją. Po kelių minučių Jūsų programa bus pasiekiama unikaliu `.vercel.app` adresu. Vėliau galėsite priskirti ir savo domeną.
+    *   Vercel automatiškai paruoš programą ir įdiegs ją. Po kelių minučių Jūsų programa bus pasiekiama unikaliu `.vercel.app` adresu. Vėliau galėsite priskirti ir savo domeną.
 
-Sveikiname! Nuo šiol kiekvieną kartą, kai atliksite pakeitimus kode ir įkelsite juos į savo Git repozitoriją, Vercel automatiškai įdiegs naujausią versiją. Jums daugiau niekada nebereikės naudoti FTP.
+Sveikiname! Nuo šiol kiekvieną kartą, kai atliksite pakeitimus kode ir įkelsite juos į savo GitHub saugyklą (`git push`), Vercel automatiškai įdiegs naujausią versiją. Jums daugiau niekada nebereikės naudoti FTP.
