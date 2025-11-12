@@ -8,4 +8,7 @@ export type TimetableEntry = {
 
 export type Route = {
   id?: string;
-  number
+  number: string;
+  name: string;
+  createdAt?: any;
+};
