@@ -1,10 +1,11 @@
 'use server';
 
-import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, writeBatch, doc } from 'firebase/firestore';
+import { collection, getDocs, serverTimestamp, query, orderBy, writeBatch, doc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getDb } from './firebase-admin'; // Use server-side firebase
+import { getDb } from './firebase'; // Use server-side firebase
 import type { Route, TimetableEntry } from './types';
+import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 
 export async function getRoutes(): Promise<Route[]> {
   const db = getDb();
@@ -39,10 +40,8 @@ const multipleRoutesSchema = z.object({
   routes: z.array(routeSchema),
 });
 
-
 export async function addMultipleRoutesAction(values: z.infer<typeof multipleRoutesSchema>): Promise<{ success: boolean; error?: string, newRoutes?: Route[] }> {
     const db = getDb();
-
     const validatedFields = multipleRoutesSchema.safeParse(values);
 
     if (!validatedFields.success) {
@@ -59,17 +58,19 @@ export async function addMultipleRoutesAction(values: z.infer<typeof multipleRou
         const batch = writeBatch(db);
         const newRoutesData: Route[] = [];
 
-        routes.forEach(route => {
-            if (route.name && route.number) {
+        routes.forEach(routeData => {
+            if (routeData.name && routeData.number) {
                 const docRef = doc(collection(db, 'routes'));
-                batch.set(docRef, {
-                    ...route,
+                const newRoute = {
+                    ...routeData,
                     createdAt: serverTimestamp()
-                });
-                newRoutesData.push({ id: docRef.id, ...route, createdAt: new Date() });
+                };
+                batch.set(docRef, newRoute);
+                newRoutesData.push({ id: docRef.id, ...routeData, createdAt: new Date() });
             }
         });
-
+        
+        // This is a non-blocking operation on the client
         await batch.commit();
 
         revalidatePath('/admin');
@@ -81,7 +82,6 @@ export async function addMultipleRoutesAction(values: z.infer<typeof multipleRou
         return { success: false, error: 'Nepavyko pridėti maršrutų.' };
     }
 }
-
 
 const timetableSchema = z.object({
   routeId: z.string().min(1),
@@ -120,11 +120,15 @@ export async function addTimetableEntryAction(values: z.infer<typeof timetableSc
     if (parsedCoords) {
       payload.coords = parsedCoords;
     }
+    
+    const timetableColRef = collection(db, `routes/${routeId}/timetable`);
+    // Non-blocking fire-and-forget
+    addDocumentNonBlocking(timetableColRef, payload);
 
-    await addDoc(collection(db, `routes/${routeId}/timetable`), payload);
     revalidatePath('/');
     return { success: true };
   } catch (error) {
+     console.error("Error adding timetable entry: ", error);
      return { success: false, error: 'Nepavyko pridėti tvarkaraščio įrašo.' };
   }
 }

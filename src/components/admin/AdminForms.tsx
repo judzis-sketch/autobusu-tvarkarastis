@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { useAuth } from '@/firebase';
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -40,6 +41,7 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
+  const auth = useAuth();
 
   const routeForm = useForm<z.infer<typeof multipleRoutesSchema>>({
     resolver: zodResolver(multipleRoutesSchema),
@@ -58,7 +60,7 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
     defaultValues: { routeId: '', stop: '', times: '', coords: '' },
   });
 
-  const handleAddRoute = async (values: z.infer<typeof multipleRoutesSchema>) => {
+  const handleAddRoute = (values: z.infer<typeof multipleRoutesSchema>) => {
     startTransitionRoute(async () => {
       const result = await addMultipleRoutesAction(values);
       if (result.success) {
@@ -77,7 +79,7 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
     });
   };
 
-  const handleAddTimetable = async (values: z.infer<typeof timetableSchema>) => {
+  const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(async () => {
       const result = await addTimetableEntryAction(values);
       if (result.success) {
