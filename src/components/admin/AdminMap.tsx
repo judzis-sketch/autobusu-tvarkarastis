@@ -1,8 +1,8 @@
 'use client';
 
 import { memo, useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import type { Icon as LeafletIconType } from 'leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import type { Icon as LeafletIconType, LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 let DefaultIcon: LeafletIconType;
@@ -25,31 +25,34 @@ try {
 
 function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void; coords: [number, number] | null }) {
     const [position, setPosition] = useState<[number, number] | null>(coords);
-    const map = useMapEvents({
-        click(e) {
-            const newCoords: [number, number] = [e.latlng.lat, e.latlng.lng];
-            setPosition(newCoords);
-            onCoordsChange(newCoords);
-            map.flyTo(e.latlng, map.getZoom());
-        },
-    });
+    const map = useMap();
 
     useEffect(() => {
+        // This effect updates the internal position and flies to it ONLY when the initial coords prop changes
         setPosition(coords);
         if (coords) {
           map.flyTo(coords, map.getZoom());
         }
-    }, [coords, map]);
+    }, [coords]); // Intentionally dependent only on initial coords
+
+    useMapEvents({
+        click(e) {
+            const newCoords: [number, number] = [e.latlng.lat, e.latlng.lng];
+            setPosition(newCoords);
+            onCoordsChange(newCoords);
+        },
+    });
 
     return position === null ? null : (
         <Marker position={position} icon={DefaultIcon} />
     );
 }
 
+// Keep the component wrapped in memo for performance, but the internal logic is what matters.
 const AdminMapComponent = ({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void, coords: [number, number] | null }) => {
   return (
     <MapContainer
-      center={[54.6872, 25.2797]}
+      center={coords || [54.6872, 25.2797]}
       zoom={12}
       style={{ height: '100%', width: '100%' }}
     >
