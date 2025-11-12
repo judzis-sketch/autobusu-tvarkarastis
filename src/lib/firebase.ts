@@ -1,3 +1,5 @@
+'use client';
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
 
@@ -16,10 +18,7 @@ let db: Firestore;
 function initialize() {
   const apps = getApps();
   if (apps.length === 0) {
-    // This check is to prevent client-side code from trying to initialize on the server.
-    if (typeof window !== 'undefined') {
-      app = initializeApp(firebaseConfig);
-    }
+    app = initializeApp(firebaseConfig);
   } else {
     app = apps[0];
   }
@@ -35,40 +34,12 @@ function initialize() {
   }
 }
 
-
-function initializeForServer() {
-    const apps = getApps();
-    if (apps.length === 0) {
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = apps[0];
-    }
-     try {
-       db = getFirestore(app);
-    } catch(e) {
-       db = initializeFirestore(app, {
-        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-      });
-    }
-}
-
-
-// We need a separate initialization for server-side, because of how Next.js bundles code.
-if (typeof window === 'undefined') {
-  initializeForServer();
-} else {
-  initialize();
-}
-
+// Initialize on client-side
+initialize();
 
 export const getDb = (): Firestore => {
-  // This will be called on the server, ensure it's initialized
   if (!db) {
-     if (typeof window === 'undefined') {
-        initializeForServer();
-     } else {
-        initialize();
-     }
+     initialize();
   }
   return db;
 };

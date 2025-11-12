@@ -67,7 +67,7 @@ export default function AdminForms({ routes: initialRoutes }: AdminFormsProps) {
         toast({ title: 'Pavyko!', description: 'Maršrutai sėkmingai pridėti.' });
         routeForm.reset({ routes: [{ number: '', name: '' }] });
         if(result.newRoutes) {
-          setRoutes(prev => [...result.newRoutes!, ...prev].sort((a, b) => (b.createdAt as any) - (a.createdAt as any)));
+          setRoutes(prev => [...(result.newRoutes || []), ...prev].sort((a, b) => (b.createdAt as any) - (a.createdAt as any)));
         }
       } else {
         toast({

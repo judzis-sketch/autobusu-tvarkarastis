@@ -3,9 +3,10 @@
 import { collection, getDocs, serverTimestamp, query, orderBy, writeBatch, doc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { getDb } from './firebase'; // Use server-side firebase
+import { getDb } from './firebase-admin'; // Use server-side firebase
 import type { Route, TimetableEntry } from './types';
-import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { getApps } from 'firebase/app';
 
 export async function getRoutes(): Promise<Route[]> {
   const db = getDb();
@@ -15,7 +16,13 @@ export async function getRoutes(): Promise<Route[]> {
     return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Route, 'id'>) }));
   } catch (error) {
     console.error("Error getting routes: ", error);
-    return [];
+    // If there are no apps initialized, it's a server-side config issue.
+    if (getApps().length === 0) {
+        console.error("Firebase not initialized on the server. Check your environment variables.")
+        return [];
+    }
+    // Re-throw other errors to be caught by error boundaries
+    throw error;
   }
 }
 
@@ -70,7 +77,6 @@ export async function addMultipleRoutesAction(values: z.infer<typeof multipleRou
             }
         });
         
-        // This is a non-blocking operation on the client
         await batch.commit();
 
         revalidatePath('/admin');
@@ -122,8 +128,9 @@ export async function addTimetableEntryAction(values: z.infer<typeof timetableSc
     }
     
     const timetableColRef = collection(db, `routes/${routeId}/timetable`);
-    // Non-blocking fire-and-forget
-    addDocumentNonBlocking(timetableColRef, payload);
+    
+    // We can use a blocking operation here since it's a server action
+    await addDoc(timetableColRef, payload);
 
     revalidatePath('/');
     return { success: true };

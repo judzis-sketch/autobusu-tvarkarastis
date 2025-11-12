@@ -25,7 +25,7 @@
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<YOUR_MESSAGING_SENDER_ID>
     NEXT_PUBLIC_FIREBASE_APP_ID=<YOUR_APP_ID>
 
-    # Server-side variables
+    # Server-side variables (used for Server Actions)
     FIREBASE_API_KEY=<YOUR_API_KEY>
     FIREBASE_AUTH_DOMAIN=<YOUR_AUTH_DOMAIN>
     FIREBASE_PROJECT_ID=<YOUR_PROJECT_ID>
@@ -34,6 +34,8 @@
     FIREBASE_APP_ID=<YOUR_APP_ID>
     ```
 7.  Firebase konsolėje, eik į `Firestore Database` ir sukurk duomenų bazę. Pradėk `test mode` arba nustatyk atitinkamas saugumo taisykles.
+8.  Firebase konsolėje, eik į `Authentication` -> `Sign-in method` ir įjunk `Email/Password` prisijungimo būdą.
+9.  `Authentication` -> `Users` skiltyje pridėk naują vartotoją, kuris bus administratorius.
 
 ### Firestore struktūra (pavyzdys)
 
@@ -48,6 +50,10 @@
           - `times`: ["08:00","08:30","09:00"]
           - `coords`: [54.6872, 25.2797]  // optional
           - `createdAt`: Timestamp
+
+`roles_admin` (collection)
+ - `{userId}` (document)
+    - (šis dokumentas yra tuščias, svarbu tik jo egzistavimas)
 
 ## 2) Vystymas
 `npm run dev` — atidaryti aplikaciją lokaliai. Aplikacija veiks adresu `http://localhost:9002`.
