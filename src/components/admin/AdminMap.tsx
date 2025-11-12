@@ -18,9 +18,14 @@ function MapEvents({ onCoordsChange }: { onCoordsChange: (lat: number, lng: numb
 
 export default function AdminMap({ coords, onCoordsChange }: AdminMapProps) {
   const position: [number, number] = coords && coords.lat && coords.lng ? [coords.lat, coords.lng] : [54.6872, 25.2797]; // Default to Vilnius
+  
+  // Using a key that changes with position will force React to re-create the component
+  // instead of re-rendering it, avoiding the "Map container is already initialized" error.
+  const mapKey = `${position[0]}-${position[1]}`;
+
 
   return (
-    <MapContainer center={position} zoom={13} style={{ height: '100%', width: '100%' }}>
+    <MapContainer key={mapKey} center={position} zoom={13} style={{ height: '100%', width: '100%' }}>
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

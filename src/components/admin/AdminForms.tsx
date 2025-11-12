@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route } from '@/lib/types';
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -40,8 +40,10 @@ import {
   getDocs,
   writeBatch,
   query,
-  orderBy
+  orderBy,
+  deleteDoc
 } from 'firebase/firestore';
+import dynamic from 'next/dynamic';
 
 import {
   AlertDialog,
@@ -55,7 +57,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-import AdminMap from './AdminMap';
+const AdminMap = dynamic(() => import('./AdminMap'), {
+  ssr: false,
+  loading: () => <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
+});
 
 
 const routeSchema = z.object({
@@ -82,7 +87,7 @@ export default function AdminForms() {
 
   const routesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'routes'), orderBy('number', 'asc'));
+    return query(collection(firestore, 'routes'), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
   const { data: routes, isLoading: isLoadingRoutes } = useCollection<Route>(routesQuery);
@@ -197,19 +202,20 @@ export default function AdminForms() {
       setIsDeleting(null);
       return;
     }
-
-    const routeRef = doc(firestore, 'routes', routeId);
-    const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
-    const batch = writeBatch(firestore);
-
+    
     try {
+      // First, delete all documents in the 'timetable' subcollection
+      const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
+      const batch = writeBatch(firestore);
       timetableSnapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);
       });
-      batch.delete(routeRef);
-
       await batch.commit();
+
+      // Then, delete the route document itself
+      const routeRef = doc(firestore, 'routes', routeId);
+      await deleteDoc(routeRef);
 
       toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
     } catch (error) {
