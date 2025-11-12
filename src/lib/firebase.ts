@@ -1,7 +1,5 @@
-'use client';
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,27 +14,25 @@ let app: FirebaseApp;
 let db: Firestore;
 
 function initialize() {
-  if (getApps().length === 0) {
+  const apps = getApps();
+  if (apps.length === 0) {
     app = initializeApp(firebaseConfig);
-    db = initializeFirestore(app, {
-      cacheSizeBytes: CACHE_SIZE_UNLIMITED
-    });
   } else {
-    app = getApp();
-    try {
-       db = getFirestore(app);
-    } catch(e) {
-       db = initializeFirestore(app, {
-        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-      });
-    }
+    app = apps[0];
+  }
+  
+  try {
+     db = getFirestore(app);
+  } catch(e) {
+     db = initializeFirestore(app, {
+      cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+    });
   }
 }
 
 initialize();
 
 export const getDb = (): Firestore => {
-  // Re-initialize if db is not available. This can happen in serverless environments.
   if (!db) {
     initialize();
   }
