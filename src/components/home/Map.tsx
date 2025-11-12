@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TimetableEntry } from '@/lib/types';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getRoute } from '@/lib/osrm';
+import { Loader2 } from 'lucide-react';
 
 interface MapProps {
   stops: TimetableEntry[];
@@ -12,8 +14,8 @@ interface MapProps {
 export default function Map({ stops }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
-  const polylineRef = useRef<L.Polyline | null>(null);
+  const layersRef = useRef<L.Layer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Initialize map
   useEffect(() => {
@@ -35,36 +37,99 @@ export default function Map({ stops }: MapProps) {
     if (!map || !stops) return;
 
     // Clear existing layers
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-    if (polylineRef.current) {
-      polylineRef.current.remove();
-      polylineRef.current = null;
-    }
+    layersRef.current.forEach((layer) => layer.remove());
+    layersRef.current = [];
+    
+    setIsLoading(true);
 
-    const stopPositions = stops.map(s => s.coords).filter(Boolean) as [number, number][];
+    const stopPositionsWithData = stops.filter(s => s.coords) as (TimetableEntry & { coords: [number, number] })[];
+    
+    if (stopPositionsWithData.length === 0) {
+      setIsLoading(false);
+      return;
+    }
 
     // Add markers
-    stops.forEach((stop) => {
-      if (stop.coords) {
-        const marker = L.marker(stop.coords).addTo(map);
-        marker.bindPopup(`<b>${stop.stop}</b><br/>Laikai: ${stop.times.join(', ')}`);
-        markersRef.current.push(marker);
-      }
+    stopPositionsWithData.forEach((stop) => {
+      const marker = L.marker(stop.coords).addTo(map);
+      marker.bindPopup(`<b>${stop.stop}</b><br/>Laikai: ${stop.times.join(', ')}`);
+      layersRef.current.push(marker);
     });
 
-    // Add polyline
-    if (stopPositions.length > 1) {
-      polylineRef.current = L.polyline(stopPositions, { color: 'blue' }).addTo(map);
+    // Fit map to markers
+    const bounds = L.latLngBounds(stopPositionsWithData.map(s => s.coords));
+    map.fitBounds(bounds, { padding: [50, 50] });
+
+    // Function to fetch all route segments
+    const fetchAllRouteSegments = async () => {
+      const routePromises = [];
+      for (let i = 0; i < stopPositionsWithData.length - 1; i++) {
+        const start = stopPositionsWithData[i];
+        const end = stopPositionsWithData[i + 1];
+        routePromises.push(getRoute(start.coords, end.coords));
+      }
+      
+      const settledResults = await Promise.allSettled(routePromises);
+      
+      const allGeometries: [number, number][][] = [];
+
+      settledResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value?.geometry) {
+           const polyline = L.polyline(result.value.geometry, { color: 'blue' }).addTo(map);
+           layersRef.current.push(polyline);
+           allGeometries.push(result.value.geometry);
+        } else {
+          // Fallback to straight line on error
+          const start = stopPositionsWithData[index];
+          const end = stopPositionsWithData[index + 1];
+          const polyline = L.polyline([start.coords, end.coords], { color: 'blue', dashArray: '5, 5' }).addTo(map);
+          layersRef.current.push(polyline);
+          console.error(`Failed to fetch route segment ${index}:`, result.status === 'rejected' ? result.reason : 'No geometry');
+        }
+      });
+      
+      // Re-fit bounds to include all new polylines
+      if (allGeometries.length > 0) {
+        const combinedBounds = stopPositionsWithData.reduce((bounds, stop) => {
+            return bounds.extend(stop.coords);
+        }, new L.LatLngBounds());
+        
+        allGeometries.flat().forEach(coord => {
+            combinedBounds.extend(coord);
+        });
+
+        if (combinedBounds.isValid()) {
+             map.fitBounds(combinedBounds, { padding: [50, 50] });
+        }
+      }
+
+      setIsLoading(false);
+    };
+
+    if (stopPositionsWithData.length > 1) {
+      fetchAllRouteSegments();
+    } else {
+      setIsLoading(false);
     }
-    
-    // Fit bounds
-    if (stopPositions.length > 0) {
-      const bounds = L.latLngBounds(stopPositions);
-      map.fitBounds(bounds, { padding: [50, 50] });
+
+    return () => {
+        layersRef.current.forEach(layer => layer.remove());
+        layersRef.current = [];
     }
 
   }, [stops]);
 
-  return <div ref={mapRef} style={{ height: '100%', width: '100%' }} />;
+  return (
+     <div className="relative h-full w-full">
+        {isLoading && (
+             <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">
+                 <div className="flex items-center gap-2 rounded-md bg-background p-3 shadow-md">
+                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                     <span className="text-muted-foreground">Kraunami keliai...</span>
+                 </div>
+             </div>
+        )}
+        <div ref={mapRef} style={{ height: '100%', width: '100%', zIndex: 5 }} />
+    </div>
+  );
 }
