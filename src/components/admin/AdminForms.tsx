@@ -1,11 +1,11 @@
 'use client';
 
-import type { Route } from '@/lib/types';
+import type { Route, TimetableEntry } from '@/lib/types';
 import { useState, useTransition, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { getRoutes, deleteRouteAction } from '@/lib/actions';
+import { getRoutes, getTimetableForRoute } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
-import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp, doc } from 'firebase/firestore';
+import { addDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -149,12 +149,27 @@ export default function AdminForms() {
 
   const handleDeleteRoute = async (routeId: string) => {
     setIsDeleting(routeId);
-    const result = await deleteRouteAction(routeId);
-    if(result.success) {
+    try {
+      const routeRef = doc(firestore, 'routes', routeId);
+      const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
+      
+      const batch = writeBatch(firestore);
+      const timetableSnapshot = await getDocs(timetableRef);
+      timetableSnapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+      });
+      
+      deleteDocumentNonBlocking(routeRef, async () => {
+        await batch.commit();
+        return Promise.resolve();
+      });
+
       toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.'});
       setRoutes(prev => prev.filter(r => r.id !== routeId));
-    } else {
-      toast({ title: 'Klaida!', description: result.error, variant: 'destructive'});
+
+    } catch (e: any) {
+        toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto tvarkaraščio įrašų.', variant: 'destructive'});
+        console.error(e);
     }
     setIsDeleting(null);
   }

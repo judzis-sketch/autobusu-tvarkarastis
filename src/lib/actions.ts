@@ -36,35 +36,3 @@ export async function getTimetableForRoute(routeId: string): Promise<TimetableEn
     return [];
   }
 }
-
-export async function deleteRouteAction(routeId: string) {
-    if (!routeId) {
-        throw new Error('Nenurodytas maršruto ID.');
-    }
-    const db = getDb();
-    const routeRef = doc(db, 'routes', routeId);
-    const timetableRef = collection(db, 'routes', routeId, 'timetable');
-
-    try {
-        const batch = writeBatch(db);
-
-        // Delete all timetable entries in a batch
-        const timetableSnapshot = await getDocs(timetableRef);
-        timetableSnapshot.docs.forEach((doc) => {
-            batch.delete(doc.ref);
-        });
-        
-        // Delete the route itself
-        batch.delete(routeRef);
-
-        await batch.commit();
-
-        revalidatePath('/admin');
-        revalidatePath('/');
-
-        return { success: true };
-    } catch (error) {
-        console.error("Klaida trinant maršrutą:", error);
-        return { success: false, error: "Nepavyko ištrinti maršruto." };
-    }
-}

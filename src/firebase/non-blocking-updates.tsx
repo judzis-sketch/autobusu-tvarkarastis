@@ -74,17 +74,39 @@ export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) 
 
 /**
  * Initiates a deleteDoc operation for a document reference.
- * Does NOT await the write operation internally.
+ * This can also handle pre-delete logic, like batching subcollection deletions.
+ * @param docRef The reference to the document to delete.
+ * @param preDelete A function that runs before the main delete operation.
+ *                  It should return a promise that resolves when it's done.
+ *                  Useful for batch-deleting subcollection documents.
  */
-export function deleteDocumentNonBlocking(docRef: DocumentReference) {
-  deleteDoc(docRef)
-    .catch(error => {
-      errorEmitter.emit(
-        'permission-error',
-        new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'delete',
-        })
-      )
-    });
+export function deleteDocumentNonBlocking(docRef: DocumentReference, preDelete?: () => Promise<any>) {
+  const runDelete = async () => {
+    try {
+        if(preDelete) {
+            await preDelete();
+        }
+        // The actual delete operation is non-blocking in the UI thread
+        deleteDoc(docRef).catch(error => {
+            errorEmitter.emit(
+                'permission-error',
+                new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'delete',
+                })
+            );
+        });
+    } catch(error: any) {
+        // This catches errors from the preDelete step, e.g., failure to get sub-collections
+         errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete', // Or be more specific like 'list' if it fails on getDocs
+            })
+        );
+    }
+  };
+
+  runDelete();
 }
