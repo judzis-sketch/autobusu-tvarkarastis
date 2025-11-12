@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, FormEvent } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '../ui/button';
@@ -51,7 +51,8 @@ interface StopDetail {
 export default function TimetableClient() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedStopDetail, setSelectedStopDetail] = useState<StopDetail | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
   const [isFindingLocation, setIsFindingLocation] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -77,12 +78,22 @@ export default function TimetableClient() {
 
   const filteredTimetable = useMemo(() => {
     if (!timetable) return [];
-    if (!searchQuery) return timetable;
+    if (!activeSearch) return timetable;
     return timetable.filter(stop =>
-      stop.stop.toLowerCase().includes(searchQuery.toLowerCase())
+      stop.stop.toLowerCase().includes(activeSearch.toLowerCase())
     );
-  }, [timetable, searchQuery]);
+  }, [timetable, activeSearch]);
 
+
+  const handleSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setActiveSearch(searchInput);
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setActiveSearch('');
+  }
 
   const handleFindNearestStop = () => {
     if (!navigator.geolocation) {
@@ -151,7 +162,8 @@ export default function TimetableClient() {
               description: `"${nearestStop.stop}" (${(minDistance).toFixed(2)} km). Kraunamas tvarkaraštis...`,
             });
             setSelectedRouteId(nearestStop.routeId);
-            setSearchQuery(nearestStop.stop);
+            setSearchInput(nearestStop.stop);
+            setActiveSearch(nearestStop.stop);
         } else {
              toast({ title: 'Klaida', description: 'Nepavyko rasti artimiausios stotelės.', variant: 'destructive'});
         }
@@ -220,7 +232,7 @@ export default function TimetableClient() {
             <Select
               onValueChange={(value) => {
                 setSelectedRouteId(value);
-                setSearchQuery(''); // Reset search on new route selection
+                handleClearSearch();
               }}
               value={selectedRouteId ?? ''}
             >
@@ -258,11 +270,30 @@ export default function TimetableClient() {
                   </CardTitle>
               </CardHeader>
               <CardContent>
-                <Input 
-                  placeholder="Įveskite stotelės pavadinimą..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+                <form onSubmit={handleSearchSubmit} className="flex gap-2">
+                  <div className="relative flex-grow">
+                     <Input 
+                      placeholder="Įveskite stotelės pavadinimą..."
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                    />
+                    {searchInput && (
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        onClick={handleClearSearch}
+                      >
+                        <X className="h-4 w-4 text-muted-foreground"/>
+                      </Button>
+                    )}
+                  </div>
+                  <Button type="submit" variant="secondary">
+                     <Search className="h-4 w-4 mr-2" />
+                    Ieškoti
+                  </Button>
+                </form>
               </CardContent>
             </Card>
 
@@ -325,7 +356,7 @@ export default function TimetableClient() {
                         </div>
                       ) : (
                         <p className="text-muted-foreground text-center py-10">
-                          {searchQuery ? `Stotelių pavadinimuose "${searchQuery}" nerasta.` : 'Šiam maršrutui tvarkaraštis dar nesukurtas.'}
+                          {activeSearch ? `Stotelių pavadinimuose "${activeSearch}" nerasta.` : 'Šiam maršrutui tvarkaraštis dar nesukurtas.'}
                         </p>
                       )}
                     </ScrollArea>
@@ -376,5 +407,3 @@ export default function TimetableClient() {
     </>
   );
 }
-
-    
