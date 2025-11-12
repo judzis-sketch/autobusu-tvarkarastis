@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useEffect, useMemo, memo } from 'react';
+import { useState, useTransition, useEffect, useMemo, memo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -96,9 +96,9 @@ export default function AdminForms() {
     return null;
   }, [coordsValue]);
 
-  const handleCoordsChange = (newCoords: [number, number]) => {
+  const handleCoordsChange = useCallback((newCoords: [number, number]) => {
       timetableForm.setValue('coords', `${newCoords[0].toFixed(6)}, ${newCoords[1].toFixed(6)}`);
-  };
+  }, [timetableForm]);
 
  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
