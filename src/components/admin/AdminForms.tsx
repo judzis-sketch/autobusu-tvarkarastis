@@ -14,8 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
 
 import {
   AlertDialog,
@@ -54,7 +54,7 @@ export default function AdminForms() {
     setIsLoadingRoutes(true);
     try {
       const fetchedRoutes = await getRoutes();
-      setRoutes(fetchedRoutes.sort((a,b) => a.number.localeCompare(b.number)));
+      setRoutes(fetchedRoutes.sort((a,b) => a.number.localeCompare(b.number, 'lt', { numeric: true })));
     } catch (error) {
       console.error("Failed to fetch routes:", error);
       toast({
@@ -87,6 +87,10 @@ export default function AdminForms() {
 
  const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
+      if (!firestore) {
+        toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive'});
+        return;
+      }
       const routesCollectionRef = collection(firestore, 'routes');
       const newRouteData = {
           ...values,
@@ -94,20 +98,22 @@ export default function AdminForms() {
       };
       
       try {
-        await addDocumentNonBlocking(routesCollectionRef, newRouteData);
-        toast({ title: 'Pavyko!', description: 'Maršrutas pridedamas. Sąrašas atsinaujins po akimirkos.' });
+        // Use standard addDoc to ensure data is saved and wait for it
+        await addDoc(routesCollectionRef, newRouteData);
+        toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai išsaugotas. Atnaujinamas sąrašas...' });
         routeForm.reset();
-        // Fetch routes again to get the latest list including the new one
-        setTimeout(() => fetchRoutes(), 1000); 
+        
+        // Fetch fresh data from the server to guarantee consistency
+        await fetchRoutes();
       } catch (error) {
-          toast({ title: 'Klaida!', description: 'Nepavyko pridėti maršruto.', variant: 'destructive'});
+          toast({ title: 'Klaida!', description: 'Nepavyko išsaugoti maršruto.', variant: 'destructive'});
           console.error("Error adding route:", error);
       }
     });
   };
   
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
-    startTransitionTimetable(() => {
+    startTransitionTimetable(async () => {
         const { routeId, stop, times } = values;
 
         const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
@@ -119,10 +125,15 @@ export default function AdminForms() {
         const payload: any = { stop, times: parsedTimes, createdAt: serverTimestamp() };
         
         const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
-        addDocumentNonBlocking(timetableColRef, payload);
         
-        toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
-        timetableForm.reset();
+        try {
+            await addDoc(timetableColRef, payload);
+            toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
+            timetableForm.reset();
+        } catch (error) {
+            toast({ title: 'Klaida!', description: 'Nepavyko pridėti tvarkaraščio įrašo.', variant: 'destructive' });
+            console.error("Error adding timetable entry:", error);
+        }
     });
   };
 
