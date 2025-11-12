@@ -16,18 +16,12 @@ type TimetableClientProps = {
 };
 
 export default function TimetableClient({ initialRoutes }: TimetableClientProps) {
-  const [routes, setRoutes] = useState(initialRoutes);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [isPending, startTransition] = useTransition();
   const [mapController, setMapController] = useState<MapController | null>(null);
 
-  // When initialRoutes prop changes (due to revalidation), update the state
-  useEffect(() => {
-    setRoutes(initialRoutes);
-  }, [initialRoutes]);
-  
-  const selectedRoute = routes.find(r => r.id === selectedRouteId);
+  const selectedRoute = initialRoutes.find(r => r.id === selectedRouteId);
 
   useEffect(() => {
     let controller: MapController | null = null;
@@ -35,6 +29,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
     
     if (mapElement && !(mapElement as any)._leaflet_id) {
         import('leaflet').then(L => {
+            // This is a workaround for a known issue with leaflet and Next.js
             const markerIcon2x = '/_next/static/media/marker-icon-2x.b4553f17.png';
             const markerIcon = '/_next/static/media/marker-icon.7c2c9535.png';
             const markerShadow = '/_next/static/media/marker-shadow.a0c6a589.png';
@@ -93,7 +88,7 @@ export default function TimetableClient({ initialRoutes }: TimetableClientProps)
                 <SelectValue placeholder="-- Pasirinkite --" />
               </SelectTrigger>
               <SelectContent>
-                {routes.map((r) => (
+                {initialRoutes.map((r) => (
                   <SelectItem key={r.id} value={r.id!}>
                     <span className="font-bold mr-2">{r.number}</span> — <span>{r.name}</span>
                   </SelectItem>
