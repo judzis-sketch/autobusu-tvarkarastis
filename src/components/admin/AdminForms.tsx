@@ -16,7 +16,9 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
+import { AdminMap } from './AdminMap';
 import dynamic from 'next/dynamic';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,72 +30,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Icon as LeafletIconType, LatLng } from 'leaflet';
-
-const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
-const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
-const useMapEvents = dynamic(() => import('react-leaflet').then(mod => mod.useMapEvents), { ssr: false });
-
-let DefaultIcon: LeafletIconType;
-// This needs to be in a try/catch for Next.js server-side rendering
-try {
-  const L = require('leaflet');
-  DefaultIcon = new L.Icon({
-      iconUrl: '/marker-icon.png',
-      iconRetinaUrl: '/marker-icon-2x.png',
-      shadowUrl: '/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-  });
-} catch (error) {
-  // On the server, DefaultIcon will be undefined, but it's not used there.
-}
-
-
-function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void; coords: [number, number] | null }) {
-    const [position, setPosition] = useState<[number, number] | null>(coords);
-    const map = useMapEvents({
-        click(e) {
-            const newCoords: [number, number] = [e.latlng.lat, e.latlng.lng];
-            setPosition(newCoords);
-            onCoordsChange(newCoords);
-            map.flyTo(e.latlng, map.getZoom());
-        },
-    });
-
-    useEffect(() => {
-        setPosition(coords);
-        if (coords) {
-          map.flyTo(coords, map.getZoom());
-        }
-    }, [coords, map]);
-
-    return position === null ? null : (
-        <Marker position={position} icon={DefaultIcon} />
-    );
-}
-
-const AdminMap = memo(function AdminMap({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void, coords: [number, number] | null }) {
-  // Memoizing the component to prevent re-renders when the parent's state changes unnecessarily.
-  // The key prop on this component will ensure it's re-created when the route changes.
-  return (
-    <MapContainer
-      center={[54.6872, 25.2797]}
-      zoom={12}
-      style={{ height: '100%', width: '100%' }}
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
-      <LocationMarker onCoordsChange={onCoordsChange} coords={coords} />
-    </MapContainer>
-  );
-});
-
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -214,13 +150,12 @@ export default function AdminForms() {
     });
   };
 
-  const handleDeleteRoute = async (routeId: string) => {
+  const handleDeleteRoute = (routeId: string) => {
     setIsDeleting(routeId);
     const routeRef = doc(firestore, 'routes', routeId);
-    const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
     
-    // This function will be executed by deleteDocumentNonBlocking
     const preDelete = async () => {
+        const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
         const batch = writeBatch(firestore);
         const timetableSnapshot = await getDocs(timetableRef);
         timetableSnapshot.docs.forEach((doc) => {
@@ -229,21 +164,14 @@ export default function AdminForms() {
         await batch.commit();
     };
     
-    // Using a promise-based approach to handle UI updates
-    deleteDocumentNonBlocking(routeRef, preDelete)
-      .then(() => {
-        toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
-        setRoutes(prev => prev.filter(r => r.id !== routeId));
-      })
-      .catch((e: any) => {
-        console.error("Deletion failed:", e);
-        // The FirestorePermissionError is thrown by the global listener,
-        // so we just show a generic message here.
-        toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto. Patikrinkite konsolę dėl teisių klaidų.', variant: 'destructive' });
-      })
-      .finally(() => {
-        setIsDeleting(null);
-      });
+    deleteDocumentNonBlocking(routeRef, preDelete);
+    
+    // Optimistic UI update
+    setRoutes(prev => prev.filter(r => r.id !== routeId));
+    toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
+
+    // No need for finally or catch here, errors are handled globally
+    setIsDeleting(null);
   }
   
   if (isLoadingRoutes) {
