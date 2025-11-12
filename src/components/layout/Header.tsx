@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bus, Cog, LogIn, LogOut } from 'lucide-react';
+import { Bus, Cog, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -16,6 +16,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Header() {
   const { user, isUserLoading } = useUser();
@@ -25,7 +26,7 @@ export default function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && firestore) {
       const checkAdminStatus = async () => {
         const adminDocRef = doc(firestore, 'roles_admin', user.uid);
         const adminDocSnap = await getDoc(adminDocRef);
@@ -56,23 +57,16 @@ export default function Header() {
           <div className="flex items-center gap-2">
             <TooltipProvider>
               {isUserLoading ? (
-                <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
+                <Skeleton className="h-9 w-24 rounded-md" />
               ) : user ? (
                 <>
                   {isAdmin && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button asChild variant="ghost" size="icon">
-                          <Link href="/admin">
-                            <Cog className="h-5 w-5" />
-                            <span className="sr-only">Administravimas</span>
-                          </Link>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Administravimo panelė</p>
-                      </TooltipContent>
-                    </Tooltip>
+                     <Button asChild variant="outline">
+                        <Link href="/admin">
+                            <Cog />
+                            <span>Administravimas</span>
+                        </Link>
+                    </Button>
                   )}
                    <Tooltip>
                       <TooltipTrigger asChild>
@@ -87,19 +81,12 @@ export default function Header() {
                     </Tooltip>
                 </>
               ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button asChild variant="ghost" size="icon">
-                      <Link href="/login">
-                        <LogIn className="h-5 w-5" />
-                        <span className="sr-only">Prisijungti</span>
-                      </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Administratoriaus prisijungimas</p>
-                  </TooltipContent>
-                </Tooltip>
+                <Button asChild variant="ghost">
+                    <Link href="/login">
+                        <UserIcon />
+                        <span>Admin prisijungimas</span>
+                    </Link>
+                </Button>
               )}
             </TooltipProvider>
           </div>
