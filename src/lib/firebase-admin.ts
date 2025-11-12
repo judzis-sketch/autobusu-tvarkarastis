@@ -1,6 +1,8 @@
-'use client';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
+
+let app: FirebaseApp;
+let db: Firestore;
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,17 +13,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-let app: FirebaseApp;
-let db: Firestore;
-
 function initialize() {
   const apps = getApps();
   if (apps.length === 0) {
-    app = initializeApp(firebaseConfig);
+    app = initializeApp(firebaseConfig, 'firebase-admin');
   } else {
-    app = apps[0];
+    app = apps.find(a => a.name === 'firebase-admin') || initializeApp(firebaseConfig, 'firebase-admin');
   }
-  
+
   try {
      db = getFirestore(app);
   } catch(e) {
