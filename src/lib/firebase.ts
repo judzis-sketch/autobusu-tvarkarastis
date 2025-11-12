@@ -1,3 +1,5 @@
+'use client';
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, CACHE_SIZE_UNLIMITED, initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
