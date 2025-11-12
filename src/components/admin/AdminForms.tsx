@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,10 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, MapPin } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { addDocumentNonBlocking, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp, doc, getDocs, writeBatch } from 'firebase/firestore';
+import dynamic from 'next/dynamic';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +27,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { Icon } from 'leaflet';
+
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
+const useMapEvents = dynamic(() => import('react-leaflet').then(mod => mod.useMapEvents), { ssr: false });
+
+// This is a workaround for a bug in react-leaflet where the default icon path is not resolved correctly.
+const DefaultIcon = new Icon({
+    iconUrl: '/marker-icon.png',
+    iconRetinaUrl: '/marker-icon-2x.png',
+    shadowUrl: '/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+function LocationMarker({ onCoordsChange, coords }: { onCoordsChange: (coords: [number, number]) => void; coords: [number, number] | null }) {
+    const [position, setPosition] = useState<[number, number] | null>(coords);
+    const map = useMapEvents({
+        click(e) {
+            const newCoords: [number, number] = [e.latlng.lat, e.latlng.lng];
+            setPosition(newCoords);
+            onCoordsChange(newCoords);
+            map.flyTo(e.latlng, map.getZoom());
+        },
+    });
+
+    useEffect(() => {
+        setPosition(coords);
+    }, [coords]);
+
+    return position === null ? null : (
+        <Marker position={position} icon={DefaultIcon} />
+    );
+}
 
 const routeSchema = z.object({
   number: z.string().min(1, 'Numeris yra privalomas'),
@@ -73,7 +111,7 @@ export default function AdminForms() {
 
   useEffect(() => {
     fetchRoutes();
-  }, [toast]);
+  }, []);
 
   const routeForm = useForm<z.infer<typeof multipleRoutesSchema>>({
     resolver: zodResolver(multipleRoutesSchema),
@@ -91,6 +129,20 @@ export default function AdminForms() {
     resolver: zodResolver(timetableSchema),
     defaultValues: { routeId: '', stop: '', times: '', coords: '' },
   });
+
+  const coordsValue = timetableForm.watch('coords');
+  const selectedMarkerCoords = useMemo(() => {
+    if (!coordsValue) return null;
+    const parts = coordsValue.split(',').map(p => parseFloat(p.trim()));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        return [parts[0], parts[1]] as [number, number];
+    }
+    return null;
+  }, [coordsValue]);
+
+  const handleCoordsChange = (newCoords: [number, number]) => {
+      timetableForm.setValue('coords', `${newCoords[0].toFixed(6)}, ${newCoords[1].toFixed(6)}`);
+  };
 
   const handleAddRoute = (values: z.infer<typeof multipleRoutesSchema>) => {
     startTransitionRoute(async () => {
@@ -179,7 +231,7 @@ export default function AdminForms() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8">
       <Card>
         <CardHeader>
           <CardTitle>Nauji maršrutai</CardTitle>
@@ -256,77 +308,92 @@ export default function AdminForms() {
           <CardTitle>Pridėti stotelės laikus</CardTitle>
         </CardHeader>
         <CardContent>
-          <Form {...timetableForm}>
-            <form onSubmit={timetableForm.handleSubmit(handleAddTimetable)} className="space-y-4">
-              <FormField
-                control={timetableForm.control}
-                name="routeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Maršrutas</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Form {...timetableForm}>
+              <form onSubmit={timetableForm.handleSubmit(handleAddTimetable)} className="space-y-4">
+                <FormField
+                  control={timetableForm.control}
+                  name="routeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Maršrutas</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="-- Pasirinkti maršrutą --" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {routes.map((r) => (
+                            <SelectItem key={r.id} value={r.id!}>
+                              {r.number} — {r.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={timetableForm.control}
+                  name="stop"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stotelės pavadinimas</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="-- Pasirinkti maršrutą --" />
-                        </SelectTrigger>
+                        <Input placeholder="Vinco Kudirkos aikštė" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        {routes.map((r) => (
-                          <SelectItem key={r.id} value={r.id!}>
-                            {r.number} — {r.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={timetableForm.control}
-                name="stop"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stotelės pavadinimas</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Vinco Kudirkos aikštė" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={timetableForm.control}
-                name="times"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Laikai (atskirti kableliu)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="08:00, 08:30, 09:15" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={timetableForm.control}
-                name="coords"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Koordinatės (pvz.: 54.6872, 25.2797)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Platuma, Ilguma" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" variant="secondary" disabled={isPendingTimetable}>
-                {isPendingTimetable && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Pridėti laikus
-              </Button>
-            </form>
-          </Form>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={timetableForm.control}
+                  name="times"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Laikai (atskirti kableliu)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="08:00, 08:30, 09:15" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={timetableForm.control}
+                  name="coords"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Koordinatės (pasirinkti žemėlapyje)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Platuma, Ilguma" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" variant="secondary" disabled={isPendingTimetable}>
+                  {isPendingTimetable && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Pridėti laikus
+                </Button>
+              </form>
+            </Form>
+            <div className="h-[400px] w-full rounded-md overflow-hidden border">
+              <MapContainer
+                  center={[54.6872, 25.2797]}
+                  zoom={12}
+                  style={{ height: '100%', width: '100%' }}
+              >
+                  <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  <LocationMarker onCoordsChange={handleCoordsChange} coords={selectedMarkerCoords} />
+              </MapContainer>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -371,3 +438,5 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
