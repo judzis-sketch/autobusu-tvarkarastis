@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,7 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -41,9 +41,12 @@ import {
   writeBatch,
   query,
   orderBy,
-  deleteDoc
+  deleteDoc,
+  limit,
+  getDoc
 } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
+import { getRouteDistance } from '@/lib/osrm';
 
 import {
   AlertDialog,
@@ -84,6 +87,8 @@ export default function AdminForms() {
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+  const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   const firestore = useFirestore();
 
   const routesQuery = useMemoFirebase(() => {
@@ -97,7 +102,7 @@ export default function AdminForms() {
     resolver: zodResolver(timetableSchema),
     defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: 54.6872, lng: 25.2797 } },
   });
-  const { setValue, watch, control } = timetableForm;
+  const { setValue, watch, control, getValues } = timetableForm;
   const watchedCoords = watch('coords');
   const watchedRouteId = watch('routeId');
 
@@ -109,6 +114,36 @@ export default function AdminForms() {
   const stopPositions = useMemo(() => timetableStops?.map(s => s.coords).filter(Boolean) as [number, number][] || [], [timetableStops]);
 
 
+  useEffect(() => {
+    const fetchLastStop = async () => {
+        if (!firestore || !watchedRouteId) {
+            setLastStopCoords(null);
+            return;
+        }
+
+        const lastStopQuery = query(
+            collection(firestore, `routes/${watchedRouteId}/timetable`),
+            orderBy('createdAt', 'desc'),
+            limit(1)
+        );
+
+        const querySnapshot = await getDocs(lastStopQuery);
+        if (!querySnapshot.empty) {
+            const lastStop = querySnapshot.docs[0].data() as TimetableEntry;
+            if (lastStop.coords) {
+                setLastStopCoords(lastStop.coords);
+            } else {
+                setLastStopCoords(null);
+            }
+        } else {
+            setLastStopCoords(null);
+        }
+    };
+
+    fetchLastStop();
+  }, [watchedRouteId, firestore, timetableStops]); // Rerun when timetableStops changes too
+
+
   const routeForm = useForm<z.infer<typeof routeSchema>>({
     resolver: zodResolver(routeSchema),
     defaultValues: {
@@ -116,6 +151,53 @@ export default function AdminForms() {
       name: '',
     },
   });
+
+  const handleCalculateDistance = async () => {
+      const currentCoords = getValues('coords');
+      if (!lastStopCoords) {
+          toast({
+              title: 'Negalima apskaičiuoti',
+              description: 'Tai pirma maršruto stotelė. Nėra atskaitos taško.',
+              variant: 'destructive',
+          });
+          return;
+      }
+      if (!currentCoords || !currentCoords.lat || !currentCoords.lng) {
+          toast({
+              title: 'Negalima apskaičiuoti',
+              description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
+              variant: 'destructive',
+          });
+          return;
+      }
+
+      setIsCalculatingDistance(true);
+      try {
+          const distance = await getRouteDistance(lastStopCoords, [currentCoords.lat, currentCoords.lng]);
+          if (distance !== null) {
+              setValue('distanceToNext', String(Math.round(distance)));
+              toast({
+                  title: 'Atstumas apskaičiuotas',
+                  description: `Apytikslis atstumas iki kitos stotelės: ${Math.round(distance)} m.`,
+              });
+          } else {
+              toast({
+                  title: 'Apskaičiavimo klaida',
+                  description: 'Nepavyko gauti atstumo iš OSRM tarnybos.',
+                  variant: 'destructive',
+              });
+          }
+      } catch (error) {
+          console.error("Error calculating distance: ", error);
+          toast({
+              title: 'Apskaičiavimo klaida',
+              description: 'Įvyko netikėta klaida bandant apskaičiuoti atstumą.',
+              variant: 'destructive',
+          });
+      } finally {
+          setIsCalculatingDistance(false);
+      }
+  };
 
   const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
@@ -374,19 +456,25 @@ export default function AdminForms() {
                   </FormItem>
                 )}
               />
-               <FormField
-                control={timetableForm.control}
-                name="distanceToNext"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Atstumas iki kitos stotelės (metrais, nebūtina)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="850" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="space-y-2">
+                    <FormField
+                    control={timetableForm.control}
+                    name="distanceToNext"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Atstumas iki kitos stotelės (metrais)</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="850" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={handleCalculateDistance} disabled={isCalculatingDistance || !lastStopCoords}>
+                        {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
+                        Apskaičiuoti atstumą pagal kelius
+                    </Button>
+                </div>
                 
               <div>
                 <FormLabel>Stotelės koordinatės (pasirinktinai)</FormLabel>
@@ -425,6 +513,7 @@ export default function AdminForms() {
                             setValue('coords.lng', lng, { shouldValidate: true });
                         }}
                         stopPositions={stopPositions}
+                        lastStopPosition={lastStopCoords}
                     />
                 </div>
               </div>

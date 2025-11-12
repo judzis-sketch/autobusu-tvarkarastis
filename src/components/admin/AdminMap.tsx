@@ -8,12 +8,14 @@ interface AdminMapProps {
   coords?: { lat?: number; lng?: number };
   onCoordsChange: (lat: number, lng: number) => void;
   stopPositions: [number, number][];
+  lastStopPosition: [number, number] | null;
 }
 
 // Custom hook to avoid re-initialization issues.
 function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapProps) {
     const mapInstanceRef = useRef<L.Map | null>(null);
     const markerRef = useRef<L.Marker | null>(null);
+    const lastStopMarkerRef = useRef<L.Marker | null>(null);
     const polylineRef = useRef<L.Polyline | null>(null);
     const stopMarkersRef = useRef<L.Marker[]>([]);
 
@@ -83,6 +85,23 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         }
 
     }, [props.stopPositions]);
+
+     // Effect to update the last stop marker
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        if (lastStopMarkerRef.current) {
+            lastStopMarkerRef.current.remove();
+            lastStopMarkerRef.current = null;
+        }
+
+        if (props.lastStopPosition) {
+             const icon = new L.Icon.Default({ className: 'hue-rotate-180' });
+             lastStopMarkerRef.current = L.marker(props.lastStopPosition, { icon }).addTo(map);
+        }
+
+    }, [props.lastStopPosition]);
 
     return null;
 }
