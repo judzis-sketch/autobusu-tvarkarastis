@@ -98,7 +98,8 @@ Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas 
 1.  **Sukurkite GitHub paskyrą:** Jei dar neturite, užsiregistruokite [github.com](https://github.com).
 2.  **Sukurkite naują saugyklą (repository):**
     *   Savo GitHub paskyroje, viršuje dešinėje paspauskite `+` ir pasirinkite **New repository**.
-    *   Įveskite pavadinimą (pvz., `autobusu-tvarkarastis`), galite palikti ją **Public** (vieša).
+    *   Įveskite pavadinimą (pvz., `autobusu-tvarkarastis`).
+    *   **Labai svarbu:** Palikite ją **Public** (vieša). Privati repozitorija gali sukelti autentifikacijos problemų diegimo metu. Dėl kodo saugumo nesijaudinkite – Jūsų slapti raktai lieka saugūs.
     *   **Nesirinkite** jokių papildomų failų (`README`, `.gitignore`).
     *   Paspauskite **Create repository**.
 3.  **Paruoškite projektą ir įkelkite kodą:**
@@ -106,26 +107,15 @@ Kad galėtumėte naudotis Vercel, Jūsų programos kodas turi būti patalpintas 
     *   Įvykdykite šias komandas eilės tvarka (kiekvieną atskirai):
 
         ```bash
-        # Inicializuoja Git Jūsų projekto aplanke
         git init
-
-        # Prideda visus projekto failus įkėlimui
         git add .
-
-        # "Nufotografuoja" dabartinę kodo versiją
         git commit -m "Pirmasis įkėlimas"
-
-        # Susieja Jūsų kompiuteryje esantį projektą su GitHub saugykla
         # Pakeiskite <JŪSŲ_NUORODA> į nuorodą, kurią matote GitHub po saugyklos sukūrimo
         git remote add origin <JŪSŲ_NUORODA>.git
-
-        # Nustato pagrindinę šaką į "main"
         git branch -M main
-
-        # Galiausiai, išsiunčia kodą į GitHub
         git push -u origin main
         ```
-    *   Atnaujinę puslapį GitHub, turėtumėte pamatyti visus savo projekto failus.
+    *   Atnaujinę puslapį GitHub, turėtumėte pamatyti visus savo projekto failus. Jei susiduriate su klaidomis, pereikite prie **Trikčių diagnostikos** skyriaus.
 
 #### B. Projekto susiejimas su Vercel
 
@@ -179,7 +169,7 @@ Jei vykdant `git push` komandą gaunate klaidą `Authentication failed` arba `Re
 **Sprendimas Nr. 1 (lengviausias): Padarykite repozitoriją viešą (Public).**
 *   Eikite į savo GitHub repozitorijos **Settings**.
 *   Puslapio apačioje raskite "Danger Zone" ir paspauskite **Change visibility**.
-*   Pakeiskite į **Public**.
+*   Pakeiskite į **Public**. Tai yra rekomenduojamas būdas, ypač pirmo diegimo metu, nes išvengiama autentifikacijos problemų. Jūsų slapti raktai lieka saugūs.
 *   Pabandykite `git push` komandą dar kartą.
 
 **Sprendimas Nr. 2 (jei repozitorija turi būti privati): Naudokite Personal Access Token (PAT).**
