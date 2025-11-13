@@ -5,7 +5,7 @@ import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'eTransport PWA',
+  title: 'Autobusų tvarkaraštis',
   description: 'Autobusų tvarkaraštis',
 };
 

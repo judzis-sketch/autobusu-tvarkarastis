@@ -52,7 +52,7 @@ export default function Header() {
             <div className="bg-primary text-primary-foreground p-2 rounded-lg">
               <Bus className="h-6 w-6" />
             </div>
-            <h1 className="text-xl font-bold text-foreground font-headline">eTransport</h1>
+            <h1 className="text-xl font-bold text-foreground font-headline">Autobusų tvarkaraštis</h1>
           </Link>
           <div className="flex items-center gap-2">
             <TooltipProvider>
