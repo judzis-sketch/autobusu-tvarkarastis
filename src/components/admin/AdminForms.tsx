@@ -204,7 +204,7 @@ export default function AdminForms() {
     };
 
     fetchLastStop();
-  }, [watchedRouteId, firestore, timetableStops]); // Rerun when timetableStops changes too
+  }, [watchedRouteId, firestore]);
 
 
   const routeForm = useForm<z.infer<typeof routeSchema>>({
