@@ -85,7 +85,7 @@ const AdminMap = dynamic(() => import('./AdminMap'), {
 const daysOfWeek = ["Pirmadienis", "Antradienis", "Trečiadienis", "Ketvirtadienis", "Penktadienis", "Šeštadienis", "Sekmadienis"] as const;
 
 const routeSchema = z.object({
-  number: z.string().min(1, 'Numeris yra privalomas'),
+  number: z.string().optional(),
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
   days: z.array(z.string()).refine(value => value.length > 0, {
     message: "Pasirinkite bent vieną savaitės dieną."

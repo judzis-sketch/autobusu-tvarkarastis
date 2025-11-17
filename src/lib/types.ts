@@ -12,7 +12,7 @@ export type TimetableEntry = {
 
 export type Route = {
   id?: string;
-  number: string;
+  number?: string;
   name: string;
   days: string[];
   createdAt?: string;
