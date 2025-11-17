@@ -252,7 +252,7 @@ export default function AdminForms() {
               setValue('distanceToNext', String(distanceInKm.toFixed(3)));
               toast({
                   title: 'Maršrutai rasti',
-                  description: `Pasirinkite vieną iš ${routes.length} maršruto variantų žemėlapyje.`,
+                  description: `Pasirinkite vieną iš ${routes.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
               });
           } else {
               toast({
@@ -289,7 +289,7 @@ export default function AdminForms() {
         title: 'Maršrutas pasirinktas',
         description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
       });
-      // Optionally, you could re-order the alternativeRoutes array to make the selected one the first (and therefore the primary color)
+      // Re-order the alternativeRoutes array to make the selected one the first (and therefore the primary color)
       const newRoutes = [...alternativeRoutes];
       const [reorderedItem] = newRoutes.splice(routeIndex, 1);
       newRoutes.unshift(reorderedItem);
@@ -792,7 +792,7 @@ export default function AdminForms() {
                   
                 <div>
                   <FormLabel>Naujos stotelės koordinatės (pasirinktinai)</FormLabel>
-                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą. Bus pasiūlyti keli maršruto variantai.</p>
+                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą. Bus pasiūlyti keli maršruto variantai. Paspauskite ant patinkančio maršruto, kad jį pasirinktumėte.</p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                       <Controller
                           control={control}

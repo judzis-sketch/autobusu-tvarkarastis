@@ -119,30 +119,35 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         // Fetch and draw route geometry for all stops
         const fetchFullRoute = async () => {
             setIsRouteLoading(true);
-            const allGeometries: LatLngTuple[][] = [];
-
-            for (let i = 0; i < props.stopPositions.length - 1; i++) {
-                const start = props.stopPositions[i];
-                const end = props.stopPositions[i+1];
-                try {
-                    const routes = await getRoute(start, end, false);
-                    if (routes && routes.length > 0) {
-                        allGeometries.push(routes[0].geometry);
-                    } else {
-                        allGeometries.push([start, end]); // Fallback to straight line
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch route segment:", error);
-                    allGeometries.push([start, end]); // Fallback to straight line
+            try {
+                // We create pairs of coordinates for each segment of the route
+                const segments = [];
+                for (let i = 0; i < props.stopPositions.length - 1; i++) {
+                    segments.push([props.stopPositions[i], props.stopPositions[i+1]]);
                 }
-            }
+        
+                // We fetch all segments in parallel
+                const segmentRoutes = await Promise.all(
+                    segments.map(segment => getRoute(segment[0], segment[1], false))
+                );
 
-            const fullRoutePolyline = allGeometries.flat();
-            if (fullRoutePolyline.length > 0) {
-                polylineRef.current = L.polyline(fullRoutePolyline, { color: 'grey' }).addTo(map);
+                const allGeometries = segmentRoutes.map((routes, i) => {
+                    if (routes && routes.length > 0) {
+                        return routes[0].geometry;
+                    }
+                    // Fallback to straight line if a segment fails
+                    return [segments[i][0], segments[i][1]] as LatLngTuple[];
+                });
+
+                const fullRoutePolyline = allGeometries.flat();
+                if (fullRoutePolyline.length > 0) {
+                    polylineRef.current = L.polyline(fullRoutePolyline, { color: 'grey' }).addTo(map);
+                }
+            } catch (error) {
+                console.error("Failed to fetch full route:", error);
+            } finally {
+                setIsRouteLoading(false);
             }
-            
-            setIsRouteLoading(false);
         };
         
         if (props.stopPositions.length > 1) {
@@ -179,36 +184,26 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
       alternativePolylinesRef.current = [];
     
       if (props.alternativeRoutes && props.alternativeRoutes.length > 0) {
-        const bounds = L.latLngBounds([]);
-
         props.alternativeRoutes.forEach((route, index) => {
           const isPrimary = index === 0;
           const polyline = L.polyline(route.geometry, {
             color: isPrimary ? 'blue' : 'gray',
-            weight: isPrimary ? 5 : 3,
-            opacity: isPrimary ? 1.0 : 0.7,
+            weight: isPrimary ? 6 : 4,
+            opacity: isPrimary ? 0.8 : 0.6,
           }).addTo(map);
     
           if (props.onRouteSelect) {
-            polyline.on('click', () => {
+            polyline.on('click', (e) => {
+              L.DomEvent.stopPropagation(e); // Prevent map click event
               props.onRouteSelect?.(index);
             });
             polyline.bindTooltip(`Pasirinkti šį maršrutą (${(route.distance / 1000).toFixed(2)} km)`);
           }
     
           alternativePolylinesRef.current.push(polyline);
-          bounds.extend(polyline.getBounds());
         });
-    
-        if(props.lastStopPosition) bounds.extend(props.lastStopPosition);
-        if(props.coords?.lat && props.coords?.lng) bounds.extend([props.coords.lat, props.coords.lng]);
-
-        if (bounds.isValid()) {
-             // Do not fit bounds, let user control the zoom
-            // map.fitBounds(bounds, { padding: [50, 50] });
-        }
       }
-    }, [props.alternativeRoutes, props.onRouteSelect, props.lastStopPosition, props.coords]);
+    }, [props.alternativeRoutes, props.onRouteSelect]);
 
 
     return null;
