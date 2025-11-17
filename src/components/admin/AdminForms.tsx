@@ -491,11 +491,12 @@ export default function AdminForms() {
 
   const handleDeleteStop = async () => {
     if (!firestore || !stopToDelete || !watchedRouteId) {
-      toast({ title: 'Klaida!', description: 'Nepasirinkta stotelė trynimui.', variant: 'destructive'});
+      toast({ title: 'Klaida!', description: 'Nepasirinkta stotelė trynimui arba maršrutas.', variant: 'destructive'});
       setStopToDelete(null);
       return;
     }
     try {
+      // Construct the full path to the document to be deleted
       const stopRef = doc(firestore, 'routes', watchedRouteId, 'timetable', stopToDelete);
       await deleteDoc(stopRef);
       toast({ title: 'Pavyko!', description: 'Stotelė sėkmingai ištrinta.' });
@@ -507,6 +508,7 @@ export default function AdminForms() {
         variant: 'destructive',
       });
     } finally {
+      // Close the dialog by resetting the state
       setStopToDelete(null);
     }
   };
