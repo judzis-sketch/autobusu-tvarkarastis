@@ -489,14 +489,14 @@ export default function AdminForms() {
     }
   };
 
-  const handleDeleteStop = async (stopId: string) => {
-    if (!firestore || !watchedRouteId) {
-      toast({ title: 'Klaida!', description: 'Maršrutas nepasirinktas arba duomenų bazė nepasiekiama.', variant: 'destructive'});
+  const handleDeleteStop = async (routeId: string, stopId: string) => {
+    if (!firestore) {
+      toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive'});
       return;
     }
     setIsDeletingStop(stopId);
     try {
-      const stopRef = doc(firestore, `routes/${watchedRouteId}/timetable`, stopId);
+      const stopRef = doc(firestore, 'routes', routeId, 'timetable', stopId);
       await deleteDoc(stopRef);
       toast({ title: 'Pavyko!', description: 'Stotelė sėkmingai ištrinta.' });
     } catch (error) {
@@ -830,7 +830,7 @@ export default function AdminForms() {
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteStop(stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
                                           </AlertDialogFooter>
                                         </AlertDialogContent>
                                       </AlertDialog>
