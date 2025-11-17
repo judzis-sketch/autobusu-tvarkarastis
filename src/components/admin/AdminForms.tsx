@@ -31,7 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, Check, BusFront } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, Check, BusFront, Undo2 } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -124,6 +124,7 @@ export default function AdminForms() {
   const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number, geometry: LatLngTuple[] }[]>([]);
   const [isStopsListOpen, setIsStopsListOpen] = useState(false);
   const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
+  const [waypoints, setWaypoints] = useState<LatLngTuple[]>([]);
 
   const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
   const routesCollapsibleRef = useRef<HTMLDivElement>(null);
@@ -138,9 +139,9 @@ export default function AdminForms() {
 
   const timetableForm = useForm<z.infer<typeof timetableSchema>>({
     resolver: zodResolver(timetableSchema),
-    defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: 55.7333, lng: 26.2500 } },
+    defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: undefined, lng: undefined } },
   });
-  const { setValue, watch, control, getValues } = timetableForm;
+  const { setValue, watch, control, getValues, reset: resetTimetableForm } = timetableForm;
   const watchedCoords = watch('coords');
   const watchedRouteId = watch('routeId');
 
@@ -199,10 +200,13 @@ export default function AdminForms() {
     }
   }, [editingRoute, editRouteForm]);
   
-  // Clear alternatives when route changes
+  // Clear alternatives, waypoints when route changes
   useEffect(() => {
     setAlternativeRoutes([]);
     setValue('distanceToNext', '');
+    setWaypoints([]);
+    setValue('coords.lat', undefined);
+    setValue('coords.lng', undefined);
   }, [watchedRouteId, setValue])
 
   useEffect(() => {
@@ -244,8 +248,8 @@ export default function AdminForms() {
     },
   });
   
-  const handleCalculateDistance = useCallback(async (currentCoords?: { lat?: number, lng?: number }, manual = false) => {
-      const coordsToUse = currentCoords || getValues('coords');
+  const handleCalculateDistance = useCallback(async (manual = false) => {
+      const coordsToUse = getValues('coords');
 
       if (!lastStopCoords) {
           if (manual) {
@@ -271,17 +275,19 @@ export default function AdminForms() {
       setIsCalculatingDistance(true);
       setAlternativeRoutes([]);
       try {
-          const routes = await getRoute(lastStopCoords, [coordsToUse.lat, coordsToUse.lng], true);
+          const allPoints: LatLngTuple[] = [lastStopCoords, ...waypoints, [coordsToUse.lat, coordsToUse.lng]];
+          const routes = await getRoute(allPoints, true);
           if (routes && routes.length > 0) {
               setAlternativeRoutes(routes);
-              // Set the first route as default
               const firstRoute = routes[0];
               const distanceInKm = firstRoute.distance / 1000;
               setValue('distanceToNext', String(distanceInKm.toFixed(3)));
-              toast({
-                  title: 'Maršrutai rasti',
-                  description: `Pasirinkite vieną iš ${routes.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
-              });
+               if (manual) {
+                toast({
+                    title: 'Maršrutai rasti',
+                    description: `Pasirinkite vieną iš ${routes.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
+                });
+               }
           } else {
               toast({
                   title: 'Maršrutų apskaičiavimo klaida',
@@ -299,14 +305,27 @@ export default function AdminForms() {
       } finally {
           setIsCalculatingDistance(false);
       }
-  }, [getValues, lastStopCoords, setValue, toast]);
+  }, [getValues, lastStopCoords, setValue, toast, waypoints]);
 
+    // Recalculate route whenever waypoints or the final destination changes
+    useEffect(() => {
+        const coords = getValues('coords');
+        if (lastStopCoords && coords?.lat && coords?.lng) {
+            handleCalculateDistance();
+        }
+    }, [waypoints, watchedCoords?.lat, watchedCoords?.lng, lastStopCoords, handleCalculateDistance, getValues]);
 
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
-      setValue('coords.lat', lat, { shouldValidate: true });
-      setValue('coords.lng', lng, { shouldValidate: true });
-      handleCalculateDistance({ lat, lng });
-  }, [setValue, handleCalculateDistance]);
+      const currentCoords = getValues('coords');
+      // If there is no destination stop set yet, this click sets it.
+      if (!currentCoords.lat || !currentCoords.lng) {
+        setValue('coords.lat', lat, { shouldValidate: true });
+        setValue('coords.lng', lng, { shouldValidate: true });
+      } else {
+        // Otherwise, subsequent clicks add waypoints.
+        setWaypoints(prev => [...prev, [lat, lng]]);
+      }
+  }, [setValue, getValues]);
 
     const handleRouteSelection = (routeIndex: number) => {
     const selectedRoute = alternativeRoutes[routeIndex];
@@ -317,13 +336,24 @@ export default function AdminForms() {
         title: 'Maršrutas pasirinktas',
         description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
       });
-      // Re-order the alternativeRoutes array to make the selected one the first (and therefore the primary color)
       const newRoutes = [...alternativeRoutes];
       const [reorderedItem] = newRoutes.splice(routeIndex, 1);
       newRoutes.unshift(reorderedItem);
       setAlternativeRoutes(newRoutes);
     }
   };
+
+  const handleResetWaypoints = () => {
+    setWaypoints([]);
+    setValue('coords.lat', undefined);
+    setValue('coords.lng', undefined);
+    setValue('distanceToNext', '');
+    setAlternativeRoutes([]);
+    toast({
+        title: 'Tarpiniai taškai išvalyti',
+        description: 'Dabar galite iš naujo žymėti stotelę ir maršrutą.'
+    });
+  }
 
   const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
@@ -407,8 +437,9 @@ export default function AdminForms() {
           title: 'Pavyko!',
           description: 'Tvarkaraščio įrašas pridėtas.',
         });
-        timetableForm.reset({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '', coords: { lat: 55.7333, lng: 26.2500 } });
+        resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
         setAlternativeRoutes([]);
+        setWaypoints([]);
       } catch (error) {
         toast({
           title: 'Klaida!',
@@ -857,15 +888,21 @@ export default function AdminForms() {
                       </FormItem>
                       )}
                       />
-                      <Button type="button" variant="outline" size="sm" onClick={() => handleCalculateDistance(undefined, true)} disabled={isCalculatingDistance || !lastStopCoords}>
-                          {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
-                          Apskaičiuoti atstumą rankiniu būdu
-                      </Button>
+                       <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleCalculateDistance(true)} disabled={isCalculatingDistance || !lastStopCoords || !watchedCoords?.lat}>
+                            {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
+                            Apskaičiuoti maršrutą
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={handleResetWaypoints} disabled={!watchedCoords?.lat && waypoints.length === 0}>
+                            <Undo2 className="mr-2 h-4 w-4" />
+                            Išvalyti taškus
+                        </Button>
+                       </div>
                   </div>
                   
                 <div>
                   <FormLabel>Naujos stotelės koordinatės (pasirinktinai)</FormLabel>
-                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą. Bus pasiūlyti keli maršruto variantai. Paspauskite ant patinkančio maršruto, kad jį pasirinktumėte.</p>
+                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte naujos stotelės vietą (raudonas žymeklis). Vėlesni paspaudimai pridės tarpinius maršruto taškus (mėlyni žymekliai).</p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                       <Controller
                           control={control}
@@ -900,6 +937,7 @@ export default function AdminForms() {
                           lastStopPosition={lastStopCoords}
                           alternativeRoutes={alternativeRoutes}
                           onRouteSelect={handleRouteSelection}
+                          waypoints={waypoints}
                       />
                   </div>
                 </div>
@@ -1075,5 +1113,3 @@ export default function AdminForms() {
     </div>
   );
 }
-
-    

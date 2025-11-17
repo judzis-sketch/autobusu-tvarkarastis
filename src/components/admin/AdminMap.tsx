@@ -21,6 +21,7 @@ interface AdminMapProps {
   lastStopPosition: [number, number] | null;
   alternativeRoutes?: { distance: number; geometry: LatLngTuple[] }[];
   onRouteSelect?: (routeIndex: number) => void;
+  waypoints: LatLngTuple[];
 }
 
 // Custom hook to avoid re-initialization issues.
@@ -30,11 +31,21 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
     const lastStopMarkerRef = useRef<L.Marker | null>(null);
     const polylineRef = useRef<L.Polyline | null>(null);
     const stopMarkersRef = useRef<L.Marker[]>([]);
+    const waypointMarkersRef = useRef<L.Marker[]>([]);
     const alternativePolylinesRef = useRef<L.Polyline[]>([]);
     const [isRouteLoading, setIsRouteLoading] = useState(false);
 
     const redIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    const blueIcon = new L.Icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
@@ -123,26 +134,14 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             setIsRouteLoading(true);
             try {
                 if (stopCoords.length < 2) return;
-
-                const segments = [];
-                for (let i = 0; i < stopCoords.length - 1; i++) {
-                    segments.push([stopCoords[i], stopCoords[i+1]]);
-                }
-        
-                const segmentRoutes = await Promise.all(
-                    segments.map(segment => getRoute(segment[0], segment[1], false))
-                );
-
-                const allGeometries = segmentRoutes.flatMap((routes, i) => {
-                    if (routes && routes.length > 0) {
-                        return routes[0].geometry;
-                    }
-                    // Fallback to straight line if a segment fails
-                    return [segments[i][0], segments[i][1]] as LatLngTuple[];
-                });
                 
-                if (allGeometries.length > 0) {
-                    polylineRef.current = L.polyline(allGeometries, { color: 'grey', weight: 5, opacity: 0.7 }).addTo(map);
+                const routes = await getRoute(stopCoords, false);
+
+                if (routes && routes.length > 0) {
+                    const allGeometries = routes[0].geometry;
+                     if (allGeometries.length > 0) {
+                        polylineRef.current = L.polyline(allGeometries, { color: 'grey', weight: 5, opacity: 0.7 }).addTo(map);
+                    }
                 }
 
             } catch (error) {
@@ -156,7 +155,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
 
     }, [props.stopPositions, greyIcon]);
 
-     // Effect to update the last stop marker (blue)
+     // Effect to update the last stop marker (blue icon from default leaflet)
     useEffect(() => {
         const map = mapInstanceRef.current;
         if (!map) return;
@@ -171,6 +170,21 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         }
 
     }, [props.lastStopPosition, defaultIcon]);
+
+    // Effect for waypoints (blue markers)
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        // Clear previous waypoint markers
+        waypointMarkersRef.current.forEach(marker => marker.remove());
+        waypointMarkersRef.current = [];
+
+        props.waypoints.forEach(pos => {
+            const waypointMarker = L.marker(pos, { icon: blueIcon }).addTo(map);
+            waypointMarkersRef.current.push(waypointMarker);
+        });
+    }, [props.waypoints, blueIcon])
     
     // Effect to draw alternative routes
     useEffect(() => {

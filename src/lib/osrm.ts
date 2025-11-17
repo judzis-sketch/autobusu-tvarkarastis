@@ -54,57 +54,23 @@ function decodePolyline(str: string): LatLngTuple[] {
 
 
 /**
- * Calculates the driving distance between two coordinates using the OSRM API.
- * @param startCoords - The starting coordinates [latitude, longitude].
- * @param endCoords - The ending coordinates [latitude, longitude].
- * @returns The distance in meters, or null if the request fails.
- */
-export async function getRouteDistance(
-  startCoords: [number, number],
-  endCoords: [number, number]
-): Promise<number | null> {
-  const [startLat, startLng] = startCoords;
-  const [endLat, endLng] = endCoords;
-
-  const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=false`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`OSRM API request failed with status: ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-      return data.routes[0].distance;
-    } else {
-      console.error('OSRM API did not return a valid route.', data);
-      return null;
-    }
-  } catch (error) {
-    console.error('Error fetching route distance from OSRM:', error);
-    return null;
-  }
-}
-
-/**
- * Fetches driving routes (distance and geometry) between two coordinates using the OSRM API.
- * @param startCoords - The starting coordinates [latitude, longitude].
- * @param endCoords - The ending coordinates [latitude, longitude].
- * @param alternatives - Whether to fetch alternative routes.
+ * Fetches driving routes (distance and geometry) between multiple coordinates using the OSRM API.
+ * @param coordinates - An array of coordinates [[lat, lng], [lat, lng], ...].
+ * @param alternatives - Whether to fetch alternative routes (only works well for 2 coordinates).
  * @returns An array of route objects, each with distance and decoded geometry, or null if fails.
  */
 export async function getRoute(
-  startCoords: [number, number],
-  endCoords: [number, number],
+  coordinates: LatLngTuple[],
   alternatives = false
 ): Promise<{ distance: number; geometry: LatLngTuple[] }[] | null> {
-  const [startLat, startLng] = startCoords;
-  const [endLat, endLng] = endCoords;
 
-  const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=polyline&alternatives=${alternatives}`;
+  if (coordinates.length < 2) {
+    console.error("At least two coordinates are required to calculate a route.");
+    return null;
+  }
+  
+  const coordsString = coordinates.map(coord => `${coord[1]},${coord[0]}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=polyline&alternatives=${alternatives}`;
 
   try {
     const response = await fetch(url);
