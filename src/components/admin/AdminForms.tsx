@@ -113,7 +113,7 @@ export default function AdminForms() {
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [stopToDelete, setStopToDelete] = useState<string | null>(null);
+  const [stopToDelete, setStopToDelete] = useState<{routeId: string; stopId: string} | null>(null);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
@@ -453,18 +453,14 @@ export default function AdminForms() {
 
   const handleDeleteRoute = async (routeId: string) => {
     setIsDeleting(routeId);
-
     if (!firestore) {
-      toast({
-        title: 'Klaida!',
-        description: 'Duomenų bazė nepasiekiama.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
       setIsDeleting(null);
       return;
     }
-    
+
     try {
+      // First, delete all documents in the 'timetable' subcollection
       const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
       const batch = writeBatch(firestore);
@@ -473,43 +469,36 @@ export default function AdminForms() {
       });
       await batch.commit();
 
+      // After subcollection is deleted, delete the main route document
       const routeRef = doc(firestore, 'routes', routeId);
       await deleteDoc(routeRef);
 
-      toast({ title: 'Pavyko!', description: 'Maršrutas sėkmingai ištrintas.' });
+      toast({ title: 'Pavyko!', description: 'Maršrutas ir jo tvarkaraščiai sėkmingai ištrinti.' });
     } catch (error) {
-      console.error('Error deleting route: ', error);
-      toast({
-        title: 'Klaida!',
-        description: 'Nepavyko ištrinti maršruto.',
-        variant: 'destructive',
-      });
+      console.error('Error deleting route:', error);
+      toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive' });
     } finally {
       setIsDeleting(null);
     }
   };
 
   const handleDeleteStop = async () => {
-    if (!firestore || !stopToDelete || !watchedRouteId) {
-      toast({ title: 'Klaida!', description: 'Nepasirinkta stotelė trynimui arba maršrutas.', variant: 'destructive'});
-      setStopToDelete(null);
+    if (!stopToDelete || !firestore) {
+      toast({ title: 'Klaida!', description: 'Nėra informacijos, kurią stotelę trinti.', variant: 'destructive'});
       return;
     }
+    
+    const { routeId, stopId } = stopToDelete;
+
     try {
-      // Construct the full path to the document to be deleted
-      const stopRef = doc(firestore, 'routes', watchedRouteId, 'timetable', stopToDelete);
+      const stopRef = doc(firestore, 'routes', routeId, 'timetable', stopId);
       await deleteDoc(stopRef);
       toast({ title: 'Pavyko!', description: 'Stotelė sėkmingai ištrinta.' });
     } catch (error) {
-       console.error('Error deleting stop: ', error);
-      toast({
-        title: 'Klaida!',
-        description: 'Nepavyko ištrinti stotelės.',
-        variant: 'destructive',
-      });
+      console.error('Error deleting stop:', error);
+      toast({ title: 'Klaida!', description: 'Nepavyko ištrinti stotelės.', variant: 'destructive' });
     } finally {
-      // Close the dialog by resetting the state
-      setStopToDelete(null);
+      setStopToDelete(null); // Close dialog in any case
     }
   };
   
@@ -819,7 +808,7 @@ export default function AdminForms() {
                                       </Button>
                                        <AlertDialog onOpenChange={(open) => !open && setStopToDelete(null)}>
                                         <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete(stop.id!)}>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete({ routeId: watchedRouteId, stopId: stop.id! })}>
                                             <Trash2 className="h-4 w-4 text-destructive/70"/>
                                           </Button>
                                         </AlertDialogTrigger>
