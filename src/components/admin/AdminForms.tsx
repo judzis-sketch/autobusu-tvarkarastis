@@ -131,7 +131,7 @@ export default function AdminForms() {
 
   const timetableForm = useForm<z.infer<typeof timetableSchema>>({
     resolver: zodResolver(timetableSchema),
-    defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: 54.6872, lng: 25.2797 } },
+    defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: 55.7333, lng: 26.2500 } },
   });
   const { setValue, watch, control, getValues } = timetableForm;
   const watchedCoords = watch('coords');
@@ -379,7 +379,7 @@ export default function AdminForms() {
           title: 'Pavyko!',
           description: 'Tvarkaraščio įrašas pridėtas.',
         });
-        timetableForm.reset({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '', coords: { lat: 54.6872, lng: 25.2797 } });
+        timetableForm.reset({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '', coords: { lat: 55.7333, lng: 26.2500 } });
         setAlternativeRoutes([]);
       } catch (error) {
         toast({

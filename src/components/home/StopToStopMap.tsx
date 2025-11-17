@@ -31,7 +31,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   // Initialize map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
-      const defaultCenter: [number, number] = currentStop.coords || [54.6872, 25.2797];
+      const defaultCenter: [number, number] = currentStop.coords || [55.7333, 26.2500];
       const map = L.map(mapRef.current).setView(defaultCenter, 14);
       mapInstanceRef.current = map;
 

@@ -29,7 +29,7 @@ export default function Map({ stops }: MapProps) {
   // Initialize map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
-      const defaultCenter: [number, number] = [54.6872, 25.2797]; // Vilnius
+      const defaultCenter: [number, number] = [55.7333, 26.2500]; // Zarasai
       const map = L.map(mapRef.current).setView(defaultCenter, 12);
       mapInstanceRef.current = map;
 

@@ -54,7 +54,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
     useEffect(() => {
         if (mapRef.current && !mapInstanceRef.current) {
             // Create map instance ONLY if it doesn't exist
-            const map = L.map(mapRef.current).setView([54.6872, 25.2797], 13);
+            const map = L.map(mapRef.current).setView([55.7333, 26.2500], 13);
             mapInstanceRef.current = map;
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -169,7 +169,8 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         if(props.coords?.lat && props.coords?.lng) bounds.extend([props.coords.lat, props.coords.lng]);
 
         if (bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [50, 50] });
+             // Do not fit bounds, let user control the zoom
+            // map.fitBounds(bounds, { padding: [50, 50] });
         }
       }
     }, [props.alternativeRoutes, props.onRouteSelect, props.lastStopPosition, props.coords]);
