@@ -105,13 +105,15 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             polylineRef.current = null;
         }
 
-        if (props.stopPositions.length === 0) {
+        const stopCoords = props.stopPositions.filter(Boolean) as LatLngTuple[];
+
+        if (stopCoords.length === 0) {
             setIsRouteLoading(false);
             return;
         }
 
         // Add new stop markers
-        props.stopPositions.forEach(pos => {
+        stopCoords.forEach(pos => {
             const stopMarker = L.marker(pos, { icon: greyIcon }).addTo(map);
             stopMarkersRef.current.push(stopMarker);
         });
@@ -120,29 +122,29 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         const fetchFullRoute = async () => {
             setIsRouteLoading(true);
             try {
-                // We create pairs of coordinates for each segment of the route
+                if (stopCoords.length < 2) return;
+
                 const segments = [];
-                for (let i = 0; i < props.stopPositions.length - 1; i++) {
-                    segments.push([props.stopPositions[i], props.stopPositions[i+1]]);
+                for (let i = 0; i < stopCoords.length - 1; i++) {
+                    segments.push([stopCoords[i], stopCoords[i+1]]);
                 }
         
-                // We fetch all segments in parallel
                 const segmentRoutes = await Promise.all(
                     segments.map(segment => getRoute(segment[0], segment[1], false))
                 );
 
-                const allGeometries = segmentRoutes.map((routes, i) => {
+                const allGeometries = segmentRoutes.flatMap((routes, i) => {
                     if (routes && routes.length > 0) {
                         return routes[0].geometry;
                     }
                     // Fallback to straight line if a segment fails
                     return [segments[i][0], segments[i][1]] as LatLngTuple[];
                 });
-
-                const fullRoutePolyline = allGeometries.flat();
-                if (fullRoutePolyline.length > 0) {
-                    polylineRef.current = L.polyline(fullRoutePolyline, { color: 'grey' }).addTo(map);
+                
+                if (allGeometries.length > 0) {
+                    polylineRef.current = L.polyline(allGeometries, { color: 'grey', weight: 5, opacity: 0.7 }).addTo(map);
                 }
+
             } catch (error) {
                 console.error("Failed to fetch full route:", error);
             } finally {
@@ -150,11 +152,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             }
         };
         
-        if (props.stopPositions.length > 1) {
-            fetchFullRoute();
-        } else {
-            setIsRouteLoading(false);
-        }
+        fetchFullRoute();
 
     }, [props.stopPositions, greyIcon]);
 
@@ -188,8 +186,8 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
           const isPrimary = index === 0;
           const polyline = L.polyline(route.geometry, {
             color: isPrimary ? 'blue' : 'gray',
-            weight: isPrimary ? 6 : 4,
-            opacity: isPrimary ? 0.8 : 0.6,
+            weight: isPrimary ? 6 : 5,
+            opacity: isPrimary ? 0.8 : 0.7,
           }).addTo(map);
     
           if (props.onRouteSelect) {
