@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getRoute } from '@/lib/osrm';
 
 // Fix for default icon paths using online URLs
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -30,6 +31,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
     const polylineRef = useRef<L.Polyline | null>(null);
     const stopMarkersRef = useRef<L.Marker[]>([]);
     const alternativePolylinesRef = useRef<L.Polyline[]>([]);
+    const [isRouteLoading, setIsRouteLoading] = useState(false);
 
     const redIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
@@ -81,7 +83,6 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             } else {
                 markerRef.current = L.marker(latLng, { icon: redIcon }).addTo(map);
             }
-            // Removed map.setView to prevent auto-zooming on every click
         } else {
             // If coords are cleared, remove the marker
             if (markerRef.current) {
@@ -96,9 +97,18 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         const map = mapInstanceRef.current;
         if (!map) return;
 
-        // Clear previous stop markers
+        // Clear previous stop markers and polyline
         stopMarkersRef.current.forEach(marker => marker.remove());
         stopMarkersRef.current = [];
+        if (polylineRef.current) {
+            polylineRef.current.remove();
+            polylineRef.current = null;
+        }
+
+        if (props.stopPositions.length === 0) {
+            setIsRouteLoading(false);
+            return;
+        }
 
         // Add new stop markers
         props.stopPositions.forEach(pos => {
@@ -106,14 +116,39 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             stopMarkersRef.current.push(stopMarker);
         });
 
-        // Update polyline for existing route
-        if (polylineRef.current) {
-            polylineRef.current.setLatLngs(props.stopPositions);
-        } else if (props.stopPositions.length > 1) {
-            polylineRef.current = L.polyline(props.stopPositions, { color: 'grey' }).addTo(map);
-        } else if (polylineRef.current) {
-            polylineRef.current.remove();
-            polylineRef.current = null;
+        // Fetch and draw route geometry for all stops
+        const fetchFullRoute = async () => {
+            setIsRouteLoading(true);
+            const allGeometries: LatLngTuple[][] = [];
+
+            for (let i = 0; i < props.stopPositions.length - 1; i++) {
+                const start = props.stopPositions[i];
+                const end = props.stopPositions[i+1];
+                try {
+                    const routes = await getRoute(start, end, false);
+                    if (routes && routes.length > 0) {
+                        allGeometries.push(routes[0].geometry);
+                    } else {
+                        allGeometries.push([start, end]); // Fallback to straight line
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch route segment:", error);
+                    allGeometries.push([start, end]); // Fallback to straight line
+                }
+            }
+
+            const fullRoutePolyline = allGeometries.flat();
+            if (fullRoutePolyline.length > 0) {
+                polylineRef.current = L.polyline(fullRoutePolyline, { color: 'grey' }).addTo(map);
+            }
+            
+            setIsRouteLoading(false);
+        };
+        
+        if (props.stopPositions.length > 1) {
+            fetchFullRoute();
+        } else {
+            setIsRouteLoading(false);
         }
 
     }, [props.stopPositions, greyIcon]);
