@@ -48,7 +48,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
-import { getRouteDistance } from '@/lib/osrm';
+import { getRoute } from '@/lib/osrm';
 
 import {
   AlertDialog,
@@ -74,6 +74,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/colla
 import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
+import type { LatLngTuple } from 'leaflet';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
@@ -119,6 +120,7 @@ export default function AdminForms() {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
   const firestore = useFirestore();
+  const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number, geometry: LatLngTuple[] }[]>([]);
 
   const routesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -168,6 +170,12 @@ export default function AdminForms() {
       });
     }
   }, [editingRoute, editRouteForm]);
+  
+  // Clear alternatives when route changes
+  useEffect(() => {
+    setAlternativeRoutes([]);
+    setValue('distanceToNext', '');
+  }, [watchedRouteId, setValue])
 
   useEffect(() => {
     const fetchLastStop = async () => {
@@ -208,40 +216,48 @@ export default function AdminForms() {
     },
   });
   
-  const handleCalculateDistance = useCallback(async (currentCoords?: { lat?: number, lng?: number }) => {
+  const handleCalculateDistance = useCallback(async (currentCoords?: { lat?: number, lng?: number }, manual = false) => {
       const coordsToUse = currentCoords || getValues('coords');
 
       if (!lastStopCoords) {
-          toast({
-              title: 'Negalima apskaičiuoti',
-              description: 'Tai pirma maršruto stotelė. Nėra atskaitos taško.',
-              variant: 'destructive',
-          });
+          if (manual) {
+            toast({
+                title: 'Negalima apskaičiuoti',
+                description: 'Tai pirma maršruto stotelė. Nėra atskaitos taško.',
+                variant: 'destructive',
+            });
+          }
           return;
       }
       if (!coordsToUse || !coordsToUse.lat || !coordsToUse.lng) {
-          toast({
-              title: 'Negalima apskaičiuoti',
-              description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
-              variant: 'destructive',
-          });
+          if (manual) {
+            toast({
+                title: 'Negalima apskaičiuoti',
+                description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
+                variant: 'destructive',
+            });
+          }
           return;
       }
 
       setIsCalculatingDistance(true);
+      setAlternativeRoutes([]);
       try {
-          const distanceInMeters = await getRouteDistance(lastStopCoords, [coordsToUse.lat, coordsToUse.lng]);
-          if (distanceInMeters !== null) {
-              const distanceInKm = distanceInMeters / 1000;
+          const routes = await getRoute(lastStopCoords, [coordsToUse.lat, coordsToUse.lng], true);
+          if (routes && routes.length > 0) {
+              setAlternativeRoutes(routes);
+              // Set the first route as default
+              const firstRoute = routes[0];
+              const distanceInKm = firstRoute.distance / 1000;
               setValue('distanceToNext', String(distanceInKm.toFixed(3)));
               toast({
-                  title: 'Atstumas apskaičiuotas',
-                  description: `Apytikslis atstumas iki kitos stotelės: ${distanceInKm.toFixed(3)} km.`,
+                  title: 'Maršrutai rasti',
+                  description: `Pasirinkite vieną iš ${routes.length} maršruto variantų žemėlapyje.`,
               });
           } else {
               toast({
-                  title: 'Apskaičiavimo klaida',
-                  description: 'Nepavyko gauti atstumo iš OSRM tarnybos.',
+                  title: 'Maršrutų apskaičiavimo klaida',
+                  description: 'Nepavyko gauti maršruto iš OSRM tarnybos.',
                   variant: 'destructive',
               });
           }
@@ -264,6 +280,23 @@ export default function AdminForms() {
       handleCalculateDistance({ lat, lng });
   }, [setValue, handleCalculateDistance]);
 
+    const handleRouteSelection = (routeIndex: number) => {
+    const selectedRoute = alternativeRoutes[routeIndex];
+    if (selectedRoute) {
+      const distanceInKm = selectedRoute.distance / 1000;
+      setValue('distanceToNext', String(distanceInKm.toFixed(3)));
+      toast({
+        title: 'Maršrutas pasirinktas',
+        description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
+      });
+      // Optionally, you could re-order the alternativeRoutes array to make the selected one the first (and therefore the primary color)
+      const newRoutes = [...alternativeRoutes];
+      const [reorderedItem] = newRoutes.splice(routeIndex, 1);
+      newRoutes.unshift(reorderedItem);
+      setAlternativeRoutes(newRoutes);
+    }
+  };
+
   const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
       if (!firestore) {
@@ -280,7 +313,6 @@ export default function AdminForms() {
           description: 'Maršrutas sėkmingai išsaugotas.',
         });
         routeForm.reset();
-        // The useCollection hook will automatically update the routes list
       } catch (error) {
         toast({
           title: 'Klaida!',
@@ -348,6 +380,7 @@ export default function AdminForms() {
           description: 'Tvarkaraščio įrašas pridėtas.',
         });
         timetableForm.reset({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '', coords: { lat: 54.6872, lng: 25.2797 } });
+        setAlternativeRoutes([]);
       } catch (error) {
         toast({
           title: 'Klaida!',
@@ -373,7 +406,6 @@ export default function AdminForms() {
     }
     
     try {
-      // First, delete all documents in the 'timetable' subcollection
       const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
       const batch = writeBatch(firestore);
@@ -382,7 +414,6 @@ export default function AdminForms() {
       });
       await batch.commit();
 
-      // Then, delete the route document itself
       const routeRef = doc(firestore, 'routes', routeId);
       await deleteDoc(routeRef);
 
@@ -753,7 +784,7 @@ export default function AdminForms() {
                       </FormItem>
                       )}
                       />
-                      <Button type="button" variant="outline" size="sm" onClick={() => handleCalculateDistance()} disabled={isCalculatingDistance || !lastStopCoords}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => handleCalculateDistance(undefined, true)} disabled={isCalculatingDistance || !lastStopCoords}>
                           {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
                           Apskaičiuoti atstumą rankiniu būdu
                       </Button>
@@ -761,7 +792,7 @@ export default function AdminForms() {
                   
                 <div>
                   <FormLabel>Naujos stotelės koordinatės (pasirinktinai)</FormLabel>
-                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą. Atstumas apskaičiuojamas automatiškai.</p>
+                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte vietą. Bus pasiūlyti keli maršruto variantai.</p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                       <Controller
                           control={control}
@@ -794,6 +825,8 @@ export default function AdminForms() {
                           onCoordsChange={handleCoordsChange}
                           stopPositions={stopPositions}
                           lastStopPosition={lastStopCoords}
+                          alternativeRoutes={alternativeRoutes}
+                          onRouteSelect={handleRouteSelection}
                       />
                   </div>
                 </div>

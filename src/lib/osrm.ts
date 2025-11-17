@@ -21,7 +21,6 @@ function decodePolyline(str: string): LatLngTuple[] {
     const factor = Math.pow(10, 5); // OSRM uses precision 5
 
     while (index < str.length) {
-        // Reset shift and result for each coordinate part
         shift = 0;
         result = 0;
 
@@ -67,7 +66,6 @@ export async function getRouteDistance(
   const [startLat, startLng] = startCoords;
   const [endLat, endLng] = endCoords;
 
-  // OSRM expects coordinates in {longitude},{latitude} format
   const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=false`;
 
   try {
@@ -80,7 +78,6 @@ export async function getRouteDistance(
     const data = await response.json();
     
     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-      // The distance is provided in meters
       return data.routes[0].distance;
     } else {
       console.error('OSRM API did not return a valid route.', data);
@@ -93,20 +90,21 @@ export async function getRouteDistance(
 }
 
 /**
- * Fetches the driving route (distance and geometry) between two coordinates using the OSRM API.
+ * Fetches driving routes (distance and geometry) between two coordinates using the OSRM API.
  * @param startCoords - The starting coordinates [latitude, longitude].
  * @param endCoords - The ending coordinates [latitude, longitude].
- * @returns An object with distance (meters) and decoded geometry, or null if fails.
+ * @param alternatives - Whether to fetch alternative routes.
+ * @returns An array of route objects, each with distance and decoded geometry, or null if fails.
  */
 export async function getRoute(
   startCoords: [number, number],
-  endCoords: [number, number]
-): Promise<{ distance: number; geometry: LatLngTuple[] } | null> {
+  endCoords: [number, number],
+  alternatives = false
+): Promise<{ distance: number; geometry: LatLngTuple[] }[] | null> {
   const [startLat, startLng] = startCoords;
   const [endLat, endLng] = endCoords;
 
-  // Request full overview to get the geometry
-  const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=polyline`;
+  const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=polyline&alternatives=${alternatives}`;
 
   try {
     const response = await fetch(url);
@@ -118,12 +116,10 @@ export async function getRoute(
     const data = await response.json();
 
     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-      const route = data.routes[0];
-      const decodedGeometry = decodePolyline(route.geometry);
-      return {
+      return data.routes.map((route: any) => ({
         distance: route.distance, // in meters
-        geometry: decodedGeometry,
-      };
+        geometry: decodePolyline(route.geometry),
+      }));
     } else {
       console.error('OSRM API did not return a valid route with geometry.', data);
       return null;

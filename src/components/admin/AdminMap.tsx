@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import L from 'leaflet';
+import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default icon paths using online URLs
@@ -18,6 +18,8 @@ interface AdminMapProps {
   onCoordsChange: (lat: number, lng: number) => void;
   stopPositions: [number, number][];
   lastStopPosition: [number, number] | null;
+  alternativeRoutes?: { distance: number; geometry: LatLngTuple[] }[];
+  onRouteSelect?: (routeIndex: number) => void;
 }
 
 // Custom hook to avoid re-initialization issues.
@@ -27,6 +29,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
     const lastStopMarkerRef = useRef<L.Marker | null>(null);
     const polylineRef = useRef<L.Polyline | null>(null);
     const stopMarkersRef = useRef<L.Marker[]>([]);
+    const alternativePolylinesRef = useRef<L.Polyline[]>([]);
 
     const redIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
@@ -78,7 +81,9 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             } else {
                 markerRef.current = L.marker(latLng, { icon: redIcon }).addTo(map);
             }
-            map.setView(latLng);
+            if (!props.alternativeRoutes || props.alternativeRoutes.length === 0) {
+              map.setView(latLng);
+            }
         } else {
             // If coords are cleared, remove the marker
             if (markerRef.current) {
@@ -86,7 +91,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
                 markerRef.current = null;
             }
         }
-    }, [props.coords, redIcon]);
+    }, [props.coords, redIcon, props.alternativeRoutes]);
     
     // Effect to update existing stops (grey) and polyline
     useEffect(() => {
@@ -103,7 +108,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             stopMarkersRef.current.push(stopMarker);
         });
 
-        // Update polyline
+        // Update polyline for existing route
         if (polylineRef.current) {
             polylineRef.current.setLatLngs(props.stopPositions);
         } else if (props.stopPositions.length > 1) {
@@ -126,11 +131,51 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
         }
 
         if (props.lastStopPosition) {
-             // Use default blue icon for the last stop
              lastStopMarkerRef.current = L.marker(props.lastStopPosition, { icon: defaultIcon }).addTo(map);
         }
 
     }, [props.lastStopPosition, defaultIcon]);
+    
+    // Effect to draw alternative routes
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+    
+      // Clear previous alternative routes
+      alternativePolylinesRef.current.forEach(p => p.remove());
+      alternativePolylinesRef.current = [];
+    
+      if (props.alternativeRoutes && props.alternativeRoutes.length > 0) {
+        const bounds = L.latLngBounds([]);
+
+        props.alternativeRoutes.forEach((route, index) => {
+          const isPrimary = index === 0;
+          const polyline = L.polyline(route.geometry, {
+            color: isPrimary ? 'blue' : 'gray',
+            weight: isPrimary ? 5 : 3,
+            opacity: isPrimary ? 1.0 : 0.7,
+          }).addTo(map);
+    
+          if (props.onRouteSelect) {
+            polyline.on('click', () => {
+              props.onRouteSelect?.(index);
+            });
+            polyline.bindTooltip(`Pasirinkti šį maršrutą (${(route.distance / 1000).toFixed(2)} km)`);
+          }
+    
+          alternativePolylinesRef.current.push(polyline);
+          bounds.extend(polyline.getBounds());
+        });
+    
+        if(props.lastStopPosition) bounds.extend(props.lastStopPosition);
+        if(props.coords?.lat && props.coords?.lng) bounds.extend([props.coords.lat, props.coords.lng]);
+
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+      }
+    }, [props.alternativeRoutes, props.onRouteSelect, props.lastStopPosition, props.coords]);
+
 
     return null;
 }

@@ -89,12 +89,13 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
     // Fetch and draw route geometry
     const fetchAndDrawRoute = async () => {
         try {
-            const route = await getRoute(stopPositions[0], stopPositions[1]);
-            if (route && route.geometry && route.geometry.length > 0) {
+            const routes = await getRoute(stopPositions[0], stopPositions[1], false);
+            if (routes && routes.length > 0) {
+                 const primaryRoute = routes[0];
                  if (polylineRef.current) {
                     polylineRef.current.remove();
                 }
-                polylineRef.current = L.polyline(route.geometry, { color: 'red' }).addTo(map);
+                polylineRef.current = L.polyline(primaryRoute.geometry, { color: 'red' }).addTo(map);
                 
                 // Fit bounds to the route geometry
                 const routeBounds = polylineRef.current.getBounds();

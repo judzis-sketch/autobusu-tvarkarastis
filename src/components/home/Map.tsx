@@ -84,7 +84,8 @@ export default function Map({ stops }: MapProps) {
       for (let i = 0; i < stopPositionsWithData.length - 1; i++) {
         const start = stopPositionsWithData[i];
         const end = stopPositionsWithData[i + 1];
-        routePromises.push(getRoute(start.coords, end.coords));
+        // Request only the primary route (no alternatives) for the public map
+        routePromises.push(getRoute(start.coords, end.coords, false));
       }
       
       const settledResults = await Promise.allSettled(routePromises);
@@ -92,10 +93,11 @@ export default function Map({ stops }: MapProps) {
       const allGeometries: [number, number][][] = [];
 
       settledResults.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value?.geometry) {
-           const polyline = L.polyline(result.value.geometry, { color: 'blue' }).addTo(map);
+        if (result.status === 'fulfilled' && result.value && result.value.length > 0) {
+           const primaryRoute = result.value[0]; // Always take the first route
+           const polyline = L.polyline(primaryRoute.geometry, { color: 'blue' }).addTo(map);
            layersRef.current.push(polyline);
-           allGeometries.push(result.value.geometry);
+           allGeometries.push(primaryRoute.geometry);
         } else {
           // Fallback to straight line on error
           const start = stopPositionsWithData[index];
