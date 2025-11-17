@@ -1,7 +1,7 @@
 'use client';
 
 import type { Route, TimetableEntry } from '@/lib/types';
-import { useState, useTransition, useMemo, useEffect, useCallback } from 'react';
+import { useState, useTransition, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -122,6 +122,9 @@ export default function AdminForms() {
   const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
   const firestore = useFirestore();
   const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number, geometry: LatLngTuple[] }[]>([]);
+  const [isStopsListOpen, setIsStopsListOpen] = useState(false);
+  const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
+
 
   const routesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -155,6 +158,19 @@ export default function AdminForms() {
   const editRouteForm = useForm<z.infer<typeof routeSchema>>({
     resolver: zodResolver(routeSchema),
   });
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (stopsCollapsibleRef.current && !stopsCollapsibleRef.current.contains(event.target as Node)) {
+        setIsStopsListOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
       if (editingStop) {
@@ -704,7 +720,7 @@ export default function AdminForms() {
               />
 
               {watchedRouteId && (
-                 <Collapsible>
+                 <Collapsible open={isStopsListOpen} onOpenChange={setIsStopsListOpen} ref={stopsCollapsibleRef}>
                     <CollapsibleTrigger asChild>
                         <Button variant="outline" className="w-full">
                             <ListOrdered className="mr-2 h-4 w-4" />
