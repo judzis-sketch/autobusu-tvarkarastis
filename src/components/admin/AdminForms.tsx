@@ -122,7 +122,7 @@ export default function AdminForms() {
   const firestore = useFirestore();
   const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number, geometry: LatLngTuple[] }[]>([]);
   const [isStopsListOpen, setIsStopsListOpen] = useState(false);
-  const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
+  const [isRoutesListOpen, setIsRoutesListOpen] = useState(true);
   const [waypoints, setWaypoints] = useState<LatLngTuple[]>([]);
 
   const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
@@ -710,7 +710,7 @@ export default function AdminForms() {
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
                                         <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
+                                        <AlertDialogAction type="button" onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
                                   </AlertDialog>
@@ -814,7 +814,7 @@ export default function AdminForms() {
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
+                                            <AlertDialogAction type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
                                           </AlertDialogFooter>
                                         </AlertDialogContent>
                                       </AlertDialog>
