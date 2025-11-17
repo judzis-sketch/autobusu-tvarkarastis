@@ -113,7 +113,6 @@ export default function AdminForms() {
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [stopToDelete, setStopToDelete] = useState<{routeId: string; stopId: string} | null>(null);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
@@ -452,13 +451,11 @@ export default function AdminForms() {
   };
 
   const handleDeleteRoute = async (routeId: string) => {
-    setIsDeleting(routeId);
     if (!firestore) {
       toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
-      setIsDeleting(null);
       return;
     }
-
+    setIsDeleting(routeId);
     try {
       // First, delete all documents in the 'timetable' subcollection
       const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
@@ -482,14 +479,12 @@ export default function AdminForms() {
     }
   };
 
-  const handleDeleteStop = async () => {
-    if (!stopToDelete || !firestore) {
+  const handleDeleteStop = async (routeId: string, stopId: string) => {
+    if (!firestore || !routeId || !stopId) {
       toast({ title: 'Klaida!', description: 'Nėra informacijos, kurią stotelę trinti.', variant: 'destructive'});
       return;
     }
     
-    const { routeId, stopId } = stopToDelete;
-
     try {
       const stopRef = doc(firestore, 'routes', routeId, 'timetable', stopId);
       await deleteDoc(stopRef);
@@ -497,8 +492,6 @@ export default function AdminForms() {
     } catch (error) {
       console.error('Error deleting stop:', error);
       toast({ title: 'Klaida!', description: 'Nepavyko ištrinti stotelės.', variant: 'destructive' });
-    } finally {
-      setStopToDelete(null); // Close dialog in any case
     }
   };
   
@@ -806,9 +799,9 @@ export default function AdminForms() {
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
                                         <Pencil className="h-4 w-4 text-muted-foreground"/>
                                       </Button>
-                                       <AlertDialog onOpenChange={(open) => !open && setStopToDelete(null)}>
+                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete({ routeId: watchedRouteId, stopId: stop.id! })}>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7">
                                             <Trash2 className="h-4 w-4 text-destructive/70"/>
                                           </Button>
                                         </AlertDialogTrigger>
@@ -821,7 +814,7 @@ export default function AdminForms() {
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleDeleteStop} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
                                           </AlertDialogFooter>
                                         </AlertDialogContent>
                                       </AlertDialog>
