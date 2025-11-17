@@ -31,7 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, Check } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, Check, BusFront } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -123,7 +123,10 @@ export default function AdminForms() {
   const firestore = useFirestore();
   const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number, geometry: LatLngTuple[] }[]>([]);
   const [isStopsListOpen, setIsStopsListOpen] = useState(false);
+  const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
+
   const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
+  const routesCollapsibleRef = useRef<HTMLDivElement>(null);
 
 
   const routesQuery = useMemoFirebase(() => {
@@ -159,16 +162,21 @@ export default function AdminForms() {
     resolver: zodResolver(routeSchema),
   });
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (stopsCollapsibleRef.current && !stopsCollapsibleRef.current.contains(event.target as Node)) {
-        setIsStopsListOpen(false);
-      }
-    };
+  const handleClickOutside = (event: MouseEvent, ref: React.RefObject<HTMLDivElement>, setOpen: (open: boolean) => void) => {
+    if (ref.current && !ref.current.contains(event.target as Node)) {
+      setOpen(false);
+    }
+  };
 
-    document.addEventListener('mousedown', handleClickOutside);
+  useEffect(() => {
+    const handleStopsClick = (e: MouseEvent) => handleClickOutside(e, stopsCollapsibleRef, setIsStopsListOpen);
+    const handleRoutesClick = (e: MouseEvent) => handleClickOutside(e, routesCollapsibleRef, setIsRoutesListOpen);
+
+    document.addEventListener('mousedown', handleStopsClick);
+    document.addEventListener('mousedown', handleRoutesClick);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleStopsClick);
+      document.removeEventListener('mousedown', handleRoutesClick);
     };
   }, []);
 
@@ -646,12 +654,67 @@ export default function AdminForms() {
               onSubmit={timetableForm.handleSubmit(handleAddTimetable)}
               className="space-y-6"
             >
+             <Collapsible open={isRoutesListOpen} onOpenChange={setIsRoutesListOpen} ref={routesCollapsibleRef} className="space-y-2">
+                <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full">
+                        <BusFront className="mr-2 h-4 w-4" />
+                        Visi maršrutai ({routes?.length ?? 0})
+                        <ChevronDown className="ml-auto h-4 w-4" />
+                    </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                   <ScrollArea className="h-60 mt-2 rounded-md border p-2">
+                      {routes && routes.length > 0 ? (
+                        <div className="space-y-1">
+                          {routes.map((route) => (
+                            <div key={route.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
+                              <div className="flex-grow flex flex-col text-left">
+                                <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
+                                {route.days && route.days.length > 0 && (
+                                   <div className="flex flex-wrap gap-1 mt-1">
+                                      {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                                  </div>
+                                )}
+                              </div>
+                               <div className="flex items-center">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
+                                    <Pencil className="h-4 w-4 text-muted-foreground"/>
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeleting === route.id}>
+                                        {isDeleting === route.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Atšaukti</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                     ) : (
+                       <p className="text-sm text-muted-foreground text-center pt-4">Maršrutų dar nesukurta.</p>
+                     )}
+                   </ScrollArea>
+                </CollapsibleContent>
+             </Collapsible>
               <FormField
                 control={timetableForm.control}
                 name="routeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Maršrutas</FormLabel>
+                    <FormLabel>Pasirinkite maršrutą stotelei pridėti</FormLabel>
                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-auto">
@@ -676,7 +739,6 @@ export default function AdminForms() {
                               <SelectItem
                                 key={route.id}
                                 value={route.id!}
-                                onSelect={(e) => e.preventDefault()}
                               >
                                 <div className="flex-grow flex flex-col text-left">
                                     <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
@@ -685,30 +747,6 @@ export default function AdminForms() {
                                           {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
                                       </div>
                                     )}
-                                </div>
-                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-transparent">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { setEditingRoute(route); }}>
-                                        <Pencil className="h-4 w-4 text-muted-foreground"/>
-                                    </Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                             <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeleting === route.id}>
-                                                {isDeleting === route.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                            Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">Taip, ištrinti</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
                                 </div>
                               </SelectItem>
                            ))}
