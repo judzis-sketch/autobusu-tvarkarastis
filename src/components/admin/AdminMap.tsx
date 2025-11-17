@@ -81,9 +81,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
             } else {
                 markerRef.current = L.marker(latLng, { icon: redIcon }).addTo(map);
             }
-            if (!props.alternativeRoutes || props.alternativeRoutes.length === 0) {
-              map.setView(latLng);
-            }
+            // Removed map.setView to prevent auto-zooming on every click
         } else {
             // If coords are cleared, remove the marker
             if (markerRef.current) {
@@ -91,7 +89,7 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
                 markerRef.current = null;
             }
         }
-    }, [props.coords, redIcon, props.alternativeRoutes]);
+    }, [props.coords, redIcon]);
     
     // Effect to update existing stops (grey) and polyline
     useEffect(() => {
