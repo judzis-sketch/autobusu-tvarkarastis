@@ -76,51 +76,42 @@ export default function Map({ stops }: MapProps) {
 
     // Fit map to markers
     const bounds = L.latLngBounds(stopPositionsWithData.map(s => s.coords));
-    map.fitBounds(bounds, { padding: [50, 50] });
+    if (stopPositionsWithData.length > 0 && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+    
 
     // Function to fetch all route segments
     const fetchAllRouteSegments = async () => {
-      const routePromises = [];
+      const allGeometries: [number, number][][] = [];
+
       for (let i = 0; i < stopPositionsWithData.length - 1; i++) {
         const start = stopPositionsWithData[i];
         const end = stopPositionsWithData[i + 1];
-        // Request only the primary route (no alternatives) for the public map
-        routePromises.push(getRoute(start.coords, end.coords, false));
+        
+        try {
+          const routes = await getRoute(start.coords, end.coords, false);
+          if (routes && routes.length > 0) {
+            const primaryRoute = routes[0];
+            allGeometries.push(primaryRoute.geometry);
+          } else {
+            // Fallback for this segment
+             allGeometries.push([start.coords, end.coords]);
+          }
+        } catch (error) {
+            console.error(`Failed to fetch route segment ${i}:`, error);
+            // Fallback for this segment
+            allGeometries.push([start.coords, end.coords]);
+        }
       }
       
-      const settledResults = await Promise.allSettled(routePromises);
+      const fullRoutePolyline = allGeometries.flat();
+      const polyline = L.polyline(fullRoutePolyline, { color: 'blue' }).addTo(map);
+      layersRef.current.push(polyline);
       
-      const allGeometries: [number, number][][] = [];
-
-      settledResults.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value && result.value.length > 0) {
-           const primaryRoute = result.value[0]; // Always take the first route
-           const polyline = L.polyline(primaryRoute.geometry, { color: 'blue' }).addTo(map);
-           layersRef.current.push(polyline);
-           allGeometries.push(primaryRoute.geometry);
-        } else {
-          // Fallback to straight line on error
-          const start = stopPositionsWithData[index];
-          const end = stopPositionsWithData[index + 1];
-          const polyline = L.polyline([start.coords, end.coords], { color: 'blue', dashArray: '5, 5' }).addTo(map);
-          layersRef.current.push(polyline);
-          console.error(`Failed to fetch route segment ${index}:`, result.status === 'rejected' ? result.reason : 'No geometry');
-        }
-      });
-      
-      // Re-fit bounds to include all new polylines
-      if (allGeometries.length > 0) {
-        const combinedBounds = stopPositionsWithData.reduce((bounds, stop) => {
-            return bounds.extend(stop.coords);
-        }, new L.LatLngBounds());
-        
-        allGeometries.flat().forEach(coord => {
-            combinedBounds.extend(coord as L.LatLngExpression);
-        });
-
-        if (combinedBounds.isValid()) {
-             map.fitBounds(combinedBounds, { padding: [50, 50] });
-        }
+      // Re-fit bounds to include the entire route polyline
+      if (polyline.getBounds().isValid()) {
+          map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
       }
 
       setIsLoading(false);
@@ -133,8 +124,10 @@ export default function Map({ stops }: MapProps) {
     }
 
     return () => {
-        layersRef.current.forEach(layer => layer.remove());
-        layersRef.current = [];
+        if(mapRef.current) { // Prevent cleanup on unmount if component is being fast-refreshed
+            layersRef.current.forEach(layer => layer.remove());
+            layersRef.current = [];
+        }
     }
 
   }, [stops]);
