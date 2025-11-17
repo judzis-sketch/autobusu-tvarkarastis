@@ -31,7 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, Check, BusFront, Undo2 } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, BusFront, Undo2 } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -44,23 +44,11 @@ import {
   orderBy,
   deleteDoc,
   limit,
-  getDoc,
   updateDoc
 } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { getRoute } from '@/lib/osrm';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -75,7 +63,6 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import type { LatLngTuple } from 'leaflet';
-import { cn } from '@/lib/utils';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
@@ -112,13 +99,19 @@ export default function AdminForms() {
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
+  
+  // State for editing and deleting
   const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
+  const [stopToDelete, setStopToDelete] = useState<TimetableEntry | null>(null);
+
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
+  const [routeToDelete, setRouteToDelete] = useState<Route | null>(null);
+
   const firestore = useFirestore();
   const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number, geometry: LatLngTuple[] }[]>([]);
   const [isStopsListOpen, setIsStopsListOpen] = useState(false);
@@ -199,7 +192,6 @@ export default function AdminForms() {
     }
   }, [editingRoute, editRouteForm]);
   
-  // Clear alternatives, waypoints when route changes
   useEffect(() => {
     setAlternativeRoutes([]);
     setValue('distanceToNext', '');
@@ -306,7 +298,6 @@ export default function AdminForms() {
       }
   }, [getValues, lastStopCoords, setValue, toast, waypoints]);
 
-    // Recalculate route whenever waypoints or the final destination changes
     useEffect(() => {
         const coords = getValues('coords');
         if (lastStopCoords && coords?.lat && coords?.lng) {
@@ -316,12 +307,10 @@ export default function AdminForms() {
 
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
       const currentCoords = getValues('coords');
-      // If there is no destination stop set yet, this click sets it.
       if (!currentCoords.lat || !currentCoords.lng) {
         setValue('coords.lat', lat, { shouldValidate: true });
         setValue('coords.lng', lng, { shouldValidate: true });
       } else {
-        // Otherwise, subsequent clicks add waypoints.
         setWaypoints(prev => [...prev, [lat, lng]]);
       }
   }, [setValue, getValues]);
@@ -417,7 +406,7 @@ export default function AdminForms() {
       if (distanceToNext) {
         const distanceInKm = parseFloat(distanceToNext);
         if (!isNaN(distanceInKm)) {
-            payload.distanceToNext = distanceInKm * 1000; // Convert km to meters for storage
+            payload.distanceToNext = distanceInKm * 1000;
         } else {
             toast({
                 title: 'Klaida!',
@@ -450,15 +439,15 @@ export default function AdminForms() {
     });
   };
 
-  const handleDeleteRoute = async (routeId: string) => {
-    if (!firestore) {
-      toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
+  const handleDeleteRoute = async () => {
+    if (!routeToDelete || !routeToDelete.id || !firestore) {
+      toast({ title: 'Klaida!', description: 'Nepasirinktas maršrutas trynimui.', variant: 'destructive' });
       return;
     }
-    setIsDeleting(routeId);
+    
+    setIsDeleting(true);
     try {
-      // First, delete all documents in the 'timetable' subcollection
-      const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
+      const timetableRef = collection(firestore, 'routes', routeToDelete.id, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
       const batch = writeBatch(firestore);
       timetableSnapshot.docs.forEach((doc) => {
@@ -466,8 +455,7 @@ export default function AdminForms() {
       });
       await batch.commit();
 
-      // After subcollection is deleted, delete the main route document
-      const routeRef = doc(firestore, 'routes', routeId);
+      const routeRef = doc(firestore, 'routes', routeToDelete.id);
       await deleteDoc(routeRef);
 
       toast({ title: 'Pavyko!', description: 'Maršrutas ir jo tvarkaraščiai sėkmingai ištrinti.' });
@@ -475,23 +463,28 @@ export default function AdminForms() {
       console.error('Error deleting route:', error);
       toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive' });
     } finally {
-      setIsDeleting(null);
+      setIsDeleting(false);
+      setRouteToDelete(null);
     }
   };
 
-  const handleDeleteStop = async (routeId: string, stopId: string) => {
-    if (!firestore || !routeId || !stopId) {
+  const handleDeleteStop = async () => {
+    if (!stopToDelete || !stopToDelete.id || !watchedRouteId || !firestore) {
       toast({ title: 'Klaida!', description: 'Nėra informacijos, kurią stotelę trinti.', variant: 'destructive'});
       return;
     }
     
+    setIsDeleting(true);
     try {
-      const stopRef = doc(firestore, 'routes', routeId, 'timetable', stopId);
+      const stopRef = doc(firestore, 'routes', watchedRouteId, 'timetable', stopToDelete.id);
       await deleteDoc(stopRef);
       toast({ title: 'Pavyko!', description: 'Stotelė sėkmingai ištrinta.' });
     } catch (error) {
       console.error('Error deleting stop:', error);
       toast({ title: 'Klaida!', description: 'Nepavyko ištrinti stotelės.', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+      setStopToDelete(null);
     }
   };
   
@@ -671,7 +664,7 @@ export default function AdminForms() {
             >
              <Collapsible open={isRoutesListOpen} onOpenChange={setIsRoutesListOpen} ref={routesCollapsibleRef} className="space-y-2">
                 <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full">
+                    <Button type="button" variant="outline" className="w-full">
                         <BusFront className="mr-2 h-4 w-4" />
                         Visi maršrutai ({routes?.length ?? 0})
                         <ChevronDown className="ml-auto h-4 w-4" />
@@ -692,28 +685,12 @@ export default function AdminForms() {
                                 )}
                               </div>
                                <div className="flex items-center">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
+                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
                                     <Pencil className="h-4 w-4 text-muted-foreground"/>
                                   </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeleting === route.id}>
-                                        {isDeleting === route.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                        <AlertDialogAction type="button" onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRouteToDelete(route)}>
+                                    <Trash2 className="h-4 w-4 text-destructive/70"/>
+                                  </Button>
                               </div>
                             </div>
                           ))}
@@ -775,7 +752,7 @@ export default function AdminForms() {
               {watchedRouteId && (
                  <Collapsible open={isStopsListOpen} onOpenChange={setIsStopsListOpen} ref={stopsCollapsibleRef}>
                     <CollapsibleTrigger asChild>
-                        <Button variant="outline" className="w-full">
+                        <Button type="button" variant="outline" className="w-full">
                             <ListOrdered className="mr-2 h-4 w-4" />
                             Esamos maršruto stotelės ({timetableStops?.length ?? 0})
                             <ChevronDown className="ml-auto h-4 w-4" />
@@ -796,28 +773,12 @@ export default function AdminForms() {
                                     <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
                                   </div>
                                    <div className="flex items-center">
-                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
+                                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
                                         <Pencil className="h-4 w-4 text-muted-foreground"/>
                                       </Button>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                                            <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Ar tikrai norite ištrinti?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Šis veiksmas visam laikui ištrins stotelę "{stop.stop}". Šio veiksmo negalima anuliuoti.
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Atšaukti</AlertDialogCancel>
-                                            <AlertDialogAction type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
+                                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete(stop)}>
+                                        <Trash2 className="h-4 w-4 text-destructive/70"/>
+                                      </Button>
                                   </div>
                                 </li>
                               ))}
@@ -943,6 +904,7 @@ export default function AdminForms() {
         </CardContent>
       </Card>
       
+      {/* Edit Stop Dialog */}
       <Dialog open={!!editingStop} onOpenChange={(isOpen) => !isOpen && setEditingStop(null)}>
         <DialogContent>
           <DialogHeader>
@@ -992,7 +954,8 @@ export default function AdminForms() {
           </Form>
         </DialogContent>
       </Dialog>
-
+      
+      {/* Edit Route Dialog */}
       <Dialog open={!!editingRoute} onOpenChange={(isOpen) => !isOpen && setEditingRoute(null)}>
         <DialogContent>
           <DialogHeader>
@@ -1094,6 +1057,49 @@ export default function AdminForms() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Route Confirmation Dialog */}
+      <Dialog open={!!routeToDelete} onOpenChange={(isOpen) => !isOpen && setRouteToDelete(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Ar tikrai norite ištrinti maršrutą?</DialogTitle>
+                <DialogDescription>
+                    Šis veiksmas visam laikui ištrins maršrutą "{routeToDelete?.number} - {routeToDelete?.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
+                </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="outline">Atšaukti</Button>
+                </DialogClose>
+                <Button type="button" onClick={handleDeleteRoute} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Ištrinti
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Stop Confirmation Dialog */}
+      <Dialog open={!!stopToDelete} onOpenChange={(isOpen) => !isOpen && setStopToDelete(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Ar tikrai norite ištrinti stotelę?</DialogTitle>
+                <DialogDescription>
+                    Šis veiksmas visam laikui ištrins stotelę "{stopToDelete?.stop}". Šio veiksmo negalima anuliuoti.
+                </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="outline">Atšaukti</Button>
+                </DialogClose>
+                 <Button type="button" onClick={handleDeleteStop} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Ištrinti
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
