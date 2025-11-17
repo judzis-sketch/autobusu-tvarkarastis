@@ -588,7 +588,7 @@ export default function AdminForms() {
                   name="number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Numeris</FormLabel>
+                      <FormLabel>Numeris (nebūtina)</FormLabel>
                       <FormControl>
                         <Input placeholder="10G" {...field} />
                       </FormControl>
