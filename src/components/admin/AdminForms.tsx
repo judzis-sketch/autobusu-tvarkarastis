@@ -638,29 +638,30 @@ export default function AdminForms() {
                     <FormLabel>Maršrutas</FormLabel>
                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className={cn("h-auto", { "min-h-[5.5rem]": selectedRouteForDisplay?.days && selectedRouteForDisplay.days.length > 0 })}>
-                            <SelectValue asChild>
-                              <div>
-                                {selectedRouteForDisplay ? (
-                                  <div className="flex flex-col text-left">
-                                      <p><span className="font-bold">{selectedRouteForDisplay.number}</span> — <span>{selectedRouteForDisplay.name}</span></p>
-                                      {selectedRouteForDisplay.days && selectedRouteForDisplay.days.length > 0 && (
-                                         <div className="flex flex-wrap gap-1 mt-1">
-                                            {selectedRouteForDisplay.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
-                                        </div>
-                                      )}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground">-- Pasirinkti maršrutą --</span>
-                                )}
-                              </div>
+                          <SelectTrigger className="h-auto">
+                            <SelectValue placeholder="-- Pasirinkti maršrutą --">
+                              {selectedRouteForDisplay ? (
+                                <div className="flex flex-col text-left">
+                                  <p><span className="font-bold">{selectedRouteForDisplay.number}</span> — <span>{selectedRouteForDisplay.name}</span></p>
+                                  {selectedRouteForDisplay.days && selectedRouteForDisplay.days.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {selectedRouteForDisplay.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0, 3)}</Badge>)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                '-- Pasirinkti maršrutą --'
+                              )}
                             </SelectValue>
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                            {routes && routes.map((route) => (
-                              <div key={route.id} className="relative flex items-center pr-8">
-                                <SelectItem value={route.id!} className="w-full">
+                              <div key={route.id} className="relative flex w-full items-center">
+                                <SelectItem
+                                  value={route.id!}
+                                  className="w-full pr-16"
+                                >
                                   <div className="flex flex-col text-left">
                                       <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
                                       {route.days && route.days.length > 0 && (
