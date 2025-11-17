@@ -31,7 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, Check } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -75,6 +75,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import type { LatLngTuple } from 'leaflet';
+import { cn } from '@/lib/utils';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
@@ -136,6 +137,9 @@ export default function AdminForms() {
   const { setValue, watch, control, getValues } = timetableForm;
   const watchedCoords = watch('coords');
   const watchedRouteId = watch('routeId');
+
+  const selectedRouteForDisplay = useMemo(() => routes?.find(r => r.id === watchedRouteId), [routes, watchedRouteId]);
+
 
   const timetableQuery = useMemoFirebase(() => {
     if (!firestore || !watchedRouteId) return null;
@@ -634,8 +638,23 @@ export default function AdminForms() {
                     <FormLabel>Maršrutas</FormLabel>
                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="-- Pasirinkti maršrutą --" />
+                          <SelectTrigger className={cn("h-auto", { "min-h-[5.5rem]": selectedRouteForDisplay?.days && selectedRouteForDisplay.days.length > 0 })}>
+                            <SelectValue asChild>
+                              <div>
+                                {selectedRouteForDisplay ? (
+                                  <div className="flex flex-col text-left">
+                                      <p><span className="font-bold">{selectedRouteForDisplay.number}</span> — <span>{selectedRouteForDisplay.name}</span></p>
+                                      {selectedRouteForDisplay.days && selectedRouteForDisplay.days.length > 0 && (
+                                         <div className="flex flex-wrap gap-1 mt-1">
+                                            {selectedRouteForDisplay.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                                        </div>
+                                      )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">-- Pasirinkti maršrutą --</span>
+                                )}
+                              </div>
+                            </SelectValue>
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -651,7 +670,7 @@ export default function AdminForms() {
                                       )}
                                   </div>
                                 </SelectItem>
-                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-popover">
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingRoute(route); }}>
                                         <Pencil className="h-4 w-4 text-muted-foreground"/>
                                     </Button>
