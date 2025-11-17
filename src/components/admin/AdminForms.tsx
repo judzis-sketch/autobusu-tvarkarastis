@@ -676,7 +676,7 @@ export default function AdminForms() {
                               <SelectItem
                                 key={route.id}
                                 value={route.id!}
-                                className="pr-12"
+                                onSelect={(e) => e.preventDefault()}
                               >
                                 <div className="flex-grow flex flex-col text-left">
                                     <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
@@ -686,13 +686,13 @@ export default function AdminForms() {
                                       </div>
                                     )}
                                 </div>
-                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingRoute(route); }}>
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center bg-transparent">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { setEditingRoute(route); }}>
                                         <Pencil className="h-4 w-4 text-muted-foreground"/>
                                     </Button>
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                             <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeleting === route.id} onClick={(e) => e.stopPropagation()}>
+                                             <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isDeleting === route.id}>
                                                 {isDeleting === route.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive/70"/>}
                                             </Button>
                                         </AlertDialogTrigger>
@@ -704,7 +704,7 @@ export default function AdminForms() {
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Atšaukti</AlertDialogCancel>
+                                            <AlertDialogCancel>Atšaukti</AlertDialogCancel>
                                             <AlertDialogAction onClick={() => handleDeleteRoute(route.id!)} className="bg-destructive hover:bg-destructive/90">Taip, ištrinti</AlertDialogAction>
                                         </AlertDialogFooter>
                                         </AlertDialogContent>
@@ -1037,3 +1037,5 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
