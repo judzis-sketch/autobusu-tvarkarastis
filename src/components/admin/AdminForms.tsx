@@ -815,7 +815,7 @@ export default function AdminForms() {
                                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
                                         <Pencil className="h-4 w-4 text-muted-foreground"/>
                                       </Button>
-                                       <AlertDialog>
+                                       <AlertDialog onOpenChange={(open) => !open && setStopToDelete(null)}>
                                         <AlertDialogTrigger asChild>
                                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete(stop.id!)}>
                                             <Trash2 className="h-4 w-4 text-destructive/70"/>
@@ -829,7 +829,7 @@ export default function AdminForms() {
                                             </AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
-                                            <AlertDialogCancel onClick={() => setStopToDelete(null)}>Atšaukti</AlertDialogCancel>
+                                            <AlertDialogCancel>Atšaukti</AlertDialogCancel>
                                             <AlertDialogAction onClick={handleDeleteStop} className="bg-destructive hover:bg-destructive/90">Ištrinti</AlertDialogAction>
                                           </AlertDialogFooter>
                                         </AlertDialogContent>
