@@ -21,7 +21,7 @@ type AlternativeRoute = {
 
 interface AdminMapProps {
   newStopCoords: LatLngTuple | null;
-  onMapClick: (lat: number, lng: number) => void;
+  onMapClick: (lat: number, lng: number, isIntermediate: boolean) => void;
   onRouteSelect: (route: AlternativeRoute) => void;
   existingStops: TimetableEntry[];
   lastStopPosition: LatLngTuple | null;
@@ -97,10 +97,11 @@ export default function AdminMap({
       }).addTo(map);
 
       map.on('click', (e) => {
-        onMapClick(e.latlng.lat, e.latlng.lng);
+        const isIntermediatePoint = !!newStopCoords;
+        onMapClick(e.latlng.lat, e.latlng.lng, isIntermediatePoint);
       });
     }
-  }, [onMapClick]);
+  }, [onMapClick, newStopCoords]);
 
   // Update new stop marker (red)
   useEffect(() => {
@@ -174,10 +175,12 @@ export default function AdminMap({
         manualPointMarkersRef.current.forEach(marker => marker.remove());
         manualPointMarkersRef.current = [];
 
-        manualRoutePoints.forEach(point => {
-            const marker = L.marker(point, { icon: blueIcon }).addTo(map);
-            manualPointMarkersRef.current.push(marker);
-        });
+        if(manualRoutePoints && manualRoutePoints.length > 0) {
+          manualRoutePoints.forEach(point => {
+              const marker = L.marker(point, { icon: blueIcon }).addTo(map);
+              manualPointMarkersRef.current.push(marker);
+          });
+        }
 
     }, [manualRoutePoints, blueIcon]);
 
