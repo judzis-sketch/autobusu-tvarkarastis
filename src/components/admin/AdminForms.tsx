@@ -57,6 +57,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { ScrollArea } from '../ui/scroll-area';
@@ -103,7 +104,6 @@ export default function AdminForms() {
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   
-  // State for editing and deleting
   const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
   const [stopToDelete, setStopToDelete] = useState<TimetableEntry | null>(null);
@@ -193,14 +193,18 @@ export default function AdminForms() {
     }
   }, [editingRoute, editRouteForm]);
   
-  useEffect(() => {
+  const resetWaypointAndRouteState = useCallback(() => {
     setAlternativeRoutes([]);
     setValue('distanceToNext', '');
     setWaypoints([]);
     setValue('coords.lat', undefined);
     setValue('coords.lng', undefined);
     setSelectedRouteGeometry(null);
-  }, [watchedRouteId, setValue])
+  }, [setValue]);
+
+  useEffect(() => {
+    resetWaypointAndRouteState();
+  }, [watchedRouteId, resetWaypointAndRouteState])
 
   useEffect(() => {
     const fetchLastStop = async () => {
@@ -215,21 +219,26 @@ export default function AdminForms() {
             limit(1)
         );
 
-        const querySnapshot = await getDocs(lastStopQuery);
-        if (!querySnapshot.empty) {
-            const lastStop = querySnapshot.docs[0].data() as TimetableEntry;
-            if (lastStop.coords) {
-                setLastStopCoords(lastStop.coords);
-            } else {
-                setLastStopCoords(null);
-            }
-        } else {
-            setLastStopCoords(null);
+        try {
+          const querySnapshot = await getDocs(lastStopQuery);
+          if (!querySnapshot.empty) {
+              const lastStop = querySnapshot.docs[0].data() as TimetableEntry;
+              if (lastStop.coords) {
+                  setLastStopCoords(lastStop.coords);
+              } else {
+                  setLastStopCoords(null);
+              }
+          } else {
+              setLastStopCoords(null);
+          }
+        } catch (error) {
+          console.error("Error fetching last stop:", error);
+          setLastStopCoords(null);
         }
     };
 
     fetchLastStop();
-  }, [watchedRouteId, firestore]);
+  }, [watchedRouteId, firestore, isPendingTimetable]); // Refetch on route change or after adding a new stop
 
 
   const routeForm = useForm<z.infer<typeof routeSchema>>({
@@ -241,27 +250,23 @@ export default function AdminForms() {
     },
   });
   
-  const handleCalculateDistance = useCallback(async (manual = false) => {
+  const handleCalculateDistance = useCallback(async () => {
       const coordsToUse = getValues('coords');
 
       if (!lastStopCoords) {
-          if (manual) {
-            toast({
-                title: 'Negalima apskaičiuoti',
-                description: 'Tai pirma maršruto stotelė. Nėra atskaitos taško.',
-                variant: 'destructive',
-            });
-          }
+          toast({
+              title: 'Negalima apskaičiuoti',
+              description: 'Tai pirma maršruto stotelė. Nėra atskaitos taško.',
+              variant: 'destructive',
+          });
           return;
       }
       if (!coordsToUse || !coordsToUse.lat || !coordsToUse.lng) {
-          if (manual) {
-            toast({
-                title: 'Negalima apskaičiuoti',
-                description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
-                variant: 'destructive',
-            });
-          }
+          toast({
+              title: 'Negalima apskaičiuoti',
+              description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
+              variant: 'destructive',
+          });
           return;
       }
 
@@ -276,12 +281,10 @@ export default function AdminForms() {
               setSelectedRouteGeometry(firstRoute.geometry);
               const distanceInKm = firstRoute.distance / 1000;
               setValue('distanceToNext', String(distanceInKm.toFixed(3)));
-               if (manual) {
-                toast({
-                    title: 'Maršrutai rasti',
-                    description: `Pasirinkite vieną iš ${routes.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
-                });
-               }
+              toast({
+                  title: 'Maršrutai rasti',
+                  description: `Pasirinkite vieną iš ${routes.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
+              });
           } else {
               toast({
                   title: 'Maršrutų apskaičiavimo klaida',
@@ -301,13 +304,6 @@ export default function AdminForms() {
       }
   }, [getValues, lastStopCoords, setValue, toast, waypoints]);
 
-    useEffect(() => {
-        const coords = getValues('coords');
-        if (lastStopCoords && coords?.lat && coords?.lng) {
-            // handleCalculateDistance(); // No longer automatic
-        }
-    }, [waypoints, watchedCoords?.lat, watchedCoords?.lng, lastStopCoords, getValues]);
-
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
       const currentCoords = getValues('coords');
       if (!currentCoords.lat || !currentCoords.lng) {
@@ -318,7 +314,7 @@ export default function AdminForms() {
       }
   }, [setValue, getValues]);
 
-  const handleRouteSelection = (routeIndex: number) => {
+  const handleRouteSelection = useCallback((routeIndex: number) => {
     const selectedRoute = alternativeRoutes[routeIndex];
     if (selectedRoute) {
       const distanceInKm = selectedRoute.distance / 1000;
@@ -328,12 +324,13 @@ export default function AdminForms() {
         title: 'Maršrutas pasirinktas',
         description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
       });
+      // Reorder routes to make the selected one primary
       const newRoutes = [...alternativeRoutes];
       const [reorderedItem] = newRoutes.splice(routeIndex, 1);
       newRoutes.unshift(reorderedItem);
       setAlternativeRoutes(newRoutes);
     }
-  };
+  }, [alternativeRoutes, setValue, toast]);
 
   const handleResetWaypoints = () => {
     setWaypoints([]);
@@ -379,26 +376,18 @@ export default function AdminForms() {
     startTransitionTimetable(async () => {
       const { routeId, stop, times, coords, distanceToNext } = values;
 
+      if (!firestore) {
+        toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
+        return;
+      }
+
       const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
       if (parsedTimes.length === 0) {
-        toast({
-          title: 'Klaida!',
-          description: 'Nurodykite bent vieną laiką.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Klaida!', description: 'Nurodykite bent vieną laiką.', variant: 'destructive' });
         return;
       }
 
-      if (!firestore) {
-        toast({
-          title: 'Klaida!',
-          description: 'Duomenų bazė nepasiekiama.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const payload: any = {
+      const payload: Omit<TimetableEntry, 'id'> = {
         stop,
         times: parsedTimes,
         createdAt: serverTimestamp(),
@@ -409,6 +398,7 @@ export default function AdminForms() {
       }
       
       if (selectedRouteGeometry) {
+        // Convert LatLngTuple[] to { lat: number; lng: number }[] for Firestore
         payload.routeGeometry = selectedRouteGeometry.map(point => ({ lat: point[0], lng: point[1] }));
       }
 
@@ -417,11 +407,7 @@ export default function AdminForms() {
         if (!isNaN(distanceInKm)) {
             payload.distanceToNext = distanceInKm * 1000;
         } else {
-            toast({
-                title: 'Klaida!',
-                description: 'Atstumas turi būti skaičius.',
-                variant: 'destructive',
-            });
+            toast({ title: 'Klaida!', description: 'Atstumas turi būti skaičius.', variant: 'destructive' });
             return;
         }
       }
@@ -430,20 +416,11 @@ export default function AdminForms() {
 
       try {
         await addDoc(timetableColRef, payload);
-        toast({
-          title: 'Pavyko!',
-          description: 'Tvarkaraščio įrašas pridėtas.',
-        });
+        toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
         resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
-        setAlternativeRoutes([]);
-        setWaypoints([]);
-        setSelectedRouteGeometry(null);
+        resetWaypointAndRouteState();
       } catch (error) {
-        toast({
-          title: 'Klaida!',
-          description: 'Nepavyko pridėti tvarkaraščio įrašo.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Klaida!', description: 'Nepavyko pridėti tvarkaraščio įrašo.', variant: 'destructive' });
         console.error('Error adding timetable entry:', error);
       }
     });
@@ -698,9 +675,30 @@ export default function AdminForms() {
                                   <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
                                     <Pencil className="h-4 w-4 text-muted-foreground"/>
                                   </Button>
-                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRouteToDelete(route)}>
-                                    <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                  </Button>
+                                  <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRouteToDelete(route)}>
+                                          <Trash2 className="h-4 w-4 text-destructive/70"/>
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Ar tikrai norite ištrinti maršrutą?</DialogTitle>
+                                            <DialogDescription>
+                                                Šis veiksmas visam laikui ištrins maršrutą "{routeToDelete?.number} - {routeToDelete?.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button type="button" variant="outline">Atšaukti</Button>
+                                            </DialogClose>
+                                            <Button type="button" onClick={handleDeleteRoute} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                Ištrinti
+                                            </Button>
+                                        </DialogFooter>
+                                      </DialogContent>
+                                  </Dialog>
                               </div>
                             </div>
                           ))}
@@ -844,7 +842,7 @@ export default function AdminForms() {
                       )}
                       />
                        <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={() => handleCalculateDistance(true)} disabled={isCalculatingDistance || !lastStopCoords || !watchedCoords?.lat}>
+                        <Button type="button" variant="outline" size="sm" onClick={handleCalculateDistance} disabled={isCalculatingDistance || !lastStopCoords || !watchedCoords?.lat}>
                             {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
                             Apskaičiuoti maršrutą
                         </Button>
@@ -1065,27 +1063,6 @@ export default function AdminForms() {
               </DialogFooter>
             </form>
           </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Route Confirmation Dialog */}
-      <Dialog open={!!routeToDelete} onOpenChange={(isOpen) => !isOpen && setRouteToDelete(null)}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Ar tikrai norite ištrinti maršrutą?</DialogTitle>
-                <DialogDescription>
-                    Šis veiksmas visam laikui ištrins maršrutą "{routeToDelete?.number} - {routeToDelete?.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
-                </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="outline">Atšaukti</Button>
-                </DialogClose>
-                <Button type="button" onClick={handleDeleteRoute} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Ištrinti
-                </Button>
-            </DialogFooter>
         </DialogContent>
       </Dialog>
       

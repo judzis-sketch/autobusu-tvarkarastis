@@ -4,9 +4,10 @@ export type TimetableEntry = {
   times: string[];
   coords?: [number, number];
   distanceToNext?: number; // Distance in meters to the next stop
+  routeGeometry?: { lat: number; lng: number }[]; // The geometry of the path to the next stop
   createdAt?: {
-    seconds: number,
-    nanoseconds: number,
+    seconds: number;
+    nanoseconds: number;
   };
 };
 

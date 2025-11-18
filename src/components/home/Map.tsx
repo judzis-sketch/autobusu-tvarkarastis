@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { TimetableEntry } from '@/lib/types';
-import L from 'leaflet';
+import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { getRoute } from '@/lib/osrm';
 import { Loader2 } from 'lucide-react';
 
 // Fix for default icon paths
@@ -74,54 +73,29 @@ export default function Map({ stops }: MapProps) {
       layersRef.current.push(marker);
     });
 
-    // Fit map to markers
-    const bounds = L.latLngBounds(stopPositionsWithData.map(s => s.coords));
-    if (stopPositionsWithData.length > 0 && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50] });
+    const routeGeometries: LatLngTuple[] = [];
+    for (const stop of stopPositionsWithData) {
+      if (stop.routeGeometry) {
+        // Convert from {lat, lng} to [lat, lng]
+        const segment = stop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
+        routeGeometries.push(...segment);
+      }
+    }
+
+    if (routeGeometries.length > 0) {
+        const polyline = L.polyline(routeGeometries, { color: 'blue' }).addTo(map);
+        layersRef.current.push(polyline);
+        if (polyline.getBounds().isValid()) {
+            map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+        }
+    } else if (stopPositionsWithData.length > 0) {
+        const bounds = L.latLngBounds(stopPositionsWithData.map(s => s.coords));
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50] });
+        }
     }
     
-
-    // Function to fetch all route segments
-    const fetchAllRouteSegments = async () => {
-      const allGeometries: [number, number][][] = [];
-
-      for (let i = 0; i < stopPositionsWithData.length - 1; i++) {
-        const start = stopPositionsWithData[i];
-        const end = stopPositionsWithData[i + 1];
-        
-        try {
-          const routes = await getRoute(start.coords, end.coords, false);
-          if (routes && routes.length > 0) {
-            const primaryRoute = routes[0];
-            allGeometries.push(primaryRoute.geometry);
-          } else {
-            // Fallback for this segment
-             allGeometries.push([start.coords, end.coords]);
-          }
-        } catch (error) {
-            console.error(`Failed to fetch route segment ${i}:`, error);
-            // Fallback for this segment
-            allGeometries.push([start.coords, end.coords]);
-        }
-      }
-      
-      const fullRoutePolyline = allGeometries.flat();
-      const polyline = L.polyline(fullRoutePolyline, { color: 'blue' }).addTo(map);
-      layersRef.current.push(polyline);
-      
-      // Re-fit bounds to include the entire route polyline
-      if (polyline.getBounds().isValid()) {
-          map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-      }
-
-      setIsLoading(false);
-    };
-
-    if (stopPositionsWithData.length > 1) {
-      fetchAllRouteSegments();
-    } else {
-      setIsLoading(false);
-    }
+    setIsLoading(false);
 
     return () => {
         if(mapRef.current) { // Prevent cleanup on unmount if component is being fast-refreshed
