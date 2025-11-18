@@ -27,6 +27,7 @@ interface AdminMapProps {
   lastStopPosition: LatLngTuple | null;
   alternativeRoutes: AlternativeRoute[];
   selectedRouteGeometry: LatLngTuple[];
+  manualRoutePoints: LatLngTuple[];
 }
 
 export default function AdminMap({
@@ -36,13 +37,15 @@ export default function AdminMap({
     existingStops,
     lastStopPosition,
     alternativeRoutes,
-    selectedRouteGeometry
+    selectedRouteGeometry,
+    manualRoutePoints
 }: AdminMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const newStopMarkerRef = useRef<L.Marker | null>(null);
   const lastStopMarkerRef = useRef<L.Marker | null>(null);
   const existingStopMarkersRef = useRef<L.Marker[]>([]);
+  const manualPointMarkersRef = useRef<L.Marker[]>([]);
   const routePolylinesRef = useRef<L.Polyline[]>([]);
   const existingRoutePolylinesRef = useRef<L.Polyline[]>([]);
 
@@ -66,6 +69,15 @@ export default function AdminMap({
   
   const orangeIcon = useMemo(() => new L.Icon({
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  }), []);
+
+  const blueIcon = useMemo(() => new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
@@ -109,7 +121,7 @@ export default function AdminMap({
     }
   }, [newStopCoords, redIcon]);
 
-  // Update existing stops (grey) and their route geometries (orange)
+  // Update existing stops (grey) and their route geometries (blue)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -131,7 +143,7 @@ export default function AdminMap({
     existingStops.forEach(stop => {
       if (stop.routeGeometry && stop.routeGeometry.length > 0) {
         const path = stop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
-        const polyline = L.polyline(path, { color: 'orange', weight: 3, opacity: 0.7 }).addTo(map);
+        const polyline = L.polyline(path, { color: 'blue', weight: 5, opacity: 0.7 }).addTo(map);
         existingRoutePolylinesRef.current.push(polyline);
       }
     });
@@ -154,6 +166,21 @@ export default function AdminMap({
     }
   }, [lastStopPosition, orangeIcon]);
 
+    // Update manual route points (blue markers)
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        manualPointMarkersRef.current.forEach(marker => marker.remove());
+        manualPointMarkersRef.current = [];
+
+        manualRoutePoints.forEach(point => {
+            const marker = L.marker(point, { icon: blueIcon }).addTo(map);
+            manualPointMarkersRef.current.push(marker);
+        });
+
+    }, [manualRoutePoints, blueIcon]);
+
 
   // Draw alternative and selected routes
   useEffect(() => {
@@ -163,7 +190,8 @@ export default function AdminMap({
       // Clear previous route polylines
       routePolylinesRef.current.forEach(p => p.remove());
       routePolylinesRef.current = [];
-      
+
+      // This logic is for when user selects from multiple alternatives
       if (alternativeRoutes.length > 0) {
           const bounds = L.latLngBounds([]);
 
@@ -185,6 +213,17 @@ export default function AdminMap({
 
           if(bounds.isValid()) {
             map.fitBounds(bounds, { padding: [50, 50] });
+          }
+      // This logic is for when a single calculated route is shown (from manual points)
+      } else if (selectedRouteGeometry.length > 0) {
+          const polyline = L.polyline(selectedRouteGeometry, {
+              color: 'blue',
+              weight: 6,
+              opacity: 0.9,
+          }).addTo(map);
+          routePolylinesRef.current.push(polyline);
+          if (polyline.getBounds().isValid()) {
+              map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
           }
       }
       
