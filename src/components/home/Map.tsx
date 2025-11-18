@@ -76,22 +76,23 @@ export default function Map({ stops }: MapProps) {
     // Collect all stored route geometries from each stop to form the full path
     const fullRoutePath: LatLngTuple[] = [];
     
-    for (let i = 0; i < stops.length; i++) {
-        const currentStop = stops[i];
-        
-        // Add the coordinate of the current stop to start the segment
-        if (i === 0 && currentStop.coords) {
-             fullRoutePath.push(currentStop.coords as LatLngTuple);
-        }
-
+    stops.forEach((stop, index) => {
         // The geometry to the *next* stop is stored on the *current* stop object.
-        if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
-            const segmentPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
+        if (stop.routeGeometry && stop.routeGeometry.length > 0) {
+            const segmentPath = stop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
             fullRoutePath.push(...segmentPath);
-        } else if (currentStop.coords && stops[i + 1]?.coords) {
+        } else if (stop.coords && stops[index + 1]?.coords) {
             // Fallback to a straight line if no geometry is stored for this segment
-            fullRoutePath.push(stops[i + 1].coords as LatLngTuple);
+            if (fullRoutePath.length === 0 || fullRoutePath[fullRoutePath.length - 1] !== stop.coords) {
+                 fullRoutePath.push(stop.coords as LatLngTuple);
+            }
+            fullRoutePath.push(stops[index + 1].coords as LatLngTuple);
         }
+    });
+
+     // Add the very first stop if it hasn't been added
+    if (stops.length > 0 && stops[0].coords && fullRoutePath.length === 0) {
+        fullRoutePath.push(stops[0].coords as LatLngTuple);
     }
     
     if (fullRoutePath.length > 1) {
