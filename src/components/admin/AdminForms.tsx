@@ -117,7 +117,6 @@ export default function AdminForms() {
   const [selectedRouteGeometry, setSelectedRouteGeometry] = useState<LatLngTuple[] | null>(null);
   const [isStopsListOpen, setIsStopsListOpen] = useState(false);
   const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
-  const [waypoints, setWaypoints] = useState<LatLngTuple[]>([]);
   
   const routesCollapsibleRef = useRef<HTMLDivElement>(null);
   const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
@@ -191,18 +190,17 @@ export default function AdminForms() {
     }
   }, [editingRoute, editRouteForm]);
   
-  const resetWaypointAndRouteState = useCallback(() => {
+  const resetMapState = useCallback(() => {
     setAlternativeRoutes([]);
+    setSelectedRouteGeometry(null);
     setValue('distanceToNext', '');
-    setWaypoints([]);
     setValue('coords.lat', undefined);
     setValue('coords.lng', undefined);
-    setSelectedRouteGeometry(null);
   }, [setValue]);
 
   useEffect(() => {
-    resetWaypointAndRouteState();
-  }, [watchedRouteId, resetWaypointAndRouteState])
+    resetMapState();
+  }, [watchedRouteId, resetMapState])
 
   useEffect(() => {
     const fetchLastStop = async () => {
@@ -248,97 +246,84 @@ export default function AdminForms() {
     },
   });
   
- const handleCalculateDistance = useCallback(async () => {
-      const coordsToUse = getValues('coords');
+  const handleCalculateDistance = useCallback(async () => {
+    const coordsToUse = getValues('coords');
 
-      if (!lastStopCoords) {
-          toast({
-              title: 'Negalima apskaičiuoti',
-              description: 'Tai pirma maršruto stotelė. Nėra atskaitos taško.',
-              variant: 'destructive',
-          });
-          return;
-      }
-      if (!coordsToUse || !coordsToUse.lat || !coordsToUse.lng) {
-          toast({
-              title: 'Negalima apskaičiuoti',
-              description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
-              variant: 'destructive',
-          });
-          return;
-      }
+    if (!lastStopCoords) {
+        toast({
+            title: 'Negalima apskaičiuoti',
+            description: 'Tai pirma maršruto stotelė. Nėra atskaitos taško.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    if (!coordsToUse || !coordsToUse.lat || !coordsToUse.lng) {
+        toast({
+            title: 'Negalima apskaičiuoti',
+            description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
+            variant: 'destructive',
+        });
+        return;
+    }
 
-      setIsCalculatingDistance(true);
-      setAlternativeRoutes([]);
-      try {
-          // OSRM provides alternatives only for 2 points.
-          const pointsForApi: LatLngTuple[] = [lastStopCoords, [coordsToUse.lat, coordsToUse.lng]];
-          const routesData = await getRoute(pointsForApi, true); 
-          
-          if (routesData && routesData.length > 0) {
-              setAlternativeRoutes(routesData);
-              const firstRoute = routesData[0];
-              setSelectedRouteGeometry(firstRoute.geometry);
-              const distanceInKm = firstRoute.distance / 1000;
-              setValue('distanceToNext', String(distanceInKm.toFixed(3)));
-              toast({
-                  title: 'Maršrutai rasti',
-                  description: `Pasirinkite vieną iš ${routesData.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
-              });
-          } else {
-              toast({
-                  title: 'Maršrutų apskaičiavimo klaida',
-                  description: 'Nepavyko gauti maršruto iš OSRM tarnybos. Gavo 0 maršrutų.',
-                  variant: 'destructive',
-              });
-          }
-      } catch (error) {
-          console.error("Error calculating distance: ", error);
-          toast({
-              title: 'Apskaičiavimo klaida',
-              description: 'Įvyko netikėta klaida bandant apskaičiuoti atstumą.',
-              variant: 'destructive',
-          });
-      } finally {
-          setIsCalculatingDistance(false);
-      }
-  }, [getValues, lastStopCoords, setValue, toast]);
+    setIsCalculatingDistance(true);
+    resetMapState(); // Clear previous results before new calculation
+
+    try {
+        const pointsForApi: LatLngTuple[] = [lastStopCoords, [coordsToUse.lat, coordsToUse.lng]];
+        const routesData = await getRoute(pointsForApi, true); 
+        
+        if (routesData && routesData.length > 0) {
+            setAlternativeRoutes(routesData);
+            toast({
+                title: 'Maršrutai rasti',
+                description: `Rasti ${routesData.length} maršruto variantai. Pasirinkite vieną paspausdami ant jo žemėlapyje.`,
+            });
+        } else {
+            setAlternativeRoutes([]); // Ensure state is cleared on failure
+            toast({
+                title: 'Maršrutų apskaičiavimo klaida',
+                description: 'Nepavyko gauti maršrutų iš OSRM tarnybos. Gali būti, kad kelias tarp taškų neegzistuoja.',
+                variant: 'destructive',
+            });
+        }
+    } catch (error) {
+        console.error("Error calculating distance: ", error);
+        setAlternativeRoutes([]);
+        toast({
+            title: 'Apskaičiavimo klaida',
+            description: 'Įvyko netikėta klaida bandant apskaičiuoti atstumą.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsCalculatingDistance(false);
+    }
+}, [getValues, lastStopCoords, toast, resetMapState]);
 
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
       setValue('coords.lat', lat, { shouldValidate: true });
       setValue('coords.lng', lng, { shouldValidate: true });
+      // Reset routes when user picks a new point
+      setAlternativeRoutes([]);
+      setSelectedRouteGeometry(null);
+      setValue('distanceToNext', '');
   }, [setValue]);
 
-  const handleRouteSelection = useCallback((routeIndex: number) => {
-    if (!alternativeRoutes || alternativeRoutes.length <= routeIndex) return;
-
-    const selectedRoute = alternativeRoutes[routeIndex];
-    const distanceInKm = selectedRoute.distance / 1000;
-
-    setSelectedRouteGeometry(selectedRoute.geometry);
+ const handleRouteSelection = useCallback((route: { distance: number; geometry: LatLngTuple[] }) => {
+    setSelectedRouteGeometry(route.geometry);
+    const distanceInKm = route.distance / 1000;
     setValue('distanceToNext', String(distanceInKm.toFixed(3)));
-
-    const newRoutes = [...alternativeRoutes];
-    const [reorderedItem] = newRoutes.splice(routeIndex, 1);
-    newRoutes.unshift(reorderedItem);
-    setAlternativeRoutes(newRoutes);
-
     toast({
       title: 'Maršrutas pasirinktas',
       description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
     });
-  }, [alternativeRoutes, setValue, toast]);
+}, [setValue, toast]);
 
 
-  const handleResetWaypoints = () => {
-    setWaypoints([]);
-    setValue('coords.lat', undefined);
-    setValue('coords.lng', undefined);
-    setValue('distanceToNext', '');
-    setAlternativeRoutes([]);
-    setSelectedRouteGeometry(null);
+  const handleResetMap = () => {
+    resetMapState();
     toast({
-        title: 'Tarpiniai taškai išvalyti',
+        title: 'Žemėlapis išvalytas',
         description: 'Dabar galite iš naujo žymėti stotelę ir maršrutą.'
     });
   }
@@ -415,7 +400,7 @@ export default function AdminForms() {
         await addDoc(timetableColRef, payload);
         toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
         resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
-        resetWaypointAndRouteState();
+        resetMapState();
       } catch (error) {
         toast({ title: 'Klaida!', description: 'Nepavyko pridėti tvarkaraščio įrašo.', variant: 'destructive' });
         console.error('Error adding timetable entry:', error);
@@ -824,9 +809,9 @@ export default function AdminForms() {
                             {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
                             Apskaičiuoti maršrutą
                         </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={handleResetWaypoints} disabled={!watchedCoords?.lat && waypoints.length === 0}>
+                        <Button type="button" variant="ghost" size="sm" onClick={handleResetMap} disabled={!watchedCoords?.lat && alternativeRoutes.length === 0}>
                             <Undo2 className="mr-2 h-4 w-4" />
-                            Išvalyti taškus
+                            Išvalyti žemėlapį
                         </Button>
                        </div>
                   </div>
@@ -862,13 +847,13 @@ export default function AdminForms() {
                   </div>
                   <div className="mt-4 h-64 w-full rounded-md overflow-hidden border">
                       <AdminMap
-                          coords={watchedCoords}
-                          onCoordsChange={handleCoordsChange}
+                          newStopCoords={watchedCoords?.lat && watchedCoords?.lng ? [watchedCoords.lat, watchedCoords.lng] : null}
+                          onNewStopCoordsChange={handleCoordsChange}
                           stopPositions={stopPositions}
                           lastStopPosition={lastStopCoords}
                           alternativeRoutes={alternativeRoutes}
+                          selectedRouteGeometry={selectedRouteGeometry}
                           onRouteSelect={handleRouteSelection}
-                          waypoints={waypoints}
                       />
                   </div>
                 </div>
@@ -1095,5 +1080,7 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
 
     
