@@ -101,7 +101,6 @@ const editStopSchema = z.object({
 type AlternativeRoute = {
   distance: number;
   geometry: LatLngTuple[];
-  isFallback: boolean;
 };
 
 
@@ -334,13 +333,7 @@ export default function AdminForms() {
         const routesData = await getRoute(allPoints, true);
         
         if (routesData && routesData.length > 0) {
-            if (routesData[0].isFallback) {
-               toast({
-                    title: 'Maršrutas apskaičiuotas (atsarginis planas)',
-                    description: `OSRM tarnyba negalėjo rasti kelio. Naudojama tiesi linija. Pasirinkite ją, kad išsaugotumėte.`,
-                    variant: 'default',
-               });
-            } else if (manualRoutePoints.length > 0) {
+            if (manualRoutePoints.length > 0) {
                setSelectedRouteGeometry(routesData[0].geometry);
                setValue('distanceToNext', String((routesData[0].distance / 1000).toFixed(3)));
                toast({
@@ -875,43 +868,46 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                       <FormLabel>Naujos stotelės pavadinimas</FormLabel>
                       <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
                         <PopoverTrigger asChild>
-                           <FormControl>
-                              <Input
-                                  placeholder="Vinco Kudirkos aikštė"
-                                  {...field}
-                                  onChange={(e) => {
-                                      field.onChange(e);
-                                      setAddressQuery(e.target.value);
-                                  }}
-                                  autoComplete="off"
-                              />
+                          <FormControl>
+                            <Input
+                              placeholder="Vinco Kudirkos aikštė"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                setAddressQuery(e.target.value);
+                              }}
+                              autoComplete="off"
+                            />
                           </FormControl>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1" align="start">
-                            {isAddressSearching ? (
-                                <div className="p-4 text-center text-sm text-muted-foreground">
-                                    <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                                    Ieškoma...
-                                </div>
-                            ) : addressResults.length > 0 ? (
-                                <div className="space-y-1">
-                                    {addressResults.map((address) => (
-                                        <Button
-                                            key={address.place_id}
-                                            type="button"
-                                            variant="ghost"
-                                            className="w-full h-auto text-left justify-start p-2"
-                                            onClick={() => handleAddressSelect(address)}
-                                        >
-                                            <div className="flex flex-col">
-                                                <span className="text-sm">{address.display_name}</span>
-                                            </div>
-                                        </Button>
-                                    ))}
-                                </div>
-                            ) : debouncedAddressQuery.length > 2 ? (
-                                <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
-                            ) : null}
+                        <PopoverContent
+                          className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
+                          align="start"
+                        >
+                          {isAddressSearching ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                              Ieškoma...
+                            </div>
+                          ) : addressResults.length > 0 ? (
+                            <div className="space-y-1">
+                              {addressResults.map((address) => (
+                                <Button
+                                  key={address.place_id}
+                                  type="button"
+                                  variant="ghost"
+                                  className="w-full h-auto text-left justify-start p-2"
+                                  onClick={() => handleAddressSelect(address)}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="text-sm">{address.display_name}</span>
+                                  </div>
+                                </Button>
+                              ))}
+                            </div>
+                          ) : debouncedAddressQuery.length > 2 ? (
+                            <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
+                          ) : null}
                         </PopoverContent>
                       </Popover>
                       <FormMessage />
