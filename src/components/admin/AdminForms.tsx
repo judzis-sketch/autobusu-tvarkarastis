@@ -179,10 +179,11 @@ export default function AdminForms() {
       searchAddresses(debouncedAddressQuery).then(results => {
         setAddressResults(results);
         setIsAddressSearching(false);
-        // Don't automatically open here, let the input handler do it.
+        setIsAddressPopoverOpen(true);
       });
     } else {
       setAddressResults([]);
+      setIsAddressPopoverOpen(false);
     }
   }, [debouncedAddressQuery]);
 
@@ -857,35 +858,32 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
 
               <div className="space-y-4 pt-4 border-t">
-                <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <div className="space-y-2">
-                      <FormField
-                        control={timetableForm.control}
-                        name="stop"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Naujos stotelės pavadinimas</FormLabel>
+                 <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
+                  <div className="space-y-2">
+                    <FormField
+                      control={timetableForm.control}
+                      name="stop"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Naujos stotelės pavadinimas</FormLabel>
+                          <PopoverTrigger asChild>
                             <FormControl>
-                              <Input 
-                                placeholder="Vinco Kudirkos aikštė" 
-                                {...field} 
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  setAddressQuery(e.target.value);
-                                  if (e.target.value.length > 2) {
-                                    setIsAddressPopoverOpen(true);
-                                  }
-                                }}
-                                autoComplete="off"
-                              />
+                                <Input 
+                                  placeholder="Vinco Kudirkos aikštė" 
+                                  {...field} 
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    setAddressQuery(e.target.value);
+                                  }}
+                                  autoComplete="off"
+                                />
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </PopoverTrigger>
+                          </PopoverTrigger>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <PopoverContent className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1">
                     {isAddressSearching ? (
                         <div className="p-4 text-center text-sm text-muted-foreground">
