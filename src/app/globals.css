@@ -85,6 +85,32 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Accessibility Mode: Large Text */
+  .large-text {
+    font-size: 1.125rem; /* Equivalent to text-lg */
+  }
+
+  .large-text .text-sm {
+     font-size: 1rem; /* Equivalent to text-base */
+  }
+
+  .large-text .text-xs {
+    font-size: 0.875rem; /* Equivalent to text-sm */
+  }
+
+  .large-text h1, .large-text .text-2xl {
+    font-size: 1.875rem; /* Equivalent to text-3xl */
+  }
+  .large-text .text-xl {
+    font-size: 1.5rem; /* Equivalent to text-2xl */
+  }
+  .large-text .text-lg {
+    font-size: 1.25rem; /* Equivalent to text-xl */
+  }
+  .large-text .text-base {
+     font-size: 1.125rem; /* Equivalent to text-lg */
+  }
 }
 
 /* Custom Leaflet icon styles */

@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bus, Cog, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Bus, Cog, LogIn, LogOut, User as UserIcon, Accessibility } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -17,6 +17,7 @@ import { useFirestore } from '@/firebase';
 import { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAccessibility } from '@/context/AccessibilityContext';
 
 export default function Header() {
   const { user, isUserLoading } = useUser();
@@ -24,6 +25,7 @@ export default function Header() {
   const firestore = useFirestore();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const { isLargeText, toggleLargeText } = useAccessibility();
 
   useEffect(() => {
     if (user && firestore) {
@@ -56,6 +58,22 @@ export default function Header() {
           </Link>
           <div className="flex items-center gap-2">
             <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isLargeText ? 'secondary' : 'ghost'}
+                    size="icon"
+                    onClick={toggleLargeText}
+                  >
+                    <Accessibility className="h-5 w-5" />
+                    <span className="sr-only">Pritaikymas neįgaliesiems</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Įjungti / išjungti didesnio šrifto režimą</p>
+                </TooltipContent>
+              </Tooltip>
+
               {isUserLoading ? (
                 <Skeleton className="h-9 w-24 rounded-md" />
               ) : user ? (
