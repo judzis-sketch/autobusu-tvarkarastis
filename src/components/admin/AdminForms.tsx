@@ -690,12 +690,10 @@ export default function AdminForms() {
                                         <DialogClose asChild>
                                           <Button type="button" variant="outline">Atšaukti</Button>
                                         </DialogClose>
-                                        <DialogClose asChild>
-                                          <Button type="button" onClick={() => handleDeleteRoute(route.id!)} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
-                                              {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                              Ištrinti
-                                          </Button>
-                                        </DialogClose>
+                                        <Button type="button" onClick={() => handleDeleteRoute(route.id!)} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
+                                            {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Ištrinti
+                                        </Button>
                                       </DialogFooter>
                                     </DialogContent>
                                   </Dialog>
@@ -801,12 +799,10 @@ export default function AdminForms() {
                                                 <DialogClose asChild>
                                                     <Button type="button" variant="outline">Atšaukti</Button>
                                                 </DialogClose>
-                                                <DialogClose asChild>
-                                                  <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
-                                                      {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                      Ištrinti
-                                                  </Button>
-                                                </DialogClose>
+                                                <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
+                                                    {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Ištrinti
+                                                </Button>
                                             </DialogFooter>
                                         </DialogContent>
                                       </Dialog>
@@ -1091,3 +1087,5 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
