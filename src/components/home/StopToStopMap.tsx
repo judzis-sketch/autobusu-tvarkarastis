@@ -80,6 +80,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
     let bounds = L.latLngBounds([currentCoords, nextCoords]);
 
     // Use the ADMIN-DEFINED route geometry from the current stop
+    // This geometry describes the path FROM the current stop TO the next stop.
     if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
       const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
       const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
