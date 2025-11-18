@@ -69,7 +69,8 @@ export default function Map({ stops }: MapProps) {
     // Add markers for each stop
     stopPositionsWithData.forEach((stop) => {
       const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
-      marker.bindPopup(`<b>${stop.stop}</b><br/>Laikai: ${stop.times.join(', ')}`);
+      const times = stop.arrivalTimes || (stop as any).times || [];
+      marker.bindPopup(`<b>${stop.stop}</b><br/>Laikai: ${times.join(', ')}`);
       layersRef.current.push(marker);
     });
 

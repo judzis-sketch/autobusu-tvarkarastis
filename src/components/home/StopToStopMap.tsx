@@ -62,12 +62,15 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
         shadowSize: [41, 41]
     });
 
+    const fromTimes = currentStop.arrivalTimes || (currentStop as any).times || [];
+    const toTimes = nextStop.arrivalTimes || (nextStop as any).times || [];
+
     const fromMarker = L.marker(fromCoords, { icon: redIcon }).addTo(map);
-    fromMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.arrivalTimes.join(', ')}`).openPopup();
+    fromMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${fromTimes.join(', ')}`).openPopup();
     layersRef.current.push(fromMarker);
 
     const toMarker = L.marker(toCoords, { icon: redIcon }).addTo(map);
-    toMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.arrivalTimes.join(', ')}`);
+    toMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${toTimes.join(', ')}`);
     layersRef.current.push(toMarker);
     
     let bounds = L.latLngBounds([fromCoords, toCoords]);
