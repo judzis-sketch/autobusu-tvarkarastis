@@ -80,10 +80,10 @@ function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: nu
 
 
 /**
- * Fetches driving routes from OSRM. If OSRM fails, it returns a straight-line route as a fallback.
- * @param coordinates - An array of exactly two coordinates: [start, end].
- * @param alternatives - Whether to fetch alternative routes from OSRM.
- * @returns An array of route objects, each with distance and decoded geometry.
+ * Fetches a driving route from OSRM by connecting a series of waypoints.
+ * If OSRM fails, it returns a straight-line route as a fallback.
+ * @param coordinates - An array of coordinates (waypoints) to connect.
+ * @returns An array of route objects (usually one), each with distance and decoded geometry.
  */
 export async function getRoute(
   coordinates: LatLngTuple[],
@@ -95,24 +95,30 @@ export async function getRoute(
     return null;
   }
   
-  const [start, end] = coordinates;
-  const coordsString = `${start[1]},${start[0]};${end[1]},${end[0]}`;
-  const radiuses = '50;50'; // Snap-to-road radius
+  const coordsString = coordinates.map(c => `${c[1]},${c[0]}`).join(';');
+  const radiuses = coordinates.map(() => 50).join(';'); // Snap-to-road radius for all points
   const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=polyline&alternatives=${alternatives}&radiuses=${radiuses}`;
 
   const createFallbackRoute = (): { distance: number; geometry: LatLngTuple[]; isFallback: boolean }[] => {
-      const fallbackDistance = getHaversineDistance(start[0], start[1], end[0], end[1]);
-      const fallbackGeometry: LatLngTuple[] = [start, end];
+      let totalDistance = 0;
+      for (let i = 0; i < coordinates.length - 1; i++) {
+        totalDistance += getHaversineDistance(coordinates[i][0], coordinates[i][1], coordinates[i+1][0], coordinates[i+1][1]);
+      }
       console.warn('OSRM failed. Returning a straight-line fallback route.');
-      return [{ distance: fallbackDistance, geometry: fallbackGeometry, isFallback: true }];
+      return [{ distance: totalDistance, geometry: coordinates, isFallback: true }];
   };
 
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`OSRM API request failed with status: ${response.status}`, errorData);
+      return createFallbackRoute();
+    }
     const data = await response.json();
 
-    if (!response.ok || data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
-      console.error(`OSRM API request failed or returned no routes. Status: ${response.status}`, data);
+    if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+      console.error(`OSRM API returned no routes. Response:`, data);
       return createFallbackRoute();
     }
 
