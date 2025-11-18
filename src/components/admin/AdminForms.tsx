@@ -135,8 +135,6 @@ export default function AdminForms() {
   const [isAddressSearching, setIsAddressSearching] = useState(false);
   const [isAddressPopoverOpen, setIsAddressPopoverOpen] = useState(false);
   const debouncedAddressQuery = useDebounce(addressQuery, 300);
-  const anchorRef = useRef<HTMLDivElement>(null);
-
 
   const routesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -849,7 +847,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                     <FormItem>
                       <FormLabel>Naujos stotelės pavadinimas</FormLabel>
                       <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
-                        <div ref={anchorRef}>
+                        <PopoverTrigger asChild>
                           <FormControl>
                             <Input
                               placeholder="Vinco Kudirkos aikštė"
@@ -869,9 +867,8 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                               autoComplete="off"
                             />
                           </FormControl>
-                        </div>
+                        </PopoverTrigger>
                         <PopoverContent
-                          anchorRef={anchorRef}
                           className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
                           align="start"
                           onOpenAutoFocus={(e) => e.preventDefault()}
