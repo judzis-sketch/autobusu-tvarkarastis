@@ -48,7 +48,6 @@ import {
 } from 'firebase/firestore';
 import dynamic from 'next/dynamic';
 import { getRoute } from '@/lib/osrm';
-import { searchAddresses, type AddressResult } from '@/lib/nominatim';
 
 import {
   Dialog,
@@ -64,11 +63,10 @@ import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import type { LatLngTuple } from 'leaflet';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { useDebounce } from '@/hooks/use-debounce';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
-  loading: () => <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
+  loading: () => <div className="flex h-[256px] w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
 });
 
 const daysOfWeek = ["Pirmadienis", "Antradienis", "Trečiadienis", "Ketvirtadienis", "Penktadienis", "Šeštadienis", "Sekmadienis"] as const;
@@ -128,13 +126,6 @@ export default function AdminForms() {
   const [alternativeRoutes, setAlternativeRoutes] = useState<AlternativeRoute[]>([]);
   const [selectedRouteGeometry, setSelectedRouteGeometry] = useState<LatLngTuple[]>([]);
 
-  const [addressQuery, setAddressQuery] = useState('');
-  const [addressResults, setAddressResults] = useState<AddressResult[]>([]);
-  const [isAddressSearching, setIsAddressSearching] = useState(false);
-  const [isAddressPopoverOpen, setIsAddressPopoverOpen] = useState(false);
-  const debouncedAddressQuery = useDebounce(addressQuery, 300);
-  const addressInputRef = useRef<HTMLDivElement | null>(null);
-
   const routesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'routes'), orderBy('createdAt', 'desc'));
@@ -146,7 +137,7 @@ export default function AdminForms() {
     resolver: zodResolver(timetableSchema),
     defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: undefined, lng: undefined } },
   });
-  const { setValue, watch, control, getValues, reset: resetTimetableForm } = timetableForm;
+  const { setValue, watch, control, reset: resetTimetableForm } = timetableForm;
   const watchedRouteId = watch('routeId');
 
   const selectedRouteForDisplay = useMemo(() => routes?.find(r => r.id === watchedRouteId), [routes, watchedRouteId]);
@@ -165,35 +156,6 @@ export default function AdminForms() {
     resolver: zodResolver(routeSchema),
   });
 
-  // Handle address search
-  useEffect(() => {
-    const performSearch = async () => {
-        if (debouncedAddressQuery.length > 2) {
-            setIsAddressSearching(true);
-            const results = await searchAddresses(debouncedAddressQuery);
-            setAddressResults(results);
-            setIsAddressSearching(false);
-            if (results.length > 0) {
-              setIsAddressPopoverOpen(true);
-            } else {
-              setIsAddressPopoverOpen(false);
-            }
-        } else {
-            setAddressResults([]);
-            setIsAddressPopoverOpen(false);
-        }
-    };
-    performSearch();
-  }, [debouncedAddressQuery]);
-
-  const handleAddressSelect = (address: AddressResult) => {
-    setValue('stop', address.display_name, { shouldValidate: true });
-    setNewStopCoords([address.lat, address.lon]);
-    setAddressQuery(address.display_name);
-    setIsAddressPopoverOpen(false);
-    setAddressResults([]);
-  };
-  
   useEffect(() => {
       if (editingStop) {
           editStopForm.reset({
@@ -467,7 +429,6 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         await addDoc(timetableColRef, payload);
         toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
         resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
-        setAddressQuery('');
         resetMapState();
       } catch (error) {
         toast({ title: 'Klaida!', description: 'Nepavyko pridėti tvarkaraščio įrašo.', variant: 'destructive' });
@@ -832,7 +793,6 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
 
               <div className="space-y-4 pt-4 border-t">
-                <div ref={addressInputRef}>
                   <FormField
                     control={timetableForm.control}
                     name="stop"
@@ -843,24 +803,6 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                           <Input
                             placeholder="Vinco Kudirkos aikštė"
                             {...field}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              setAddressQuery(e.target.value);
-                              if (e.target.value.length > 2) {
-                                setIsAddressPopoverOpen(true);
-                              } else {
-                                setIsAddressPopoverOpen(false);
-                              }
-                            }}
-                             onBlur={() => {
-                              // Delay hiding to allow click on popover
-                              setTimeout(() => setIsAddressPopoverOpen(false), 150);
-                            }}
-                            onFocus={() => {
-                                if (addressQuery.length > 2 && addressResults.length > 0) {
-                                  setIsAddressPopoverOpen(true);
-                                }
-                            }}
                             autoComplete="off"
                           />
                         </FormControl>
@@ -868,44 +810,6 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                       </FormItem>
                     )}
                   />
-                </div>
-                
-                <Popover open={isAddressPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <div />
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
-                    style={{ width: addressInputRef.current?.offsetWidth }}
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    align="start"
-                  >
-                    {isAddressSearching ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">
-                        <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                        Ieškoma...
-                      </div>
-                    ) : addressResults.length > 0 ? (
-                      <div className="space-y-1">
-                        {addressResults.map((address) => (
-                          <Button
-                            key={address.place_id}
-                            type="button"
-                            variant="ghost"
-                            className="w-full h-auto text-left justify-start p-2"
-                            onClick={() => handleAddressSelect(address)}
-                          >
-                            <div className="flex flex-col">
-                              <span className="text-sm">{address.display_name}</span>
-                            </div>
-                          </Button>
-                        ))}
-                      </div>
-                    ) : debouncedAddressQuery.length > 2 ? (
-                      <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
-                    ) : null}
-                  </PopoverContent>
-                </Popover>
 
                 <FormField
                   control={timetableForm.control}
@@ -947,9 +851,9 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   </div>
                   
                 <div>
-                  <FormLabel>Maršruto sudarymas</FormLabel>
-                  <p className="text-sm text-muted-foreground">
-                    1. **Pažymėkite naują stotelę:** Adreso paieškoje raskite norimą vietą arba paspauskite tiesiai ant žemėlapio. Pirmas paspaudimas visada pažymi naujos stotelės vietą (raudonas žymeklis).<br/>
+                   <FormLabel>Maršruto sudarymas</FormLabel>
+                   <p className="text-sm text-muted-foreground">
+                    1. **Pažymėkite naują stotelę:** Paspauskite tiesiai ant žemėlapio. Pirmas paspaudimas visada pažymi naujos stotelės vietą (raudonas žymeklis).<br/>
                     2. **Patikslinkite kelią (nebūtina):** Jei automatiškai rastas kelias netinka, galite pridėti tarpinių taškų. Tiesiog paspauskite ant žemėlapio tose vietose, per kurias maršrutas turi eiti. Atsiras mėlyni žymekliai.<br/>
                     3. **Apskaičiuokite maršrutą:** Paspauskite mygtuką "Apskaičiuoti maršrutą".<br/>
                     4. **Pasirinkite variantą:** Jei sistema ras kelis kelio variantus, jie bus atvaizduoti pilka spalva. Paspauskite ant norimos linijos, kad ją pasirinktumėte (ji nusidažys mėlynai).
