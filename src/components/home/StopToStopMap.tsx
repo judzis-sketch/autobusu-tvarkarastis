@@ -77,22 +77,20 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
     nextMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.times.join(', ')}`);
     layersRef.current.push(nextMarker);
     
-    let routePolyline: L.Polyline;
+    let bounds = L.latLngBounds([currentCoords, nextCoords]);
 
     // Use the ADMIN-DEFINED route geometry from the current stop
     if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
       const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
-      routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
+      const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
+      layersRef.current.push(routePolyline);
+      bounds = routePolyline.getBounds();
     } else {
-      // FALLBACK: If no admin geometry exists, draw a straight dashed line
-      console.warn("No routeGeometry found for stop:", currentStop.stop, ". Falling back to a straight line.");
-      routePolyline = L.polyline([currentCoords, nextCoords], { color: 'blue', dashArray: '5, 10', weight: 3 }).addTo(map);
+        console.warn("No routeGeometry found for stop:", currentStop.stop, ". Not drawing a path.");
     }
 
-    layersRef.current.push(routePolyline);
 
     // Fit map bounds to the calculated route or the markers
-    const bounds = routePolyline.getBounds();
     if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
     }

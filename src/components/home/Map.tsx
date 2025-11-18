@@ -76,18 +76,11 @@ export default function Map({ stops }: MapProps) {
     // Collect all stored route geometries from each stop to form the full path
     const fullRoutePath: LatLngTuple[] = [];
     
-    stops.forEach((stop, index) => {
+    stops.forEach((stop) => {
         // The geometry to the *next* stop is stored on the *current* stop object.
         if (stop.routeGeometry && stop.routeGeometry.length > 0) {
             const segmentPath = stop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
             fullRoutePath.push(...segmentPath);
-        } else if (stop.coords && stops[index + 1] && stops[index + 1].coords) {
-            // FALLBACK for a segment: If no admin geometry exists, draw a straight dashed line for that segment
-            console.warn(`No routeGeometry found for segment from "${stop.stop}". Falling back to a straight line.`);
-            const start = stop.coords as LatLngTuple;
-            const end = stops[index + 1].coords as LatLngTuple;
-            const fallbackLine = L.polyline([start, end], { color: 'blue', dashArray: '5, 10', weight: 3 }).addTo(map);
-            layersRef.current.push(fallbackLine);
         }
     });
 
