@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, ArrowDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '../ui/button';
@@ -460,10 +460,21 @@ export default function TimetableClient() {
                                   <MapPin className={`h-4 w-4 ${s.coords ? (canOpenMap ? 'text-primary' : 'text-accent') : 'text-muted-foreground'}`} />
                                   <span className={canOpenMap ? 'hover:underline' : 'cursor-default'}>{s.stop}</span>
                                 </Button>
-                                <div className="text-base text-accent-foreground/80 flex items-center gap-2 ml-6">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
-                                  <span>{(s.times || []).join(', ')}</span>
+
+                                <div className="flex items-start gap-4 ml-6">
+                                    <div className="text-base text-accent-foreground/80 flex items-center gap-2">
+                                      <Clock className="h-4 w-4 text-muted-foreground" />
+                                      <span>{(s.arrivalTimes || []).join(', ')}</span>
+                                    </div>
+                                    {s.departureTimes && s.departureTimes.length > 0 && (
+                                       <div className="text-base text-accent-foreground/80 flex items-center gap-2 border-l pl-4">
+                                          <span className="text-sm text-muted-foreground">Išvyksta:</span>
+                                          <span>{s.departureTimes.join(', ')}</span>
+                                      </div>
+                                    )}
                                 </div>
+
+
                                 {!isLastStop && distanceToNext !== undefined && distanceToNext !== null && travelTime && (
                                    <div className="text-sm text-muted-foreground flex items-center gap-2 ml-6">
                                      <RouteIcon className="h-3 w-3" />
@@ -507,7 +518,7 @@ export default function TimetableClient() {
             <>
               <SheetHeader>
                 <SheetTitle className="text-center">Maršruto atkarpa</SheetTitle>
-                 <div className="text-center text-muted-foreground text-base flex items-center justify-center gap-2">
+                 <div className="text-center text-base flex items-center justify-center gap-2">
                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4" />
                    <span className="font-semibold">{selectedStopDetail.next.stop}</span>

@@ -82,7 +82,8 @@ const routeSchema = z.object({
 const timetableSchema = z.object({
   routeId: z.string({ required_error: 'Prašome pasirinkti maršrutą.' }),
   stop: z.string().min(1, 'Stotelės pavadinimas yra privalomas'),
-  times: z.string().min(5, 'Laikai yra privalomi (pvz., 08:00)'),
+  arrivalTimes: z.string().min(5, 'Atvykimo laikai yra privalomi (pvz., 08:00)'),
+  departureTimes: z.string().optional(),
   distanceToNext: z.string().optional(),
   coords: z.object({
     lat: z.number().optional(),
@@ -92,7 +93,8 @@ const timetableSchema = z.object({
 
 const editStopSchema = z.object({
   stop: z.string().min(1, "Stotelės pavadinimas yra privalomas"),
-  times: z.string().min(5, "Laikai yra privalomi"),
+  arrivalTimes: z.string().min(5, "Atvykimo laikai yra privalomi"),
+  departureTimes: z.string().optional(),
 });
 
 type AlternativeRoute = {
@@ -135,7 +137,7 @@ export default function AdminForms() {
 
   const timetableForm = useForm<z.infer<typeof timetableSchema>>({
     resolver: zodResolver(timetableSchema),
-    defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: undefined, lng: undefined } },
+    defaultValues: { routeId: '', stop: '', arrivalTimes: '', departureTimes: '', distanceToNext: '', coords: { lat: undefined, lng: undefined } },
   });
   const { setValue, watch, control, reset: resetTimetableForm } = timetableForm;
   const watchedRouteId = watch('routeId');
@@ -160,7 +162,8 @@ export default function AdminForms() {
       if (editingStop) {
           editStopForm.reset({
               stop: editingStop.stop,
-              times: editingStop.times.join(', '),
+              arrivalTimes: editingStop.arrivalTimes.join(', '),
+              departureTimes: editingStop.departureTimes?.join(', ') || '',
           });
       }
   }, [editingStop, editStopForm]);
@@ -375,7 +378,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(async () => {
-        const { routeId, stop, times, distanceToNext } = values;
+        const { routeId, stop, arrivalTimes, departureTimes, distanceToNext } = values;
 
         if (!firestore) {
             toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
@@ -387,16 +390,19 @@ const handleRouteSelection = (route: AlternativeRoute) => {
             return;
         }
 
-        const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
-        if (parsedTimes.length === 0) {
-            toast({ title: 'Klaida!', description: 'Nurodykite bent vieną laiką.', variant: 'destructive' });
+        const parsedArrivalTimes = arrivalTimes.split(',').map((t) => t.trim()).filter(Boolean);
+        if (parsedArrivalTimes.length === 0) {
+            toast({ title: 'Klaida!', description: 'Nurodykite bent vieną atvykimo laiką.', variant: 'destructive' });
             return;
         }
         
+        const parsedDepartureTimes = departureTimes?.split(',').map((t) => t.trim()).filter(Boolean) || [];
+
         // This is the new stop we are about to create.
         const newStopPayload: Omit<TimetableEntry, 'id' | 'distanceToNext' | 'routeGeometry'> = {
             stop,
-            times: parsedTimes,
+            arrivalTimes: parsedArrivalTimes,
+            departureTimes: parsedDepartureTimes.length > 0 ? parsedDepartureTimes : undefined,
             createdAt: serverTimestamp(),
             coords: newStopCoords,
         };
@@ -404,7 +410,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         try {
             // If there was a previous stop, we must first UPDATE it with the distance/geometry info.
             if (lastStop && lastStop.id) {
-                if (selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0) {
+                if (selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0 && allPoints.length > 1) {
                     toast({
                         title: 'Klaida!',
                         description: 'Prašome apskaičiuoti ir pasirinkti maršrutą iki naujos stotelės prieš išsaugant.',
@@ -414,7 +420,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                 }
 
                 const distanceInKm = parseFloat(distanceToNext || '0');
-                if (isNaN(distanceInKm)) {
+                if (isNaN(distanceInKm) && allPoints.length > 1) {
                      toast({ title: 'Klaida!', description: 'Atstumas turi būti skaičius.', variant: 'destructive' });
                     return;
                 }
@@ -434,7 +440,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
             await addDoc(timetableColRef, newStopPayload);
 
             toast({ title: 'Pavyko!', description: `Nauja stotelė "${stop}" pridėta.` });
-            resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
+            resetTimetableForm({ routeId: watchedRouteId, stop: '', arrivalTimes: '', departureTimes: '', distanceToNext: '' });
             resetMapState();
 
         } catch (error) {
@@ -497,18 +503,20 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         return;
     }
     setIsUpdatingStop(true);
-    const parsedTimes = values.times.split(',').map(t => t.trim()).filter(Boolean);
-    if (parsedTimes.length === 0) {
-        editStopForm.setError('times', { message: 'Nurodykite bent vieną laiką.' });
+    const parsedArrivalTimes = values.arrivalTimes.split(',').map(t => t.trim()).filter(Boolean);
+    if (parsedArrivalTimes.length === 0) {
+        editStopForm.setError('arrivalTimes', { message: 'Nurodykite bent vieną atvykimo laiką.' });
         setIsUpdatingStop(false);
         return;
     }
+    const parsedDepartureTimes = values.departureTimes?.split(',').map(t => t.trim()).filter(Boolean) || [];
 
     try {
         const stopRef = doc(firestore, `routes/${watchedRouteId}/timetable`, editingStop.id);
         await updateDoc(stopRef, {
             stop: values.stop,
-            times: parsedTimes,
+            arrivalTimes: parsedArrivalTimes,
+            departureTimes: parsedDepartureTimes.length > 0 ? parsedDepartureTimes : null,
         });
         toast({ title: 'Pavyko!', description: 'Stotelės duomenys atnaujinti.' });
         setEditingStop(null);
@@ -778,7 +786,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                             <li key={stop.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
                               <div>
                                 <span className="font-semibold">{stop.stop}</span>
-                                <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
+                                <p className="text-xs text-muted-foreground pl-5">{stop.arrivalTimes.join(', ')}</p>
                               </div>
                               <div className="flex items-center">
                                 <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
@@ -821,13 +829,27 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
                 <FormField
                   control={timetableForm.control}
-                  name="times"
+                  name="arrivalTimes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Laikai (atskirti kableliu)</FormLabel>
+                      <FormLabel>Atvykimo laikai (atskirti kableliu)</FormLabel>
                       <FormControl>
                         <Input placeholder="08:00, 08:30, 09:15" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={timetableForm.control}
+                  name="departureTimes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Išvykimo laikai (nebūtina)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="08:02, 08:32, 09:17" {...field} />
+                      </FormControl>
+                      <FormDescription>Užpildykite, jei išvykimo laikas skiriasi nuo atvykimo.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -952,10 +974,23 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               />
               <FormField
                 control={editStopForm.control}
-                name="times"
+                name="arrivalTimes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Laikai (atskirti kableliu)</FormLabel>
+                    <FormLabel>Atvykimo laikai (atskirti kableliu)</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editStopForm.control}
+                name="departureTimes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Išvykimo laikai (nebūtina)</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>

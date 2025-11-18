@@ -1,7 +1,8 @@
 export type TimetableEntry = {
   id?: string;
   stop: string;
-  times: string[];
+  arrivalTimes: string[];
+  departureTimes?: string[];
   coords?: [number, number];
   distanceToNext?: number; // Distance in meters to the next stop
   routeGeometry?: { lat: number; lng: number }[]; // The geometry of the path to the next stop

@@ -38,7 +38,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
     }
-  }, []); // Run only once
+  }, [currentStop.coords]); // Run only once
 
   // Update markers, polyline and bounds when stops change
   useEffect(() => {
@@ -63,11 +63,11 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
     });
 
     const fromMarker = L.marker(fromCoords, { icon: redIcon }).addTo(map);
-    fromMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.times.join(', ')}`).openPopup();
+    fromMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.arrivalTimes.join(', ')}`).openPopup();
     layersRef.current.push(fromMarker);
 
     const toMarker = L.marker(toCoords, { icon: redIcon }).addTo(map);
-    toMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.times.join(', ')}`);
+    toMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.arrivalTimes.join(', ')}`);
     layersRef.current.push(toMarker);
     
     let bounds = L.latLngBounds([fromCoords, toCoords]);

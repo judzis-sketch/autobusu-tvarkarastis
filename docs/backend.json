@@ -60,9 +60,16 @@
           "type": "string",
           "description": "The name of the bus stop."
         },
-        "times": {
+        "arrivalTimes": {
           "type": "array",
-          "description": "An array of scheduled times for the bus stop.",
+          "description": "An array of scheduled arrival times for the bus stop.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "departureTimes": {
+          "type": "array",
+          "description": "An optional array of scheduled departure times for the bus stop.",
           "items": {
             "type": "string"
           }
@@ -83,7 +90,7 @@
         "id",
         "routeId",
         "stop",
-        "times"
+        "arrivalTimes"
       ]
     },
     "User": {
