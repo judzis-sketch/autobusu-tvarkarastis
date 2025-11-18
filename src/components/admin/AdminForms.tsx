@@ -107,7 +107,7 @@ export default function AdminForms() {
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
 
   const [routeToDelete, setRouteToDelete] = useState<Route | null>(null);
-  const [stopToDelete, setStopToDelete] = useState<TimetableEntry & { routeId: string } | null>(null);
+  const [stopToDelete, setStopToDelete] = useState<(TimetableEntry & { routeId: string }) | null>(null);
 
 
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
@@ -277,7 +277,6 @@ export default function AdminForms() {
           const routesData = await getRoute(allPoints, true);
           if (routesData && routesData.length > 0) {
               setAlternativeRoutes(routesData);
-              // Select the first route by default
               const firstRoute = routesData[0];
               setSelectedRouteGeometry(firstRoute.geometry);
               const distanceInKm = firstRoute.distance / 1000;
@@ -316,21 +315,27 @@ export default function AdminForms() {
   }, [setValue, getValues]);
 
   const handleRouteSelection = useCallback((routeIndex: number) => {
+    if (!alternativeRoutes || alternativeRoutes.length <= routeIndex) return;
+
     const selectedRoute = alternativeRoutes[routeIndex];
-    if (selectedRoute) {
-      const distanceInKm = selectedRoute.distance / 1000;
-      setValue('distanceToNext', String(distanceInKm.toFixed(3)));
-      setSelectedRouteGeometry(selectedRoute.geometry);
-      toast({
-        title: 'Maršrutas pasirinktas',
-        description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
-      });
-      const newRoutes = [...alternativeRoutes];
-      const [reorderedItem] = newRoutes.splice(routeIndex, 1);
-      newRoutes.unshift(reorderedItem);
-      setAlternativeRoutes(newRoutes);
-    }
+    const distanceInKm = selectedRoute.distance / 1000;
+
+    // Patikimai atnaujiname abu laukus
+    setValue('distanceToNext', String(distanceInKm.toFixed(3)));
+    setSelectedRouteGeometry(selectedRoute.geometry);
+
+    // Perrikiuojame masyvą, kad pasirinktas maršrutas taptų pagrindiniu
+    const newRoutes = [...alternativeRoutes];
+    const [reorderedItem] = newRoutes.splice(routeIndex, 1);
+    newRoutes.unshift(reorderedItem);
+    setAlternativeRoutes(newRoutes);
+
+    toast({
+      title: 'Maršrutas pasirinktas',
+      description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
+    });
   }, [alternativeRoutes, setValue, toast]);
+
 
   const handleResetWaypoints = () => {
     setWaypoints([]);
@@ -427,12 +432,14 @@ export default function AdminForms() {
 
   const handleDeleteRoute = async () => {
     if (!firestore || !routeToDelete?.id) return;
-  
+
     setIsDeleting(true);
     try {
       const timetableRef = collection(firestore, 'routes', routeToDelete.id, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
+      
       const batch = writeBatch(firestore);
+      
       timetableSnapshot.docs.forEach((subDoc) => {
         batch.delete(subDoc.ref);
       });
@@ -447,7 +454,7 @@ export default function AdminForms() {
   
     } catch (error) {
       console.error('Error deleting route:', error);
-      toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive' });
+      toast({ title: 'Klaida!', description: `Nepavyko ištrinti maršruto. ${error instanceof Error ? error.message : ''}`, variant: 'destructive' });
     } finally {
       setIsDeleting(false);
     }
@@ -464,7 +471,7 @@ export default function AdminForms() {
       setStopToDelete(null);
     } catch (error) {
       console.error('Error deleting stop:', error);
-      toast({ title: 'Klaida!', description: 'Nepavyko ištrinti stotelės.', variant: 'destructive' });
+      toast({ title: 'Klaida!', description: `Nepavyko ištrinti stotelės. ${error instanceof Error ? error.message : ''}`, variant: 'destructive' });
     } finally {
       setIsDeleting(false);
     }
@@ -1045,7 +1052,7 @@ export default function AdminForms() {
       </Dialog>
       
       {/* Delete Route Dialog */}
-      <Dialog open={!!routeToDelete} onOpenChange={() => setRouteToDelete(null)}>
+       <Dialog open={!!routeToDelete} onOpenChange={() => setRouteToDelete(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ar tikrai norite ištrinti maršrutą?</DialogTitle>
@@ -1069,7 +1076,7 @@ export default function AdminForms() {
       </Dialog>
       
       {/* Delete Stop Dialog */}
-      <Dialog open={!!stopToDelete} onOpenChange={() => setStopToDelete(null)}>
+       <Dialog open={!!stopToDelete} onOpenChange={() => setStopToDelete(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ar tikrai norite ištrinti stotelę?</DialogTitle>

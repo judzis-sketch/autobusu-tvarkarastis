@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -32,34 +32,34 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
     const waypointMarkersRef = useRef<L.Marker[]>([]);
     const alternativePolylinesRef = useRef<L.Polyline[]>([]);
 
-    const redIcon = new L.Icon({
+    const redIcon = useMemo(() => new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
         popupAnchor: [1, -34],
         shadowSize: [41, 41]
-    });
+    }), []);
 
-    const blueIcon = new L.Icon({
+    const blueIcon = useMemo(() => new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
         popupAnchor: [1, -34],
         shadowSize: [41, 41]
-    });
+    }), []);
 
-    const greyIcon = new L.Icon({
+    const greyIcon = useMemo(() => new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
         popupAnchor: [1, -34],
         shadowSize: [41, 41]
-    });
+    }), []);
     
-    const defaultIcon = new L.Icon.Default();
+    const defaultIcon = useMemo(() => new L.Icon.Default(), []);
 
     useEffect(() => {
         if (mapRef.current && !mapInstanceRef.current) {
@@ -172,10 +172,12 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
           alternativePolylinesRef.current.push(polyline);
         });
         
-        // Fit bounds to the first (primary) route
-        const bounds = alternativePolylinesRef.current[0].getBounds();
-        if (bounds.isValid()) {
-            map.fitBounds(bounds, {padding: [50, 50]});
+        const primaryRoute = alternativePolylinesRef.current[0];
+        if (primaryRoute) {
+            const bounds = primaryRoute.getBounds();
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, {padding: [50, 50]});
+            }
         }
 
       } else if (props.lastStopPosition && props.coords?.lat && props.coords.lng) {
