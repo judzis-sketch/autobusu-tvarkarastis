@@ -192,41 +192,39 @@ export default function AdminMap({
       // Clear previous route polylines
       routePolylinesRef.current.forEach(p => p.remove());
       routePolylinesRef.current = [];
+      
+      const bounds = L.latLngBounds([]);
 
-      // This logic is for when user selects from multiple alternatives
-      if (alternativeRoutes.length > 0) {
-          const bounds = L.latLngBounds([]);
-
-          alternativeRoutes.forEach(route => {
-              const isSelected = selectedRouteGeometry === route.geometry;
-              const polyline = L.polyline(route.geometry, {
-                  color: isSelected ? 'blue' : 'grey',
-                  weight: isSelected ? 6 : 5,
-                  opacity: isSelected ? 0.9 : 0.6,
-              }).addTo(map);
-              
-              polyline.on('click', () => {
-                  onRouteSelect(route);
-              });
-              
-              routePolylinesRef.current.push(polyline);
-              bounds.extend(polyline.getBounds());
+      // Draw alternative routes (grey)
+      alternativeRoutes.forEach(route => {
+          const isSelected = selectedRouteGeometry === route.geometry;
+          const polyline = L.polyline(route.geometry, {
+              color: 'grey',
+              weight: 5,
+              opacity: 0.6,
+          }).addTo(map);
+          
+          polyline.on('click', () => {
+              onRouteSelect(route);
           });
+          
+          routePolylinesRef.current.push(polyline);
+          bounds.extend(polyline.getBounds());
+      });
 
-          if(bounds.isValid()) {
-            map.fitBounds(bounds, { padding: [50, 50] });
-          }
-      // This logic is for when a single calculated route is shown (from manual points)
-      } else if (selectedRouteGeometry.length > 0) {
+      // Draw selected route (blue), which could be one of the alternatives or a manually calculated one
+      if (selectedRouteGeometry && selectedRouteGeometry.length > 0) {
           const polyline = L.polyline(selectedRouteGeometry, {
               color: 'blue',
               weight: 6,
               opacity: 0.9,
           }).addTo(map);
           routePolylinesRef.current.push(polyline);
-          if (polyline.getBounds().isValid()) {
-              map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-          }
+          bounds.extend(polyline.getBounds());
+      }
+      
+      if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50] });
       }
       
   }, [alternativeRoutes, selectedRouteGeometry, onRouteSelect]);
