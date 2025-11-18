@@ -113,9 +113,10 @@ export default function AdminForms() {
   const [routeToDelete, setRouteToDelete] = useState<Route | null>(null);
 
   const firestore = useFirestore();
-  const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number, geometry: LatLngTuple[] }[]>([]);
+  const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number; geometry: LatLngTuple[] }[]>([]);
+  const [selectedRouteGeometry, setSelectedRouteGeometry] = useState<LatLngTuple[] | null>(null);
   const [isStopsListOpen, setIsStopsListOpen] = useState(false);
-  const [isRoutesListOpen, setIsRoutesListOpen] = useState(true);
+  const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
   const [waypoints, setWaypoints] = useState<LatLngTuple[]>([]);
 
   const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
@@ -198,6 +199,7 @@ export default function AdminForms() {
     setWaypoints([]);
     setValue('coords.lat', undefined);
     setValue('coords.lng', undefined);
+    setSelectedRouteGeometry(null);
   }, [watchedRouteId, setValue])
 
   useEffect(() => {
@@ -271,6 +273,7 @@ export default function AdminForms() {
           if (routes && routes.length > 0) {
               setAlternativeRoutes(routes);
               const firstRoute = routes[0];
+              setSelectedRouteGeometry(firstRoute.geometry);
               const distanceInKm = firstRoute.distance / 1000;
               setValue('distanceToNext', String(distanceInKm.toFixed(3)));
                if (manual) {
@@ -301,9 +304,9 @@ export default function AdminForms() {
     useEffect(() => {
         const coords = getValues('coords');
         if (lastStopCoords && coords?.lat && coords?.lng) {
-            handleCalculateDistance();
+            // handleCalculateDistance(); // No longer automatic
         }
-    }, [waypoints, watchedCoords?.lat, watchedCoords?.lng, lastStopCoords, handleCalculateDistance, getValues]);
+    }, [waypoints, watchedCoords?.lat, watchedCoords?.lng, lastStopCoords, getValues]);
 
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
       const currentCoords = getValues('coords');
@@ -315,11 +318,12 @@ export default function AdminForms() {
       }
   }, [setValue, getValues]);
 
-    const handleRouteSelection = (routeIndex: number) => {
+  const handleRouteSelection = (routeIndex: number) => {
     const selectedRoute = alternativeRoutes[routeIndex];
     if (selectedRoute) {
       const distanceInKm = selectedRoute.distance / 1000;
       setValue('distanceToNext', String(distanceInKm.toFixed(3)));
+      setSelectedRouteGeometry(selectedRoute.geometry);
       toast({
         title: 'Maršrutas pasirinktas',
         description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
@@ -337,6 +341,7 @@ export default function AdminForms() {
     setValue('coords.lng', undefined);
     setValue('distanceToNext', '');
     setAlternativeRoutes([]);
+    setSelectedRouteGeometry(null);
     toast({
         title: 'Tarpiniai taškai išvalyti',
         description: 'Dabar galite iš naujo žymėti stotelę ir maršrutą.'
@@ -402,6 +407,10 @@ export default function AdminForms() {
       if (coords && coords.lat && coords.lng) {
         payload.coords = [coords.lat, coords.lng];
       }
+      
+      if (selectedRouteGeometry) {
+        payload.routeGeometry = selectedRouteGeometry.map(point => ({ lat: point[0], lng: point[1] }));
+      }
 
       if (distanceToNext) {
         const distanceInKm = parseFloat(distanceToNext);
@@ -428,6 +437,7 @@ export default function AdminForms() {
         resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
         setAlternativeRoutes([]);
         setWaypoints([]);
+        setSelectedRouteGeometry(null);
       } catch (error) {
         toast({
           title: 'Klaida!',
