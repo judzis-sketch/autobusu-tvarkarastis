@@ -95,7 +95,7 @@ export default function AdminMap({
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
 
-      map.on('click', (e) => {
+      map.on('click', (e: LeafletMouseEvent) => {
         onMapClick(e.latlng.lat, e.latlng.lng);
       });
     }
