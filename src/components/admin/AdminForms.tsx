@@ -399,7 +399,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         const parsedDepartureTimes = departureTimes?.split(',').map((t) => t.trim()).filter(Boolean) || [];
 
         // This is the new stop we are about to create.
-        const newStopPayload: Omit<TimetableEntry, 'id' | 'distanceToNext' | 'routeGeometry'> = {
+        const newStopPayload: Omit<TimetableEntry, 'id' | 'distanceToNext' | 'routeGeometry'> & { times?: string[] } = {
             stop,
             arrivalTimes: parsedArrivalTimes,
             departureTimes: parsedDepartureTimes.length > 0 ? parsedDepartureTimes : undefined,
@@ -410,6 +410,13 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         try {
             // If there was a previous stop, we must first UPDATE it with the distance/geometry info.
             if (lastStop && lastStop.id) {
+                const allPoints: LatLngTuple[] = [];
+                if (lastStop.coords) {
+                    allPoints.push(lastStop.coords);
+                }
+                allPoints.push(...manualRoutePoints);
+                allPoints.push(newStopCoords);
+
                 if (selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0 && allPoints.length > 1) {
                     toast({
                         title: 'Klaida!',
@@ -782,22 +789,25 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                         </div>
                       ) : timetableStops && timetableStops.length > 0 ? (
                         <ol className="list-decimal list-inside space-y-1">
-                          {timetableStops.map((stop) => (
-                            <li key={stop.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
-                              <div>
-                                <span className="font-semibold">{stop.stop}</span>
-                                <p className="text-xs text-muted-foreground pl-5">{stop.arrivalTimes.join(', ')}</p>
-                              </div>
-                              <div className="flex items-center">
-                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
-                                  <Pencil className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete({ ...stop, routeId: watchedRouteId })}>
-                                  <Trash2 className="h-4 w-4 text-destructive/70" />
-                                </Button>
-                              </div>
-                            </li>
-                          ))}
+                          {timetableStops.map((stop) => {
+                            const times = (stop.arrivalTimes || (stop as any).times || []);
+                            return (
+                                <li key={stop.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
+                                  <div>
+                                    <span className="font-semibold">{stop.stop}</span>
+                                    {times.length > 0 && <p className="text-xs text-muted-foreground pl-5">{times.join(', ')}</p>}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
+                                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete({ ...stop, routeId: watchedRouteId })}>
+                                      <Trash2 className="h-4 w-4 text-destructive/70" />
+                                    </Button>
+                                  </div>
+                                </li>
+                            );
+                          })}
                         </ol>
                       ) : (
                         <p className="text-sm text-muted-foreground text-center pt-4">Šiam maršrutui stotelių dar nepridėta.</p>
