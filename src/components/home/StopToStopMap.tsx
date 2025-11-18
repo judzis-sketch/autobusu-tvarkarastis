@@ -84,7 +84,9 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
       const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
       const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
       layersRef.current.push(routePolyline);
-      bounds = routePolyline.getBounds();
+      if (routePolyline.getBounds().isValid()) {
+        bounds = routePolyline.getBounds();
+      }
     } else {
         console.warn("No routeGeometry found for stop:", currentStop.stop, ". Not drawing a path.");
     }
