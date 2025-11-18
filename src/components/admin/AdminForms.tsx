@@ -59,7 +59,6 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { ScrollArea } from '../ui/scroll-area';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
@@ -705,47 +704,48 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               onSubmit={timetableForm.handleSubmit(handleAddTimetable)}
               className="space-y-6"
             >
-             <Collapsible className="space-y-2">
-                <CollapsibleTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-between">
-                        <div className="flex items-center gap-2">
-                          <BusFront className="h-4 w-4" />
-                          <span>Visi maršrutai ({routes?.length ?? 0})</span>
-                        </div>
-                        <ChevronDown className="h-4 w-4" />
-                    </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                   <ScrollArea className="h-60 mt-2 rounded-md border p-2">
-                      {routes && routes.length > 0 ? (
-                        <div className="space-y-1">
-                          {routes.map((route) => (
-                            <div key={route.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
-                              <div className="flex-grow flex flex-col text-left">
-                                <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
-                                {route.days && route.days.length > 0 && (
-                                   <div className="flex flex-wrap gap-1 mt-1">
-                                      {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
-                                  </div>
-                                )}
-                              </div>
-                               <div className="flex items-center">
-                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
-                                    <Pencil className="h-4 w-4 text-muted-foreground"/>
-                                  </Button>
-                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRouteToDelete(route)}>
-                                    <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                  </Button>
-                              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full justify-between">
+                    <div className="flex items-center gap-2">
+                      <BusFront className="h-4 w-4" />
+                      <span>Visi maršrutai ({routes?.length ?? 0})</span>
+                    </div>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <ScrollArea className="h-60 rounded-md p-2">
+                    {routes && routes.length > 0 ? (
+                      <div className="space-y-1">
+                        {routes.map((route) => (
+                          <div key={route.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
+                            <div className="flex-grow flex flex-col text-left">
+                              <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
+                              {route.days && route.days.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0, 3)}</Badge>)}
+                                </div>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                     ) : (
-                       <p className="text-sm text-muted-foreground text-center pt-4">Maršrutų dar nesukurta.</p>
-                     )}
-                   </ScrollArea>
-                </CollapsibleContent>
-             </Collapsible>
+                            <div className="flex items-center">
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
+                                <Pencil className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRouteToDelete(route)}>
+                                <Trash2 className="h-4 w-4 text-destructive/70" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center pt-4">Maršrutų dar nesukurta.</p>
+                    )}
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+
               <FormField
                 control={timetableForm.control}
                 name="routeId"
@@ -795,47 +795,47 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               />
 
               {watchedRouteId && (
-                 <Collapsible>
-                    <CollapsibleTrigger asChild>
-                        <Button type="button" variant="outline" className="w-full justify-between">
-                            <div className="flex items-center gap-2">
-                              <ListOrdered className="h-4 w-4" />
-                              <span>Esamos maršruto stotelės ({timetableStops?.length ?? 0})</span>
-                            </div>
-                            <ChevronDown className="h-4 w-4" />
-                        </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                       <ScrollArea className="h-60 mt-2 rounded-md border p-2">
-                         {isLoadingTimetableStops ? (
-                           <div className="flex justify-center items-center h-full">
-                             <Loader2 className="h-5 w-5 animate-spin" />
-                           </div>
-                         ) : timetableStops && timetableStops.length > 0 ? (
-                            <ol className="list-decimal list-inside space-y-1">
-                              {timetableStops.map((stop) => (
-                                <li key={stop.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
-                                  <div>
-                                    <span className="font-semibold">{stop.stop}</span>
-                                    <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
-                                  </div>
-                                   <div className="flex items-center">
-                                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
-                                        <Pencil className="h-4 w-4 text-muted-foreground"/>
-                                      </Button>
-                                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete({ ...stop, routeId: watchedRouteId })}>
-                                        <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                      </Button>
-                                  </div>
-                                </li>
-                              ))}
-                            </ol>
-                         ) : (
-                           <p className="text-sm text-muted-foreground text-center pt-4">Šiam maršrutui stotelių dar nepridėta.</p>
-                         )}
-                       </ScrollArea>
-                    </CollapsibleContent>
-                 </Collapsible>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" className="w-full justify-between">
+                      <div className="flex items-center gap-2">
+                        <ListOrdered className="h-4 w-4" />
+                        <span>Esamos maršruto stotelės ({timetableStops?.length ?? 0})</span>
+                      </div>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <ScrollArea className="h-60 mt-2 rounded-md p-2">
+                      {isLoadingTimetableStops ? (
+                        <div className="flex justify-center items-center h-full">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        </div>
+                      ) : timetableStops && timetableStops.length > 0 ? (
+                        <ol className="list-decimal list-inside space-y-1">
+                          {timetableStops.map((stop) => (
+                            <li key={stop.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
+                              <div>
+                                <span className="font-semibold">{stop.stop}</span>
+                                <p className="text-xs text-muted-foreground pl-5">{stop.times.join(', ')}</p>
+                              </div>
+                              <div className="flex items-center">
+                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
+                                  <Pencil className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete({ ...stop, routeId: watchedRouteId })}>
+                                  <Trash2 className="h-4 w-4 text-destructive/70" />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center pt-4">Šiam maršrutui stotelių dar nepridėta.</p>
+                      )}
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
               )}
 
 
