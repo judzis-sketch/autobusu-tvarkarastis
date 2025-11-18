@@ -308,6 +308,7 @@ const handleMapClick = useCallback((lat: number, lng: number) => {
     if (!newStopCoords) {
         // First click sets the new stop location
         setNewStopCoords([lat, lng]);
+        // Reset manual points when a new stop is set
         setManualRoutePoints([]);
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
@@ -315,6 +316,7 @@ const handleMapClick = useCallback((lat: number, lng: number) => {
     } else {
         // Subsequent clicks add intermediate waypoints
         setManualRoutePoints(prev => [...prev, [lat, lng]]);
+        // Clear routes when waypoints are added, as a new calculation will be needed
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
@@ -886,7 +888,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                           )}
                       />
                   </div>
-                  <div className="mt-4 h-[500px] w-full rounded-md overflow-hidden border">
+                  <div className="mt-4 h-[700px] w-full rounded-md overflow-hidden border">
                       <AdminMap
                           newStopCoords={newStopCoords}
                           onMapClick={handleMapClick}
