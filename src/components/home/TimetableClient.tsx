@@ -507,7 +507,7 @@ export default function TimetableClient() {
             <>
               <SheetHeader>
                 <SheetTitle className="text-center">Maršruto atkarpa</SheetTitle>
-                 <div className="text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+                 <div className="text-center text-muted-foreground text-base flex items-center justify-center gap-2">
                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4" />
                    <span className="font-semibold">{selectedStopDetail.next.stop}</span>
