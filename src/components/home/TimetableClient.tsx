@@ -267,7 +267,7 @@ export default function TimetableClient() {
 
   const calculateTravelTime = (distanceInMeters?: number) => {
     if (distanceInMeters === undefined || distanceInMeters === null) return null;
-    const averageSpeedKmh = 30;
+    const averageSpeedKmh = 50;
     const distanceInKm = distanceInMeters / 1000;
     const timeHours = distanceInKm / averageSpeedKmh;
     const timeMinutes = Math.round(timeHours * 60);
