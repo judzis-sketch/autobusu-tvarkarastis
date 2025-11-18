@@ -179,13 +179,10 @@ export default function AdminForms() {
       searchAddresses(debouncedAddressQuery).then(results => {
         setAddressResults(results);
         setIsAddressSearching(false);
-        if(results.length > 0) {
-            setIsAddressPopoverOpen(true);
-        }
+        // Don't automatically open here, let the input handler do it.
       });
     } else {
       setAddressResults([]);
-       setIsAddressPopoverOpen(false);
     }
   }, [debouncedAddressQuery]);
 
@@ -476,7 +473,6 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         payload.coords = [coords.lat, coords.lng];
       }
       
-      // Ensure routeGeometry is saved if it exists, regardless of previous stops
       if (selectedRouteGeometry.length > 0) {
         payload.routeGeometry = selectedRouteGeometry.map(point => ({ lat: point[0], lng: point[1] }));
       }
@@ -877,7 +873,9 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                                 onChange={(e) => {
                                   field.onChange(e);
                                   setAddressQuery(e.target.value);
-                                  setIsAddressPopoverOpen(true);
+                                  if (e.target.value.length > 2) {
+                                    setIsAddressPopoverOpen(true);
+                                  }
                                 }}
                                 autoComplete="off"
                               />
@@ -910,9 +908,9 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                           </Button>
                         ))}
                       </div>
-                    ) : (
+                    ) : debouncedAddressQuery.length > 2 ? (
                       <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
-                    )}
+                    ) : null}
                   </PopoverContent>
                 </Popover>
 
