@@ -51,8 +51,8 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
     
     setIsLoading(true);
 
-    const currentCoords = currentStop.coords;
-    const nextCoords = nextStop.coords;
+    const currentCoords = currentStop.coords as LatLngTuple | undefined;
+    const nextCoords = nextStop.coords as LatLngTuple | undefined;
 
     if (!currentCoords || !nextCoords) {
         setIsLoading(false);
