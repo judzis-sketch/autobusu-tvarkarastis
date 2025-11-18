@@ -66,7 +66,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
-  loading: () => <div className="flex h-[256px] w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
+  loading: () => <div className="flex h-[500px] w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
 });
 
 const daysOfWeek = ["Pirmadienis", "Antradienis", "Trečiadienis", "Ketvirtadienis", "Penktadienis", "Šeštadienis", "Sekmadienis"] as const;
@@ -307,12 +307,15 @@ export default function AdminForms() {
 const handleMapClick = (lat: number, lng: number) => {
     if (!newStopCoords) {
         setNewStopCoords([lat, lng]);
+        // Reset other points when a new main stop is set
         setManualRoutePoints([]);
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
     } else {
+        // If a new stop is already set, subsequent clicks add to manual points
         setManualRoutePoints(prev => [...prev, [lat, lng]]);
+        // Clear routes as manual points have changed the path
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
@@ -387,7 +390,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
       }
 
       const hasPreviousStops = !!lastStopCoords;
-      if (hasPreviousStops && selectedRouteGeometry.length === 0) {
+      if (hasPreviousStops && selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0) {
         toast({
           title: 'Klaida!',
           description: 'Prašome apskaičiuoti ir pasirinkti maršrutą prieš išsaugant.',
