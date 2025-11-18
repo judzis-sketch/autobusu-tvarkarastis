@@ -416,7 +416,7 @@ export default function TimetableClient() {
                                   <Clock className="h-3 w-3 text-muted-foreground" />
                                   <span>{(s.times || []).join(', ')}</span>
                                 </div>
-                                {s.distanceToNext && travelTime && originalIndex < timetable.length - 1 && (
+                                {s.distanceToNext !== undefined && s.distanceToNext !== null && travelTime && originalIndex < timetable.length - 1 && (
                                    <div className="text-sm text-muted-foreground flex items-center gap-2 ml-6">
                                      <RouteIcon className="h-3 w-3" />
                                      <span>{(s.distanceToNext / 1000).toFixed(2)} km</span>
