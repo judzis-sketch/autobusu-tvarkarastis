@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Metadata } from 'next';
@@ -7,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AccessibilityProvider, useAccessibility } from '@/context/AccessibilityContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
@@ -40,7 +42,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <html lang="lt" className={cn({ 'large-text': isLargeText })}>
+    <html lang="lt" className={cn({ 'large-text': isLargeText })} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -70,8 +72,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <AccessibilityProvider>
-      <AppLayout>{children}</AppLayout>
-    </AccessibilityProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <AccessibilityProvider>
+        <AppLayout>{children}</AppLayout>
+      </AccessibilityProvider>
+    </ThemeProvider>
   );
 }

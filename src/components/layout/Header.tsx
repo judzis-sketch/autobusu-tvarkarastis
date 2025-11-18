@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bus, Cog, LogIn, LogOut, User as UserIcon, Accessibility } from 'lucide-react';
+import { Bus, Cog, LogIn, LogOut, User as UserIcon, Accessibility, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -10,6 +10,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useUser, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
@@ -18,6 +24,7 @@ import { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccessibility } from '@/context/AccessibilityContext';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function Header() {
   const { user, isUserLoading } = useUser();
@@ -26,6 +33,7 @@ export default function Header() {
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const { isLargeText, toggleLargeText } = useAccessibility();
+  const { setTheme } = useTheme();
 
   useEffect(() => {
     if (user && firestore) {
@@ -58,6 +66,34 @@ export default function Header() {
           </Link>
           <div className="flex items-center gap-2">
             <TooltipProvider>
+               <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                        <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                        <span className="sr-only">Toggle theme</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Keisti temą</p>
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setTheme('light')}>
+                    Šviesi
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme('dark')}>
+                    Tamsi
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme('system')}>
+                    Sistemos
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
