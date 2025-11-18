@@ -539,7 +539,7 @@ export default function TimetableClient() {
                     </div>
                     <div className="text-right">
                        <p className="text-xs text-muted-foreground">Atvyksta</p>
-                       <p className="font-bold text-lg">{(selectedStopDetail.next.arrivalTimes || []).join(', ')}</p>
+                       <p className="font-bold text-lg">{((selectedStopDetail.next.arrivalTimes) || []).join(', ')}</p>
                     </div>
                  </div>
               </DialogHeader>
