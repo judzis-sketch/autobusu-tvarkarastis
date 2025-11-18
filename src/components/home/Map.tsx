@@ -66,34 +66,42 @@ export default function Map({ stops }: MapProps) {
         shadowSize: [41, 41]
     });
 
-    // Add markers
+    // Add markers for each stop
     stopPositionsWithData.forEach((stop) => {
       const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
       marker.bindPopup(`<b>${stop.stop}</b><br/>Laikai: ${stop.times.join(', ')}`);
       layersRef.current.push(marker);
     });
 
-    // Collect all stored route geometries
-    const routeGeometries: LatLngTuple[][] = [];
-    for (let i = 0; i < stopPositionsWithData.length -1; i++) {
-      const currentStop = stopPositionsWithData[i];
-      if (currentStop.routeGeometry) {
-        const segment = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
-        routeGeometries.push(segment);
-      } else if (currentStop.coords && stopPositionsWithData[i+1]?.coords) {
-        // Fallback to a straight line if no geometry is stored
-        routeGeometries.push([currentStop.coords, stopPositionsWithData[i+1].coords!]);
-      }
+    // Collect all stored route geometries from each stop to form the full path
+    const fullRoutePath: LatLngTuple[] = [];
+    
+    for (let i = 0; i < stops.length; i++) {
+        const currentStop = stops[i];
+        
+        // Add the coordinate of the current stop to start the segment
+        if (i === 0 && currentStop.coords) {
+             fullRoutePath.push(currentStop.coords as LatLngTuple);
+        }
+
+        // The geometry to the *next* stop is stored on the *current* stop object.
+        if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
+            const segmentPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
+            fullRoutePath.push(...segmentPath);
+        } else if (currentStop.coords && stops[i + 1]?.coords) {
+            // Fallback to a straight line if no geometry is stored for this segment
+            fullRoutePath.push(stops[i + 1].coords as LatLngTuple);
+        }
     }
     
-    if (routeGeometries.length > 0) {
-        const fullRoute = routeGeometries.flat();
-        const polyline = L.polyline(fullRoute, { color: 'blue' }).addTo(map);
+    if (fullRoutePath.length > 1) {
+        const polyline = L.polyline(fullRoutePath, { color: 'blue' }).addTo(map);
         layersRef.current.push(polyline);
         if (polyline.getBounds().isValid()) {
             map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
         }
     } else if (stopPositionsWithData.length > 0) {
+        // If there's no path, just fit to the stops
         const bounds = L.latLngBounds(stopPositionsWithData.map(s => s.coords));
         if (bounds.isValid()) {
           map.fitBounds(bounds, { padding: [50, 50] });
