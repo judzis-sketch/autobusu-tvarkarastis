@@ -5,10 +5,7 @@ export type TimetableEntry = {
   coords?: [number, number];
   distanceToNext?: number; // Distance in meters to the next stop
   routeGeometry?: { lat: number; lng: number }[]; // The geometry of the path to the next stop
-  createdAt?: {
-    seconds: number;
-    nanoseconds: number;
-  };
+  createdAt?: any;
 };
 
 export type Route = {

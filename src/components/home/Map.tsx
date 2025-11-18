@@ -73,17 +73,22 @@ export default function Map({ stops }: MapProps) {
       layersRef.current.push(marker);
     });
 
-    const routeGeometries: LatLngTuple[] = [];
-    for (const stop of stopPositionsWithData) {
-      if (stop.routeGeometry) {
-        // Convert from {lat, lng} to [lat, lng]
-        const segment = stop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
-        routeGeometries.push(...segment);
+    // Collect all stored route geometries
+    const routeGeometries: LatLngTuple[][] = [];
+    for (let i = 0; i < stopPositionsWithData.length -1; i++) {
+      const currentStop = stopPositionsWithData[i];
+      if (currentStop.routeGeometry) {
+        const segment = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
+        routeGeometries.push(segment);
+      } else if (currentStop.coords && stopPositionsWithData[i+1]?.coords) {
+        // Fallback to a straight line if no geometry is stored
+        routeGeometries.push([currentStop.coords, stopPositionsWithData[i+1].coords!]);
       }
     }
-
+    
     if (routeGeometries.length > 0) {
-        const polyline = L.polyline(routeGeometries, { color: 'blue' }).addTo(map);
+        const fullRoute = routeGeometries.flat();
+        const polyline = L.polyline(fullRoute, { color: 'blue' }).addTo(map);
         layersRef.current.push(polyline);
         if (polyline.getBounds().isValid()) {
             map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
