@@ -457,8 +457,10 @@ export default function TimetableClient() {
               <SheetHeader>
                 <SheetTitle className="text-center">Atstumas tarp stotelių</SheetTitle>
                 <SheetDescription className="text-center flex items-center justify-center gap-2">
+                   <span className="font-semibold">Išvykimas:</span>
                    <span>{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                   <span className="font-semibold">Atvykimas:</span>
                    <span>{selectedStopDetail.next.stop}</span>
                 </SheetDescription>
                  <div className="text-center font-bold text-lg text-primary pt-2">
