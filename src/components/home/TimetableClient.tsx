@@ -518,6 +518,10 @@ export default function TimetableClient() {
           {selectedStopDetail && (
             <>
               <DialogHeader>
+                 <DialogTitle className="sr-only">Maršruto atkarpa</DialogTitle>
+                 <DialogDescription className="sr-only">
+                    Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {selectedStopDetail.next.stop}.
+                 </DialogDescription>
                  <div className="text-center text-base flex items-center justify-center gap-2">
                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4" />
