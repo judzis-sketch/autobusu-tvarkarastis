@@ -43,22 +43,18 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   // Update markers, polyline and bounds when stops change
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !currentStop || !nextStop) return;
+    // Ensure this effect runs only when all necessary data is present.
+    if (!map || !currentStop || !nextStop || !currentStop.coords || !nextStop.coords) return;
 
-    // Clear existing layers
+    // Clear existing layers from the map to prepare for new ones.
     layersRef.current.forEach((layer) => layer.remove());
     layersRef.current = [];
     
     setIsLoading(true);
 
-    const currentCoords = currentStop.coords as LatLngTuple | undefined;
-    const nextCoords = nextStop.coords as LatLngTuple | undefined;
-
-    if (!currentCoords || !nextCoords) {
-        setIsLoading(false);
-        return;
-    }
-
+    const currentCoords = currentStop.coords as LatLngTuple;
+    const nextCoords = nextStop.coords as LatLngTuple;
+    
     const redIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -68,22 +64,26 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
         shadowSize: [41, 41]
     });
 
-    // Add markers
+    // Add marker for the starting stop (currentStop).
     const currentMarker = L.marker(currentCoords, { icon: redIcon }).addTo(map);
     currentMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.times.join(', ')}`).openPopup();
     layersRef.current.push(currentMarker);
 
+    // Add marker for the destination stop (nextStop).
     const nextMarker = L.marker(nextCoords, { icon: redIcon }).addTo(map);
     nextMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.times.join(', ')}`);
     layersRef.current.push(nextMarker);
     
+    // Create bounds that will contain both markers.
     let bounds = L.latLngBounds([currentCoords, nextCoords]);
 
     // The route geometry FROM the current stop TO the next stop is stored on the currentStop object.
+    // Check if it exists and draw it.
     if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
       const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
       const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
       layersRef.current.push(routePolyline);
+      // Extend the bounds to include the entire polyline.
       if (routePolyline.getBounds().isValid()) {
         bounds.extend(routePolyline.getBounds());
       }
@@ -96,7 +96,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
 
     setIsLoading(false);
 
-  }, [currentStop, nextStop]);
+  }, [currentStop, nextStop]); // This effect MUST re-run when currentStop or nextStop changes.
 
   return (
     <div className="relative h-full w-full">
