@@ -253,9 +253,8 @@ export default function TimetableClient() {
     const nextStop = timetable[currentIndex + 1];
   
     // Both current and next stop must have coordinates to be displayed on map
-    if (currentStop.coords && nextStop.coords) {
-      // The geometry and distance TO the next stop are stored on the CURRENT stop object.
-      // We pass both stops to the map component.
+    // The route geometry TO the next stop is stored ON the current stop.
+    if (currentStop.coords && nextStop.coords && currentStop.routeGeometry) {
       setSelectedStopDetail({
         current: currentStop,
         next: nextStop,
@@ -263,7 +262,7 @@ export default function TimetableClient() {
     } else {
       toast({
         title: "Trūksta duomenų",
-        description: "Maršrutui tarp šių stotelių trūksta koordinačių.",
+        description: "Maršrutui tarp šių stotelių trūksta koordinačių arba kelio geometrijos.",
         variant: "destructive"
       });
     }
@@ -405,7 +404,7 @@ export default function TimetableClient() {
                              if (!timetable) return null;
                              const originalIndex = timetable.findIndex(ts => ts.id === s.id);
                              const nextStop = timetable[originalIndex + 1];
-                             const canOpenMap = s.coords && nextStop && nextStop.coords;
+                             const canOpenMap = s.coords && nextStop && nextStop.coords && s.routeGeometry;
                              
                              // The distance and travel time to the NEXT stop are stored on the CURRENT stop object.
                              const distanceToNext = s.distanceToNext;
@@ -426,7 +425,7 @@ export default function TimetableClient() {
                                   <Clock className="h-3 w-3 text-muted-foreground" />
                                   <span>{(s.times || []).join(', ')}</span>
                                 </div>
-                                {distanceToNext !== undefined && distanceToNext !== null && travelTime && nextStop && (
+                                {(distanceToNext !== undefined && distanceToNext !== null) && travelTime && nextStop && (
                                    <div className="text-sm text-muted-foreground flex items-center gap-2 ml-6">
                                      <RouteIcon className="h-3 w-3" />
                                      <span>{(distanceToNext / 1000).toFixed(2)} km</span>

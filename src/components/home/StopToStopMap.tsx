@@ -87,8 +87,6 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
       if (routePolyline.getBounds().isValid()) {
         bounds.extend(routePolyline.getBounds());
       }
-    } else {
-        console.warn("No routeGeometry found for stop:", currentStop.stop, ". Not drawing a path.");
     }
 
     // Fit map bounds to the calculated route or the markers
