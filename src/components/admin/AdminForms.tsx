@@ -100,7 +100,7 @@ export default function AdminForms() {
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Store ID of item being deleted
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   
@@ -238,7 +238,7 @@ export default function AdminForms() {
     };
 
     fetchLastStop();
-  }, [watchedRouteId, firestore, isPendingTimetable]); // Refetch on route change or after adding a new stop
+  }, [watchedRouteId, firestore, isPendingTimetable, timetableStops]); // Refetch on route change or after adding a new stop
 
 
   const routeForm = useForm<z.infer<typeof routeSchema>>({
@@ -432,7 +432,7 @@ export default function AdminForms() {
       return;
     }
     
-    setIsDeleting(true);
+    setIsDeleting(routeToDelete.id);
     try {
       const timetableRef = collection(firestore, 'routes', routeToDelete.id, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
@@ -450,28 +450,28 @@ export default function AdminForms() {
       console.error('Error deleting route:', error);
       toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive' });
     } finally {
-      setIsDeleting(false);
+      setIsDeleting(null);
       setRouteToDelete(null);
     }
   };
 
-  const handleDeleteStop = async () => {
-    if (!stopToDelete || !stopToDelete.id || !watchedRouteId || !firestore) {
+  const handleDeleteStop = async (routeId: string, stopId: string) => {
+    if (!routeId || !stopId || !firestore) {
       toast({ title: 'Klaida!', description: 'Nėra informacijos, kurią stotelę trinti.', variant: 'destructive'});
       return;
     }
     
-    setIsDeleting(true);
+    setIsDeleting(stopId);
     try {
-      const stopRef = doc(firestore, 'routes', watchedRouteId, 'timetable', stopToDelete.id);
+      const stopRef = doc(firestore, 'routes', routeId, 'timetable', stopId);
       await deleteDoc(stopRef);
       toast({ title: 'Pavyko!', description: 'Stotelė sėkmingai ištrinta.' });
     } catch (error) {
       console.error('Error deleting stop:', error);
       toast({ title: 'Klaida!', description: 'Nepavyko ištrinti stotelės.', variant: 'destructive' });
     } finally {
-      setIsDeleting(false);
-      setStopToDelete(null);
+      setIsDeleting(null);
+      setStopToDelete(null); // Close the dialog
     }
   };
   
@@ -675,7 +675,7 @@ export default function AdminForms() {
                                   <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
                                     <Pencil className="h-4 w-4 text-muted-foreground"/>
                                   </Button>
-                                  <Dialog>
+                                  <Dialog open={routeToDelete?.id === route.id} onOpenChange={(isOpen) => !isOpen && setRouteToDelete(null)}>
                                       <DialogTrigger asChild>
                                         <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRouteToDelete(route)}>
                                           <Trash2 className="h-4 w-4 text-destructive/70"/>
@@ -692,8 +692,8 @@ export default function AdminForms() {
                                             <DialogClose asChild>
                                                 <Button type="button" variant="outline">Atšaukti</Button>
                                             </DialogClose>
-                                            <Button type="button" onClick={handleDeleteRoute} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-                                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            <Button type="button" onClick={handleDeleteRoute} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
+                                                {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                                 Ištrinti
                                             </Button>
                                         </DialogFooter>
@@ -784,9 +784,30 @@ export default function AdminForms() {
                                       <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
                                         <Pencil className="h-4 w-4 text-muted-foreground"/>
                                       </Button>
-                                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete(stop)}>
-                                        <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                      </Button>
+                                       <Dialog open={stopToDelete?.id === stop.id} onOpenChange={(isOpen) => !isOpen && setStopToDelete(null)}>
+                                        <DialogTrigger asChild>
+                                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setStopToDelete(stop)}>
+                                            <Trash2 className="h-4 w-4 text-destructive/70"/>
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Ar tikrai norite ištrinti stotelę?</DialogTitle>
+                                                <DialogDescription>
+                                                    Šis veiksmas visam laikui ištrins stotelę "{stopToDelete?.stop}". Šio veiksmo negalima anuliuoti.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button type="button" variant="outline">Atšaukti</Button>
+                                                </DialogClose>
+                                                 <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
+                                                    {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Ištrinti
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                      </Dialog>
                                   </div>
                                 </li>
                               ))}
@@ -1065,28 +1086,8 @@ export default function AdminForms() {
           </Form>
         </DialogContent>
       </Dialog>
-      
-      {/* Delete Stop Confirmation Dialog */}
-      <Dialog open={!!stopToDelete} onOpenChange={(isOpen) => !isOpen && setStopToDelete(null)}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Ar tikrai norite ištrinti stotelę?</DialogTitle>
-                <DialogDescription>
-                    Šis veiksmas visam laikui ištrins stotelę "{stopToDelete?.stop}". Šio veiksmo negalima anuliuoti.
-                </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="outline">Atšaukti</Button>
-                </DialogClose>
-                 <Button type="button" onClick={handleDeleteStop} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Ištrinti
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 }
+
+    
