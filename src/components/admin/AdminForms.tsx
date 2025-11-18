@@ -867,7 +867,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                             {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
                             Apskaičiuoti maršrutą
                         </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={handleResetMap} disabled={!watchedCoords?.lat && alternativeRoutes.length === 0}>
+                        <Button type="button" variant="ghost" size="sm" onClick={handleResetMap} disabled={!watchedCoords?.lat && alternativeRoutes.length === 0 && manualRoutePoints.length === 0}>
                             <Undo2 className="mr-2 h-4 w-4" />
                             Išvalyti žemėlapį
                         </Button>
