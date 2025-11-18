@@ -239,22 +239,17 @@ export default function TimetableClient() {
     if (!timetable) return;
 
     const currentIndex = timetable.findIndex(s => s.id === clickedStop.id);
-    
-    // We need the PREVIOUS stop to get the starting coordinates,
-    // and the CURRENT stop to get the geometry and destination coordinates.
-    const previousStop = timetable[currentIndex - 1];
-    const currentStop = clickedStop; // This is the destination for this segment.
+    const nextStop = timetable[currentIndex + 1];
 
-    // A route can be shown if the current stop has geometry and the previous stop exists and has coords.
-    if (currentStop.routeGeometry && previousStop && previousStop.coords && currentStop.coords) {
+    if (nextStop && clickedStop.routeGeometry && clickedStop.coords && nextStop.coords) {
       setSelectedStopDetail({
-        current: previousStop, // The "from" stop
-        next: currentStop,      // The "to" stop, which holds the geometry
+        current: clickedStop,
+        next: nextStop,
       });
     } else {
       toast({
-        title: "Pirma stotelė arba trūksta duomenų",
-        description: "Tai yra pirma maršruto stotelė arba trūksta kelio geometrijos duomenų.",
+        title: "Paskutinė stotelė arba trūksta duomenų",
+        description: "Tai yra paskutinė maršruto stotelė arba trūksta kelio geometrijos duomenų.",
       });
     }
   };
@@ -393,11 +388,10 @@ export default function TimetableClient() {
                       ) : filteredTimetable.length > 0 ? (
                         <div className="space-y-4">
                           {filteredTimetable.map((s, i) => {
-                             if (!timetable) return null;
-                             const previousStop = timetable[i - 1];
-                             const canOpenMap = !!(s.routeGeometry && s.coords && previousStop && previousStop.coords);
-                             const distanceToCurrent = s.distanceToNext;
-                             const travelTime = calculateTravelTime(distanceToCurrent);
+                             const isLastStop = i === filteredTimetable.length - 1;
+                             const canOpenMap = !isLastStop && !!s.routeGeometry;
+                             const distanceToNext = s.distanceToNext;
+                             const travelTime = calculateTravelTime(distanceToNext);
                              
                              return (
                               <div key={s.id || i} className="border-b pb-3 space-y-1">
@@ -414,12 +408,12 @@ export default function TimetableClient() {
                                   <Clock className="h-3 w-3 text-muted-foreground" />
                                   <span>{(s.times || []).join(', ')}</span>
                                 </div>
-                                {previousStop && distanceToCurrent !== undefined && distanceToCurrent !== null && travelTime && (
+                                {!isLastStop && distanceToNext !== undefined && distanceToNext !== null && travelTime && (
                                    <div className="text-sm text-muted-foreground flex items-center gap-2 ml-6">
                                      <RouteIcon className="h-3 w-3" />
-                                     <span>Iš {previousStop.stop}</span>
+                                     <span>Iki {filteredTimetable[i + 1]?.stop}</span>
                                      <ArrowRight className="h-3 w-3" />
-                                     <span>{(distanceToCurrent / 1000).toFixed(2)} km</span>
+                                     <span>{(distanceToNext / 1000).toFixed(2)} km</span>
                                      <span className="text-xs">({travelTime})</span>
                                    </div>
                                 )}
@@ -465,7 +459,7 @@ export default function TimetableClient() {
                    <span>{selectedStopDetail.next.stop}</span>
                 </SheetDescription>
                  <div className="text-center font-bold text-lg text-primary pt-2">
-                    {calculateTravelTime(selectedStopDetail.next.distanceToNext)}
+                    {calculateTravelTime(selectedStopDetail.current.distanceToNext)}
                  </div>
               </SheetHeader>
               <div className="h-[calc(100%-120px)] mt-4 rounded-md overflow-hidden border">

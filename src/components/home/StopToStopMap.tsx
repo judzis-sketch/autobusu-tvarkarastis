@@ -16,8 +16,8 @@ L.Icon.Default.mergeOptions({
 
 
 interface StopToStopMapProps {
-  currentStop: TimetableEntry; // The "from" stop
-  nextStop: TimetableEntry;    // The "to" stop (this one contains the geometry)
+  currentStop: TimetableEntry; // The "from" stop, which contains the geometry
+  nextStop: TimetableEntry;    // The "to" stop
 }
 
 export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapProps) {
@@ -43,10 +43,8 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   // Update markers, polyline and bounds when stops change
   useEffect(() => {
     const map = mapInstanceRef.current;
-    // Ensure this effect runs only when all necessary data is present.
     if (!map || !currentStop || !nextStop || !currentStop.coords || !nextStop.coords) return;
 
-    // Clear existing layers from the map to prepare for new ones.
     layersRef.current.forEach((layer) => layer.remove());
     layersRef.current = [];
     
@@ -64,31 +62,26 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
         shadowSize: [41, 41]
     });
 
-    // Add marker for the starting stop (currentStop).
     const currentMarker = L.marker(currentCoords, { icon: redIcon }).addTo(map);
     currentMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.times.join(', ')}`).openPopup();
     layersRef.current.push(currentMarker);
 
-    // Add marker for the destination stop (nextStop).
     const nextMarker = L.marker(nextCoords, { icon: redIcon }).addTo(map);
     nextMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.times.join(', ')}`);
     layersRef.current.push(nextMarker);
     
-    // Create bounds that will contain both markers.
     let bounds = L.latLngBounds([currentCoords, nextCoords]);
 
-    // The route geometry FROM the current stop TO the next stop is stored on the NEXT stop object.
-    if (nextStop.routeGeometry && nextStop.routeGeometry.length > 0) {
-      const leafletPath = nextStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
+    // The route geometry FROM the current stop TO the next stop is stored on the CURRENT stop object.
+    if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
+      const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
       const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
       layersRef.current.push(routePolyline);
-      // Extend the bounds to include the entire polyline.
       if (routePolyline.getBounds().isValid()) {
         bounds.extend(routePolyline.getBounds());
       }
     }
 
-    // Fit map bounds to the calculated route or the markers
     if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [50, 50] });
     }
