@@ -113,6 +113,7 @@ export default function AdminMap({
       } else {
         newStopMarkerRef.current = L.marker(newStopCoords, { icon: redIcon }).addTo(map);
       }
+      map.panTo(newStopCoords);
     } else {
       if (newStopMarkerRef.current) {
         newStopMarkerRef.current.remove();
@@ -197,7 +198,6 @@ export default function AdminMap({
 
       // Draw alternative routes (grey)
       alternativeRoutes.forEach(route => {
-          const isSelected = selectedRouteGeometry === route.geometry;
           const polyline = L.polyline(route.geometry, {
               color: 'grey',
               weight: 5,
@@ -209,7 +209,9 @@ export default function AdminMap({
           });
           
           routePolylinesRef.current.push(polyline);
-          bounds.extend(polyline.getBounds());
+          if (polyline.getBounds().isValid()) {
+            bounds.extend(polyline.getBounds());
+          }
       });
 
       // Draw selected route (blue), which could be one of the alternatives or a manually calculated one
@@ -220,7 +222,9 @@ export default function AdminMap({
               opacity: 0.9,
           }).addTo(map);
           routePolylinesRef.current.push(polyline);
-          bounds.extend(polyline.getBounds());
+          if (polyline.getBounds().isValid()) {
+            bounds.extend(polyline.getBounds());
+          }
       }
       
       if (bounds.isValid()) {

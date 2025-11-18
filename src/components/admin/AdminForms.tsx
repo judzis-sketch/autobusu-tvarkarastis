@@ -131,9 +131,12 @@ export default function AdminForms() {
   const routesCollapsibleRef = useRef<HTMLDivElement>(null);
   const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
 
+  // --- START: Rewritten state for map logic ---
+  const [newStopCoords, setNewStopCoords] = useState<LatLngTuple | null>(null);
   const [manualRoutePoints, setManualRoutePoints] = useState<LatLngTuple[]>([]);
   const [alternativeRoutes, setAlternativeRoutes] = useState<AlternativeRoute[]>([]);
   const [selectedRouteGeometry, setSelectedRouteGeometry] = useState<LatLngTuple[]>([]);
+  // --- END: Rewritten state for map logic ---
 
   const [addressQuery, setAddressQuery] = useState('');
   const [addressResults, setAddressResults] = useState<AddressResult[]>([]);
@@ -153,7 +156,6 @@ export default function AdminForms() {
     defaultValues: { routeId: '', stop: '', times: '', distanceToNext: '', coords: { lat: undefined, lng: undefined } },
   });
   const { setValue, watch, control, getValues, reset: resetTimetableForm } = timetableForm;
-  const watchedCoords = watch('coords');
   const watchedRouteId = watch('routeId');
 
   const selectedRouteForDisplay = useMemo(() => routes?.find(r => r.id === watchedRouteId), [routes, watchedRouteId]);
@@ -191,11 +193,10 @@ export default function AdminForms() {
     performSearch();
   }, [debouncedAddressQuery]);
 
-
   const handleAddressSelect = (address: AddressResult) => {
     setValue('stop', address.display_name, { shouldValidate: true });
-    setValue('coords.lat', address.lat, { shouldValidate: true });
-    setValue('coords.lng', address.lon, { shouldValidate: true });
+    // This directly sets the new stop coords, triggering map updates
+    setNewStopCoords([address.lat, address.lon]);
     setAddressQuery(address.display_name);
     setIsAddressPopoverOpen(false);
     setAddressResults([]);
@@ -238,18 +239,29 @@ export default function AdminForms() {
     }
   }, [editingRoute, editRouteForm]);
   
+  // --- START: Rewritten map logic ---
   const resetMapState = useCallback(() => {
+    setNewStopCoords(null);
     setManualRoutePoints([]);
     setAlternativeRoutes([]);
     setSelectedRouteGeometry([]);
     setValue('distanceToNext', '');
-    setValue('coords.lat', undefined);
-    setValue('coords.lng', undefined);
   }, [setValue]);
 
   useEffect(() => {
     resetMapState();
   }, [watchedRouteId, resetMapState])
+
+  useEffect(() => {
+    // Sync the internal newStopCoords state with the form values for display
+    if (newStopCoords) {
+      setValue('coords.lat', newStopCoords[0]);
+      setValue('coords.lng', newStopCoords[1]);
+    } else {
+      setValue('coords.lat', undefined);
+      setValue('coords.lng', undefined);
+    }
+  }, [newStopCoords, setValue]);
 
   useEffect(() => {
     const fetchLastStop = async () => {
@@ -286,24 +298,8 @@ export default function AdminForms() {
   }, [watchedRouteId, firestore, timetableStops]);
 
 
-  const routeForm = useForm<z.infer<typeof routeSchema>>({
-    resolver: zodResolver(routeSchema),
-    defaultValues: {
-      number: '',
-      name: '',
-      days: [],
-    },
-  });
-  
   const handleCalculateDistance = useCallback(async () => {
-    const newStopCoords = getValues('coords');
-    const allPoints: LatLngTuple[] = [];
-
-    if (lastStopCoords) {
-      allPoints.push(lastStopCoords);
-    }
-
-    if (!newStopCoords || !newStopCoords.lat || !newStopCoords.lng) {
+    if (!newStopCoords) {
         toast({
             title: 'Negalima apskaičiuoti',
             description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
@@ -311,14 +307,14 @@ export default function AdminForms() {
         });
         return;
     }
-
-    // Add manual intermediate points
-    allPoints.push(...manualRoutePoints);
     
-    // Add the final new stop
-    allPoints.push([newStopCoords.lat, newStopCoords.lng]);
+    const allPoints: LatLngTuple[] = [];
+    if (lastStopCoords) {
+      allPoints.push(lastStopCoords);
+    }
+    allPoints.push(...manualRoutePoints);
+    allPoints.push(newStopCoords);
 
-    // If there's only one point (the new stop, no last stop or manual points), we can't calculate a route.
     if (allPoints.length < 2) {
       toast({
             title: 'Negalima apskaičiuoti',
@@ -345,14 +341,13 @@ export default function AdminForms() {
                     variant: 'default',
                });
             } else if (manualRoutePoints.length > 0) {
-               // If manual points were used, there should only be one result.
                setSelectedRouteGeometry(routesData[0].geometry);
                setValue('distanceToNext', String((routesData[0].distance / 1000).toFixed(3)));
                toast({
                     title: 'Maršrutas apskaičiuotas',
                     description: `Atstumas: ${(routesData[0].distance / 1000).toFixed(3)} km. Galite išsaugoti stotelę.`,
                });
-               return; // Exit early, no need to show alternatives
+               return;
             }
             else {
                  toast({
@@ -378,23 +373,20 @@ export default function AdminForms() {
     } finally {
         setIsCalculatingDistance(false);
     }
-}, [getValues, lastStopCoords, toast, setValue, manualRoutePoints]);
+}, [newStopCoords, lastStopCoords, toast, setValue, manualRoutePoints]);
 
 const handleMapClick = (lat: number, lng: number) => {
-    const currentCoords = getValues('coords');
-
     // If the main stop hasn't been set yet, set it.
-    if (!currentCoords || !currentCoords.lat || !currentCoords.lng) {
-        setValue('coords.lat', lat, { shouldValidate: true });
-        setValue('coords.lng', lng, { shouldValidate: true });
-        setManualRoutePoints([]); // Reset manual points when a new stop is chosen
+    if (!newStopCoords) {
+        setNewStopCoords([lat, lng]);
+        setManualRoutePoints([]);
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
     } else {
         // If the main stop is set, add subsequent clicks as intermediate points.
         setManualRoutePoints(prev => [...prev, [lat, lng]]);
-        setAlternativeRoutes([]); // Clear alternatives if user starts drawing manually
+        setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
     }
@@ -416,7 +408,17 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         description: 'Dabar galite iš naujo žymėti stotelę ir maršrutą.'
     });
   }
+  // --- END: Rewritten map logic ---
 
+  const routeForm = useForm<z.infer<typeof routeSchema>>({
+    resolver: zodResolver(routeSchema),
+    defaultValues: {
+      number: '',
+      name: '',
+      days: [],
+    },
+  });
+  
   const handleAddRoute = (values: z.infer<typeof routeSchema>) => {
     startTransitionRoute(async () => {
       if (!firestore) {
@@ -446,15 +448,20 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(async () => {
-      const { routeId, stop, times, coords, distanceToNext } = values;
+      const { routeId, stop, times, distanceToNext } = values;
 
       if (!firestore) {
         toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
         return;
       }
-      
+       
+      if (!newStopCoords) {
+        toast({ title: 'Klaida!', description: 'Nepažymėta naujos stotelės vieta.', variant: 'destructive'});
+        return;
+      }
+
       const hasPreviousStops = !!lastStopCoords;
-      if (hasPreviousStops && selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0) {
+      if (hasPreviousStops && selectedRouteGeometry.length === 0) {
         toast({
           title: 'Klaida!',
           description: 'Prašome apskaičiuoti ir pasirinkti maršrutą prieš išsaugant.',
@@ -473,11 +480,8 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         stop,
         times: parsedTimes,
         createdAt: serverTimestamp(),
+        coords: newStopCoords,
       };
-      
-      if (coords && coords.lat && coords.lng) {
-        payload.coords = [coords.lat, coords.lng];
-      }
       
       if (selectedRouteGeometry.length > 0) {
         payload.routeGeometry = selectedRouteGeometry.map(point => ({ lat: point[0], lng: point[1] }));
@@ -863,59 +867,57 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
 
               <div className="space-y-4 pt-4 border-t">
-                  <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
-                      <PopoverTrigger asChild>
-                          <div className="space-y-2">
-                              <FormField
-                                  control={timetableForm.control}
-                                  name="stop"
-                                  render={({ field }) => (
-                                      <FormItem>
-                                          <FormLabel>Naujos stotelės pavadinimas</FormLabel>
-                                          <FormControl>
-                                              <Input
-                                                  placeholder="Vinco Kudirkos aikštė"
-                                                  {...field}
-                                                  onChange={(e) => {
-                                                      field.onChange(e);
-                                                      setAddressQuery(e.target.value);
-                                                  }}
-                                                  autoComplete="off"
-                                              />
-                                          </FormControl>
-                                          <FormMessage />
-                                      </FormItem>
-                                  )}
+                <FormField
+                  control={timetableForm.control}
+                  name="stop"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Naujos stotelės pavadinimas</FormLabel>
+                      <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
+                        <PopoverTrigger asChild>
+                           <FormControl>
+                              <Input
+                                  placeholder="Vinco Kudirkos aikštė"
+                                  {...field}
+                                  onChange={(e) => {
+                                      field.onChange(e);
+                                      setAddressQuery(e.target.value);
+                                  }}
+                                  autoComplete="off"
                               />
-                          </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1" align="start">
-                          {isAddressSearching ? (
-                              <div className="p-4 text-center text-sm text-muted-foreground">
-                                  <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                                  Ieškoma...
-                              </div>
-                          ) : addressResults.length > 0 ? (
-                              <div className="space-y-1">
-                                  {addressResults.map((address) => (
-                                      <Button
-                                          key={address.place_id}
-                                          type="button"
-                                          variant="ghost"
-                                          className="w-full h-auto text-left justify-start p-2"
-                                          onClick={() => handleAddressSelect(address)}
-                                      >
-                                          <div className="flex flex-col">
-                                              <span className="text-sm">{address.display_name}</span>
-                                          </div>
-                                      </Button>
-                                  ))}
-                              </div>
-                          ) : debouncedAddressQuery.length > 2 ? (
-                              <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
-                          ) : null}
-                      </PopoverContent>
-                  </Popover>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1" align="start">
+                            {isAddressSearching ? (
+                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                    <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                                    Ieškoma...
+                                </div>
+                            ) : addressResults.length > 0 ? (
+                                <div className="space-y-1">
+                                    {addressResults.map((address) => (
+                                        <Button
+                                            key={address.place_id}
+                                            type="button"
+                                            variant="ghost"
+                                            className="w-full h-auto text-left justify-start p-2"
+                                            onClick={() => handleAddressSelect(address)}
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="text-sm">{address.display_name}</span>
+                                            </div>
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : debouncedAddressQuery.length > 2 ? (
+                                <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
+                            ) : null}
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={timetableForm.control}
@@ -945,11 +947,11 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                       )}
                       />
                        <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={handleCalculateDistance} disabled={isCalculatingDistance || !watchedCoords?.lat}>
+                        <Button type="button" variant="outline" size="sm" onClick={handleCalculateDistance} disabled={isCalculatingDistance || !newStopCoords}>
                             {isCalculatingDistance ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RouteIcon className="mr-2 h-4 w-4" />}
                             Apskaičiuoti maršrutą
                         </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={handleResetMap} disabled={!watchedCoords?.lat && alternativeRoutes.length === 0 && manualRoutePoints.length === 0}>
+                        <Button type="button" variant="ghost" size="sm" onClick={handleResetMap} disabled={!newStopCoords && alternativeRoutes.length === 0 && manualRoutePoints.length === 0}>
                             <Undo2 className="mr-2 h-4 w-4" />
                             Išvalyti žemėlapį
                         </Button>
@@ -972,7 +974,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                               <FormItem>
                                   <FormLabel>Platuma</FormLabel>
                                   <FormControl>
-                                      <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                      <Input readOnly type="number" step="any" {...field} value={field.value ?? ''} />
                                   </FormControl>
                               </FormItem>
                           )}
@@ -984,7 +986,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                               <FormItem>
                                   <FormLabel>Ilguma</FormLabel>
                                   <FormControl>
-                                      <Input type="number" step="any" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                      <Input readOnly type="number" step="any" {...field} value={field.value ?? ''} />
                                   </FormControl>
                               </FormItem>
                           )}
@@ -992,7 +994,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   </div>
                   <div className="mt-4 h-64 w-full rounded-md overflow-hidden border">
                       <AdminMap
-                          newStopCoords={watchedCoords?.lat && watchedCoords?.lng ? [watchedCoords.lat, watchedCoords.lng] : null}
+                          newStopCoords={newStopCoords}
                           onMapClick={handleMapClick}
                           onRouteSelect={handleRouteSelection}
                           existingStops={timetableStops || []}
@@ -1226,5 +1228,3 @@ const handleRouteSelection = (route: AlternativeRoute) => {
     </div>
   );
 }
-
-    
