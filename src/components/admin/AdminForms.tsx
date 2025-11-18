@@ -260,15 +260,12 @@ export default function AdminForms() {
   
   const handleCalculateDistance = useCallback(async () => {
     const newStopCoords = getValues('coords');
+    const allPoints: LatLngTuple[] = [];
 
-    if (!lastStopCoords) {
-        toast({
-            title: 'Negalima apskaičiuoti',
-            description: 'Tai pirma maršruto stotelė. Atstumas neskaičiuojamas.',
-            variant: 'destructive',
-        });
-        return;
+    if (lastStopCoords) {
+      allPoints.push(lastStopCoords);
     }
+
     if (!newStopCoords || !newStopCoords.lat || !newStopCoords.lng) {
         toast({
             title: 'Negalima apskaičiuoti',
@@ -278,17 +275,29 @@ export default function AdminForms() {
         return;
     }
 
+    // Add manual intermediate points
+    allPoints.push(...manualRoutePoints);
+    
+    // Add the final new stop
+    allPoints.push([newStopCoords.lat, newStopCoords.lng]);
+
+    // If there's only one point (the new stop, no last stop or manual points), we can't calculate a route.
+    if (allPoints.length < 2) {
+      toast({
+            title: 'Negalima apskaičiuoti',
+            description: 'Tai pirma maršruto stotelė. Atstumas neskaičiuojamas. Galite išsaugoti stotelę.',
+            variant: 'default',
+        });
+        return;
+    }
+
+
     setIsCalculatingDistance(true);
     setAlternativeRoutes([]);
     setSelectedRouteGeometry([]);
     setValue('distanceToNext', '');
 
     try {
-        const allPoints: LatLngTuple[] = [
-          lastStopCoords,
-          [newStopCoords.lat, newStopCoords.lng]
-        ];
-        
         const routesData = await getRoute(allPoints, true);
         
         if (routesData && routesData.length > 0) {
@@ -298,7 +307,17 @@ export default function AdminForms() {
                     description: `OSRM tarnyba negalėjo rasti kelio. Naudojama tiesi linija. Pasirinkite ją, kad išsaugotumėte.`,
                     variant: 'default',
                });
-            } else {
+            } else if (manualRoutePoints.length > 0) {
+               // If manual points were used, there should only be one result.
+               setSelectedRouteGeometry(routesData[0].geometry);
+               setValue('distanceToNext', String((routesData[0].distance / 1000).toFixed(3)));
+               toast({
+                    title: 'Maršrutas apskaičiuotas',
+                    description: `Atstumas: ${(routesData[0].distance / 1000).toFixed(3)} km. Galite išsaugoti stotelę.`,
+               });
+               return; // Exit early, no need to show alternatives
+            }
+            else {
                  toast({
                     title: `Rasta ${routesData.length} maršruto variantų`,
                     description: `Paspauskite ant norimo varianto žemėlapyje, kad jį pasirinktumėte.`,
@@ -322,15 +341,23 @@ export default function AdminForms() {
     } finally {
         setIsCalculatingDistance(false);
     }
-}, [getValues, lastStopCoords, toast, setValue]);
+}, [getValues, lastStopCoords, toast, setValue, manualRoutePoints]);
 
-const handleMapClick = (lat: number, lng: number) => {
-    setValue('coords.lat', lat, { shouldValidate: true });
-    setValue('coords.lng', lng, { shouldValidate: true });
-    
-    setAlternativeRoutes([]);
-    setSelectedRouteGeometry([]);
-    setValue('distanceToNext', '');
+const handleMapClick = (lat: number, lng: number, isIntermediate: boolean) => {
+    // If it's an intermediate point click
+    if (isIntermediate) {
+        setManualRoutePoints(prev => [...prev, [lat, lng]]);
+        setAlternativeRoutes([]); // Clear alternatives if user starts drawing manually
+        setSelectedRouteGeometry([]);
+        setValue('distanceToNext', '');
+    } else { // It's the first click, setting the new stop
+        setValue('coords.lat', lat, { shouldValidate: true });
+        setValue('coords.lng', lng, { shouldValidate: true });
+        setManualRoutePoints([]); // Reset manual points when a new stop is chosen
+        setAlternativeRoutes([]);
+        setSelectedRouteGeometry([]);
+        setValue('distanceToNext', '');
+    }
 };
 
 const handleRouteSelection = (route: AlternativeRoute) => {
@@ -852,8 +879,9 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   <FormLabel>Maršruto sudarymas</FormLabel>
                   <p className="text-sm text-muted-foreground">
                     1. Paspauskite žemėlapyje, kur bus **nauja stotelė** (raudonas žymeklis).<br/>
-                    2. Paspauskite "Apskaičiuoti maršrutą". Žemėlapyje atsiras galimi keliai (pilka spalva).<br/>
-                    3. Paspauskite ant norimo kelio, kad jį pasirinktumėte (nusidažys mėlynai).
+                    2. Jei reikia, pridėkite **tarpinius taškus** (mėlyni žymekliai), kad patikslintumėte kelią. <br/>
+                    3. Paspauskite "Apskaičiuoti maršrutą". Jei bus rastos kelios alternatyvos, jos atsiras pilka spalva.<br/>
+                    4. Paspauskite ant norimo kelio, kad jį pasirinktumėte (nusidažys mėlynai).
                   </p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                       <Controller
@@ -890,6 +918,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                           lastStopPosition={lastStopCoords}
                           alternativeRoutes={alternativeRoutes}
                           selectedRouteGeometry={selectedRouteGeometry}
+                          manualRoutePoints={manualRoutePoints}
                       />
                   </div>
                 </div>
