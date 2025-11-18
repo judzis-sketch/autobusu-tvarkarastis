@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, ArrowDown } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, ArrowDown, Watch } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '../ui/button';
@@ -454,7 +454,7 @@ export default function TimetableClient() {
                               <div key={s.id || i} className="border-b pb-3 space-y-1">
                                  <Button 
                                   variant="link" 
-                                  className="font-medium text-base flex items-center gap-2 p-0 h-auto text-foreground hover:no-underline"
+                                  className="font-medium text-lg flex items-center gap-2 p-0 h-auto text-foreground hover:no-underline"
                                   onClick={() => handleStopClick(s)}
                                   disabled={!canOpenMap}
                                  >
@@ -463,12 +463,12 @@ export default function TimetableClient() {
                                 </Button>
 
                                 <div className="flex items-start gap-4 ml-6">
-                                    <div className="text-base text-accent-foreground/80 flex items-center gap-2">
+                                    <div className="text-lg text-accent-foreground/80 flex items-center gap-2">
                                       <Clock className="h-4 w-4 text-muted-foreground" />
                                       <span>{(s.arrivalTimes || (s as any).times || []).join(', ')}</span>
                                     </div>
                                     {s.departureTimes && s.departureTimes.length > 0 && (
-                                       <div className="text-base text-accent-foreground/80 flex items-center gap-2 border-l pl-4">
+                                       <div className="text-lg text-accent-foreground/80 flex items-center gap-2 border-l pl-4">
                                           <span className="text-sm text-muted-foreground">Išvyksta:</span>
                                           <span>{s.departureTimes.join(', ')}</span>
                                       </div>
@@ -518,14 +518,25 @@ export default function TimetableClient() {
           {selectedStopDetail && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-center">Maršruto atkarpa</DialogTitle>
                  <div className="text-center text-base flex items-center justify-center gap-2">
                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4" />
                    <span className="font-semibold">{selectedStopDetail.next.stop}</span>
                  </div>
-                 <div className="text-center font-bold text-lg text-primary pt-1">
-                    {calculateTravelTime(selectedStopDetail.current.distanceToNext)}
+                 <div className="grid grid-cols-3 items-center text-center py-2">
+                    <div className="text-left">
+                       <p className="text-xs text-muted-foreground">Išvyksta</p>
+                       <p className="font-bold text-lg">{(selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes || []).join(', ')}</p>
+                    </div>
+                    <div className="flex flex-col items-center justify-center border-x">
+                        <Watch className="h-5 w-5 text-primary" />
+                        <p className="font-bold text-lg text-primary">{calculateTravelTime(selectedStopDetail.current.distanceToNext)}</p>
+                        <p className="text-xs text-muted-foreground">({(selectedStopDetail.current.distanceToNext! / 1000).toFixed(2)} km)</p>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-xs text-muted-foreground">Atvyksta</p>
+                       <p className="font-bold text-lg">{(selectedStopDetail.next.arrivalTimes || []).join(', ')}</p>
+                    </div>
                  </div>
               </DialogHeader>
               <div className="flex-grow min-h-0 mt-2 rounded-md overflow-hidden border">
