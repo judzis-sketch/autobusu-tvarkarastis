@@ -239,14 +239,17 @@ export default function TimetableClient() {
     if (!timetable) return;
 
     const currentIndex = timetable.findIndex(s => s.id === clickedStop.id);
-    if (currentIndex === -1 || currentIndex === timetable.length - 1) {
-      // Cannot show route from the last stop
+    const isLastStop = currentIndex === timetable.length - 1;
+
+    // A stop is clickable if it's not the last one.
+    if (isLastStop) {
       return;
-    } 
+    }
 
     const currentStop = timetable[currentIndex];
     const nextStop = timetable[currentIndex + 1];
 
+    // We must have geometry on the current stop to show the path to the next one.
     if (currentStop.coords && nextStop.coords && currentStop.routeGeometry) {
       setSelectedStopDetail({
         current: currentStop,
@@ -395,7 +398,7 @@ export default function TimetableClient() {
                         <div className="space-y-4">
                           {filteredTimetable.map((s, i) => {
                              const isLastStop = i === filteredTimetable.length - 1;
-                             const canOpenMap = !isLastStop && !!s.routeGeometry;
+                             const canOpenMap = !isLastStop;
                              const distanceToNext = s.distanceToNext;
                              const travelTime = calculateTravelTime(distanceToNext);
                              
