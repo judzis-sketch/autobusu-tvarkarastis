@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -171,8 +171,16 @@ function useLeafletMap(mapRef: React.RefObject<HTMLDivElement>, props: AdminMapP
     
           alternativePolylinesRef.current.push(polyline);
         });
+      } else if (props.lastStopPosition && props.coords?.lat) {
+        // Fallback for when OSRM fails but we have start/end points
+        const fallbackLine = L.polyline([props.lastStopPosition, [props.coords.lat, props.coords.lng]], {
+            color: 'red',
+            weight: 3,
+            dashArray: '5, 10'
+        }).addTo(map);
+        alternativePolylinesRef.current.push(fallbackLine);
       }
-    }, [props.alternativeRoutes, props.onRouteSelect]);
+    }, [props.alternativeRoutes, props.onRouteSelect, props.lastStopPosition, props.coords]);
 
     return null;
 }
