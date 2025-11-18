@@ -69,6 +69,8 @@ const AdminMap = dynamic(() => import('./AdminMap'), {
   loading: () => <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-6 w-6 animate-spin" /></div>
 });
 
+type RouteOption = { distance: number; geometry: LatLngTuple[], isFallback?: boolean };
+
 const daysOfWeek = ["Pirmadienis", "Antradienis", "Trečiadienis", "Ketvirtadienis", "Penktadienis", "Šeštadienis", "Sekmadienis"] as const;
 
 const routeSchema = z.object({
@@ -113,8 +115,9 @@ export default function AdminForms() {
   const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
 
   const firestore = useFirestore();
-  const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number; geometry: LatLngTuple[] }[]>([]);
+  const [alternativeRoutes, setAlternativeRoutes] = useState<RouteOption[]>([]);
   const [selectedRouteGeometry, setSelectedRouteGeometry] = useState<LatLngTuple[] | null>(null);
+
   const [isStopsListOpen, setIsStopsListOpen] = useState(false);
   const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
   
@@ -267,7 +270,9 @@ export default function AdminForms() {
     }
 
     setIsCalculatingDistance(true);
-    resetMapState(); // Clear previous results before new calculation
+    setAlternativeRoutes([]);
+    setSelectedRouteGeometry(null);
+    setValue('distanceToNext', '');
 
     try {
         const pointsForApi: LatLngTuple[] = [lastStopCoords, [coordsToUse.lat, coordsToUse.lng]];
@@ -275,15 +280,23 @@ export default function AdminForms() {
         
         if (routesData && routesData.length > 0) {
             setAlternativeRoutes(routesData);
-            toast({
-                title: 'Maršrutai rasti',
-                description: `Rasti ${routesData.length} maršruto variantai. Pasirinkite vieną paspausdami ant jo žemėlapyje.`,
-            });
+            if (routesData[0].isFallback) {
+              toast({
+                  title: 'Atsarginis planas',
+                  description: 'Nepavyko gauti tikslaus maršruto. Naudojama tiesi linija. Galite pasirinkti šį maršrutą.',
+                  variant: 'default',
+              });
+            } else {
+               toast({
+                  title: 'Maršrutai rasti',
+                  description: `Rasta ${routesData.length} maršruto variantų. Pasirinkite vieną paspausdami ant jo žemėlapyje.`,
+              });
+            }
         } else {
-            setAlternativeRoutes([]); // Ensure state is cleared on failure
+            setAlternativeRoutes([]);
             toast({
                 title: 'Maršrutų apskaičiavimo klaida',
-                description: 'Nepavyko gauti maršrutų iš OSRM tarnybos. Gali būti, kad kelias tarp taškų neegzistuoja.',
+                description: 'Tarnyba negrąžino jokių maršrutų. Patikrinkite naršyklės konsolę.',
                 variant: 'destructive',
             });
         }
@@ -298,18 +311,17 @@ export default function AdminForms() {
     } finally {
         setIsCalculatingDistance(false);
     }
-}, [getValues, lastStopCoords, toast, resetMapState]);
+}, [getValues, lastStopCoords, toast, setValue]);
 
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
       setValue('coords.lat', lat, { shouldValidate: true });
       setValue('coords.lng', lng, { shouldValidate: true });
-      // Reset routes when user picks a new point
       setAlternativeRoutes([]);
       setSelectedRouteGeometry(null);
       setValue('distanceToNext', '');
   }, [setValue]);
 
- const handleRouteSelection = useCallback((route: { distance: number; geometry: LatLngTuple[] }) => {
+ const handleRouteSelection = useCallback((route: RouteOption) => {
     setSelectedRouteGeometry(route.geometry);
     const distanceInKm = route.distance / 1000;
     setValue('distanceToNext', String(distanceInKm.toFixed(3)));

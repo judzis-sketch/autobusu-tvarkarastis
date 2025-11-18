@@ -12,14 +12,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+type RouteOption = { distance: number; geometry: LatLngTuple[], isFallback?: boolean };
+
 interface AdminMapProps {
   newStopCoords: LatLngTuple | null;
   onNewStopCoordsChange: (lat: number, lng: number) => void;
   stopPositions: LatLngTuple[];
   lastStopPosition: LatLngTuple | null;
-  alternativeRoutes: { distance: number; geometry: LatLngTuple[] }[];
+  alternativeRoutes: RouteOption[];
   selectedRouteGeometry: LatLngTuple[] | null;
-  onRouteSelect: (route: { distance: number; geometry: LatLngTuple[] }) => void;
+  onRouteSelect: (route: RouteOption) => void;
 }
 
 export default function AdminMap({
@@ -132,13 +134,18 @@ export default function AdminMap({
     routePolylinesRef.current = [];
   
     if (alternativeRoutes.length > 0) {
+      const allPoints = alternativeRoutes.flatMap(r => r.geometry);
+
       alternativeRoutes.forEach((route) => {
-        const isSelected = selectedRouteGeometry === route.geometry;
+        // Compare geometries as arrays of numbers
+        const isSelected = selectedRouteGeometry && 
+                           JSON.stringify(selectedRouteGeometry) === JSON.stringify(route.geometry);
         
         const polyline = L.polyline(route.geometry, {
           color: isSelected ? 'blue' : 'gray',
           weight: isSelected ? 6 : 5,
-          opacity: isSelected ? 0.8 : 0.7,
+          opacity: isSelected ? 0.9 : 0.7,
+          dashArray: route.isFallback ? '5, 10' : undefined,
         }).addTo(map);
   
         polyline.on('click', (e) => {
@@ -150,7 +157,6 @@ export default function AdminMap({
         routePolylinesRef.current.push(polyline);
       });
       
-      const allPoints = alternativeRoutes.flatMap(r => r.geometry);
       if (allPoints.length > 0) {
         const bounds = L.latLngBounds(allPoints);
         if (bounds.isValid()) {
@@ -158,19 +164,9 @@ export default function AdminMap({
         }
       }
 
-    } else if (lastStopPosition && newStopCoords) {
-      // Fallback for when OSRM fails but we have start/end points
-      const fallbackLine = L.polyline([lastStopPosition, newStopCoords], {
-        color: 'red',
-        weight: 3,
-        dashArray: '5, 10'
-      }).addTo(map);
-      routePolylinesRef.current.push(fallbackLine);
     }
-  }, [alternativeRoutes, selectedRouteGeometry, onRouteSelect, lastStopPosition, newStopCoords]);
+  }, [alternativeRoutes, selectedRouteGeometry, onRouteSelect]);
   
 
   return <div ref={mapRef} style={{ height: '100%', width: '100%' }} />;
 }
-
-    
