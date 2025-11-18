@@ -238,30 +238,36 @@ export default function TimetableClient() {
 
   const handleStopClick = (stop: TimetableEntry) => {
     if (!timetable) return;
-
+  
     const currentIndex = timetable.findIndex(s => s.id === stop.id);
+    // Don't open map for the last stop
     if (currentIndex === -1 || currentIndex >= timetable.length - 1) {
-      return; // Cannot show map for the last stop
+      toast({
+        title: "Paskutinė stotelė",
+        description: "Tai yra paskutinė maršruto stotelė, kelias toliau nerodomas.",
+      });
+      return;
     }
-
+  
     const currentStop = timetable[currentIndex];
     const nextStop = timetable[currentIndex + 1];
-
+  
+    // Both current and next stop must have coordinates to be displayed on map
     if (currentStop.coords && nextStop.coords) {
-        // The GEOMETRY and DISTANCE to the NEXT stop are stored on the CURRENT stop object.
-        // So, we pass the current stop object which contains the correct path data.
-        setSelectedStopDetail({
-            current: currentStop,
-            next: nextStop,
-        });
+      // The geometry and distance TO the next stop are stored on the CURRENT stop object.
+      // We pass both stops to the map component.
+      setSelectedStopDetail({
+        current: currentStop,
+        next: nextStop,
+      });
     } else {
-       toast({
+      toast({
         title: "Trūksta duomenų",
         description: "Maršrutui tarp šių stotelių trūksta koordinačių.",
         variant: "destructive"
       });
     }
-};
+  };
 
   const calculateTravelTime = (distanceInMeters?: number) => {
     if (distanceInMeters === undefined || distanceInMeters === null) return null;
