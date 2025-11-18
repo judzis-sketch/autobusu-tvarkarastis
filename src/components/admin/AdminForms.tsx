@@ -304,11 +304,10 @@ export default function AdminForms() {
     }
 }, [newStopCoords, lastStopCoords, toast, setValue, manualRoutePoints]);
 
-const handleMapClick = (lat: number, lng: number) => {
+const handleMapClick = useCallback((lat: number, lng: number) => {
     if (!newStopCoords) {
         // First click sets the new stop location
         setNewStopCoords([lat, lng]);
-        // Reset any other points when a new main stop is set
         setManualRoutePoints([]);
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
@@ -316,12 +315,11 @@ const handleMapClick = (lat: number, lng: number) => {
     } else {
         // Subsequent clicks add intermediate waypoints
         setManualRoutePoints(prev => [...prev, [lat, lng]]);
-        // Clear previously calculated routes as the path has now changed
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
     }
-};
+}, [newStopCoords, setValue]);
 
 const handleRouteSelection = (route: AlternativeRoute) => {
     setSelectedRouteGeometry(route.geometry);

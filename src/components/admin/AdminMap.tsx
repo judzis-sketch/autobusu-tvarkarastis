@@ -94,11 +94,23 @@ export default function AdminMap({
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
-
-      map.on('click', (e: LeafletMouseEvent) => {
-        onMapClick(e.latlng.lat, e.latlng.lng);
-      });
     }
+  }, []);
+
+  // Handle map click events
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+  
+    const handleClick = (e: LeafletMouseEvent) => {
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    };
+  
+    map.on('click', handleClick);
+  
+    return () => {
+      map.off('click', handleClick);
+    };
   }, [onMapClick]);
 
   // Update new stop marker (red)
