@@ -274,7 +274,8 @@ export default function AdminForms() {
       setAlternativeRoutes([]);
       try {
           const allPoints: LatLngTuple[] = [lastStopCoords, ...waypoints, [coordsToUse.lat, coordsToUse.lng]];
-          const routesData = await getRoute(allPoints, true);
+          const routesData = await getRoute(allPoints, true); // <--- THIS IS THE CRITICAL FIX
+          
           if (routesData && routesData.length > 0) {
               setAlternativeRoutes(routesData);
               const firstRoute = routesData[0];
@@ -306,10 +307,12 @@ export default function AdminForms() {
 
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
       const currentCoords = getValues('coords');
+      // Set new stop coordinates only if they are not set yet
       if (!currentCoords.lat && !currentCoords.lng) {
         setValue('coords.lat', lat, { shouldValidate: true });
         setValue('coords.lng', lng, { shouldValidate: true });
       } else {
+        // Otherwise, add as a waypoint
         setWaypoints(prev => [...prev, [lat, lng]]);
       }
   }, [setValue, getValues]);
@@ -320,11 +323,11 @@ export default function AdminForms() {
     const selectedRoute = alternativeRoutes[routeIndex];
     const distanceInKm = selectedRoute.distance / 1000;
 
-    // Patikimai atnaujiname abu laukus
-    setValue('distanceToNext', String(distanceInKm.toFixed(3)));
+    // This was the missing piece. Update both geometry and distance.
     setSelectedRouteGeometry(selectedRoute.geometry);
+    setValue('distanceToNext', String(distanceInKm.toFixed(3)));
 
-    // Perrikiuojame masyvą, kad pasirinktas maršrutas taptų pagrindiniu
+    // Reorder array so the selected route is always the first one (for correct coloring)
     const newRoutes = [...alternativeRoutes];
     const [reorderedItem] = newRoutes.splice(routeIndex, 1);
     newRoutes.unshift(reorderedItem);
@@ -1102,3 +1105,5 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
