@@ -306,16 +306,17 @@ export default function AdminForms() {
 
 const handleMapClick = (lat: number, lng: number) => {
     if (!newStopCoords) {
+        // First click sets the new stop location
         setNewStopCoords([lat, lng]);
-        // Reset other points when a new main stop is set
+        // Reset any other points when a new main stop is set
         setManualRoutePoints([]);
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
     } else {
-        // If a new stop is already set, subsequent clicks add to manual points
+        // Subsequent clicks add intermediate waypoints
         setManualRoutePoints(prev => [...prev, [lat, lng]]);
-        // Clear routes as manual points have changed the path
+        // Clear previously calculated routes as the path has now changed
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');

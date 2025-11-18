@@ -171,15 +171,15 @@ export default function AdminMap({
         const map = mapInstanceRef.current;
         if (!map) return;
 
+        // Clear previous manual point markers
         manualPointMarkersRef.current.forEach(marker => marker.remove());
         manualPointMarkersRef.current = [];
 
-        if(manualRoutePoints && manualRoutePoints.length > 0) {
-          manualRoutePoints.forEach(point => {
-              const marker = L.marker(point, { icon: blueIcon }).addTo(map);
-              manualPointMarkersRef.current.push(marker);
-          });
-        }
+        // Add new manual point markers
+        manualRoutePoints.forEach(point => {
+            const marker = L.marker(point, { icon: blueIcon }).addTo(map);
+            manualPointMarkersRef.current.push(marker);
+        });
 
     }, [manualRoutePoints, blueIcon]);
 
