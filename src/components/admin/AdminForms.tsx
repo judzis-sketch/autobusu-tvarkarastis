@@ -108,7 +108,7 @@ export default function AdminForms() {
   
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
-  const [lastStopCoords, setLastStopCoords] = useState<LatLngTuple | null>(null);
+  const [lastStop, setLastStop] = useState<TimetableEntry | null>(null);
   
   const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
@@ -200,7 +200,7 @@ export default function AdminForms() {
   useEffect(() => {
     const fetchLastStop = async () => {
         if (!firestore || !watchedRouteId) {
-            setLastStopCoords(null);
+            setLastStop(null);
             return;
         }
 
@@ -213,18 +213,15 @@ export default function AdminForms() {
         try {
           const querySnapshot = await getDocs(lastStopQuery);
           if (!querySnapshot.empty) {
-              const lastStop = querySnapshot.docs[0].data() as TimetableEntry;
-              if (lastStop.coords) {
-                  setLastStopCoords(lastStop.coords as [number, number]);
-              } else {
-                  setLastStopCoords(null);
-              }
+              const lastStopData = querySnapshot.docs[0].data() as TimetableEntry;
+              const lastStopDoc = { ...lastStopData, id: querySnapshot.docs[0].id };
+              setLastStop(lastStopDoc);
           } else {
-              setLastStopCoords(null);
+              setLastStop(null);
           }
         } catch (error) {
           console.error("Error fetching last stop:", error);
-          setLastStopCoords(null);
+          setLastStop(null);
         }
     };
 
@@ -243,8 +240,8 @@ export default function AdminForms() {
     }
     
     const allPoints: LatLngTuple[] = [];
-    if (lastStopCoords) {
-      allPoints.push(lastStopCoords);
+    if (lastStop && lastStop.coords) {
+      allPoints.push(lastStop.coords);
     }
     allPoints.push(...manualRoutePoints);
     allPoints.push(newStopCoords);
@@ -302,7 +299,7 @@ export default function AdminForms() {
     } finally {
         setIsCalculatingDistance(false);
     }
-}, [newStopCoords, lastStopCoords, toast, setValue, manualRoutePoints]);
+}, [newStopCoords, lastStop, toast, setValue, manualRoutePoints]);
 
 const handleMapClick = useCallback((lat: number, lng: number) => {
     if (!newStopCoords) {
@@ -378,68 +375,75 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(async () => {
-      const { routeId, stop, times, distanceToNext } = values;
+        const { routeId, stop, times, distanceToNext } = values;
 
-      if (!firestore) {
-        toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
-        return;
-      }
-       
-      if (!newStopCoords) {
-        toast({ title: 'Klaida!', description: 'Nepažymėta naujos stotelės vieta.', variant: 'destructive'});
-        return;
-      }
-
-      const hasPreviousStops = !!lastStopCoords;
-      if (hasPreviousStops && selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0) {
-        toast({
-          title: 'Klaida!',
-          description: 'Prašome apskaičiuoti ir pasirinkti maršrutą prieš išsaugant.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
-      if (parsedTimes.length === 0) {
-        toast({ title: 'Klaida!', description: 'Nurodykite bent vieną laiką.', variant: 'destructive' });
-        return;
-      }
-
-      const payload: Omit<TimetableEntry, 'id'> = {
-        stop,
-        times: parsedTimes,
-        createdAt: serverTimestamp(),
-        coords: newStopCoords,
-      };
-      
-      if (selectedRouteGeometry.length > 0) {
-        payload.routeGeometry = selectedRouteGeometry.map(point => ({ lat: point[0], lng: point[1] }));
-      }
-
-      if (distanceToNext) {
-        const distanceInKm = parseFloat(distanceToNext);
-        if (!isNaN(distanceInKm)) {
-            payload.distanceToNext = distanceInKm * 1000;
-        } else {
-            toast({ title: 'Klaida!', description: 'Atstumas turi būti skaičius.', variant: 'destructive' });
+        if (!firestore) {
+            toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
             return;
         }
-      }
 
-      const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
+        if (!newStopCoords) {
+            toast({ title: 'Klaida!', description: 'Nepažymėta naujos stotelės vieta.', variant: 'destructive'});
+            return;
+        }
 
-      try {
-        await addDoc(timetableColRef, payload);
-        toast({ title: 'Pavyko!', description: 'Tvarkaraščio įrašas pridėtas.' });
-        resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
-        resetMapState();
-      } catch (error) {
-        toast({ title: 'Klaida!', description: 'Nepavyko pridėti tvarkaraščio įrašo.', variant: 'destructive' });
-        console.error('Error adding timetable entry:', error);
-      }
+        const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
+        if (parsedTimes.length === 0) {
+            toast({ title: 'Klaida!', description: 'Nurodykite bent vieną laiką.', variant: 'destructive' });
+            return;
+        }
+        
+        // This is the new stop we are about to create.
+        const newStopPayload: Omit<TimetableEntry, 'id' | 'distanceToNext' | 'routeGeometry'> = {
+            stop,
+            times: parsedTimes,
+            createdAt: serverTimestamp(),
+            coords: newStopCoords,
+        };
+
+        try {
+            // If there was a previous stop, we must first UPDATE it with the distance/geometry info.
+            if (lastStop && lastStop.id) {
+                if (selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0) {
+                    toast({
+                        title: 'Klaida!',
+                        description: 'Prašome apskaičiuoti ir pasirinkti maršrutą iki naujos stotelės prieš išsaugant.',
+                        variant: 'destructive',
+                    });
+                    return;
+                }
+
+                const distanceInKm = parseFloat(distanceToNext || '0');
+                if (isNaN(distanceInKm)) {
+                     toast({ title: 'Klaida!', description: 'Atstumas turi būti skaičius.', variant: 'destructive' });
+                    return;
+                }
+
+                const lastStopRef = doc(firestore, `routes/${routeId}/timetable`, lastStop.id);
+                const updatePayload: Partial<TimetableEntry> = {
+                    distanceToNext: distanceInKm * 1000,
+                    routeGeometry: selectedRouteGeometry.map(point => ({ lat: point[0], lng: point[1] })),
+                };
+                
+                await updateDoc(lastStopRef, updatePayload);
+                 toast({ title: 'Atnaujinta!', description: `Maršruto informacija sėkmingai pridėta prie stotelės "${lastStop.stop}".` });
+            }
+
+            // After potentially updating the previous stop, ADD the new stop.
+            const timetableColRef = collection(firestore, `routes/${routeId}/timetable`);
+            await addDoc(timetableColRef, newStopPayload);
+
+            toast({ title: 'Pavyko!', description: `Nauja stotelė "${stop}" pridėta.` });
+            resetTimetableForm({ routeId: watchedRouteId, stop: '', times: '', distanceToNext: '' });
+            resetMapState();
+
+        } catch (error) {
+            toast({ title: 'Klaida!', description: 'Nepavyko išsaugoti tvarkaraščio įrašo.', variant: 'destructive' });
+            console.error('Error adding/updating timetable entry:', error);
+        }
     });
-  };
+};
+
 
   const handleDeleteRoute = async () => {
     if (!firestore || !routeToDelete?.id) return;
@@ -834,10 +838,13 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                       name="distanceToNext"
                       render={({ field }) => (
                       <FormItem>
-                          <FormLabel>Atstumas iki kitos stotelės (kilometrais)</FormLabel>
+                          <FormLabel>Atstumas nuo ankstesnės stotelės (kilometrais)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="any" placeholder="Pasirinkite maršrutą žemėlapyje" {...field} readOnly />
+                            <Input type="number" step="any" placeholder="Apskaičiuojamas automatiškai" {...field} readOnly />
                           </FormControl>
+                          <FormDescription>
+                            Šis atstumas bus priskirtas ankstesnei stotelei, nurodant kelią iki šios naujos stotelės.
+                          </FormDescription>
                           <FormMessage />
                       </FormItem>
                       )}
@@ -859,7 +866,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                    <p className="text-sm text-muted-foreground">
                     1. **Pažymėkite naują stotelę:** Paspauskite tiesiai ant žemėlapio. Pirmas paspaudimas visada pažymi naujos stotelės vietą (raudonas žymeklis).<br/>
                     2. **Patikslinkite kelią (nebūtina):** Jei automatiškai rastas kelias netinka, galite pridėti tarpinių taškų. Tiesiog paspauskite ant žemėlapio tose vietose, per kurias maršrutas turi eiti. Atsiras mėlyni žymekliai.<br/>
-                    3. **Apskaičiuokite maršrutą:** Paspauskite mygtuką "Apskaičiuoti maršrutą".<br/>
+                    3. **Apskaičiuokite maršrutą:** Paspauskite mygtuką "Apskaičiuoti maršrutą". Tai sujungs ankstesnę stotelę su Jūsų naujai pažymėta vieta.<br/>
                     4. **Pasirinkite variantą:** Jei sistema ras kelis kelio variantus, jie bus atvaizduoti pilka spalva. Paspauskite ant norimos linijos, kad ją pasirinktumėte (ji nusidažys mėlynai).
                   </p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
@@ -894,7 +901,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                           onMapClick={handleMapClick}
                           onRouteSelect={handleRouteSelection}
                           existingStops={timetableStops || []}
-                          lastStopPosition={lastStopCoords}
+                          lastStopPosition={lastStop ? lastStop.coords as LatLngTuple : null}
                           alternativeRoutes={alternativeRoutes}
                           selectedRouteGeometry={selectedRouteGeometry}
                           manualRoutePoints={manualRoutePoints}
@@ -912,7 +919,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                 {isPendingTimetable && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Pridėti stotelę ir laikus
+                Pridėti stotelę
               </Button>
             </form>
           </Form>
