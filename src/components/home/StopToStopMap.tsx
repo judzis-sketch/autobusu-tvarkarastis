@@ -11,16 +11,16 @@ delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
 });
 
 
 interface StopToStopMapProps {
-  currentStop: TimetableEntry; // The "from" stop, which contains the geometry
-  nextStop: TimetableEntry;    // The "to" stop
+  previousStop: TimetableEntry; // The "from" stop
+  currentStop: TimetableEntry;    // The "to" stop, which contains the geometry
 }
 
-export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapProps) {
+export default function StopToStopMap({ previousStop, currentStop }: StopToStopMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.Layer[]>([]);
@@ -43,15 +43,15 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   // Update markers, polyline and bounds when stops change
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !currentStop || !nextStop || !currentStop.coords || !nextStop.coords) return;
+    if (!map || !currentStop || !previousStop || !currentStop.coords || !previousStop.coords) return;
 
     layersRef.current.forEach((layer) => layer.remove());
     layersRef.current = [];
     
     setIsLoading(true);
 
+    const previousCoords = previousStop.coords as LatLngTuple;
     const currentCoords = currentStop.coords as LatLngTuple;
-    const nextCoords = nextStop.coords as LatLngTuple;
     
     const redIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
@@ -62,17 +62,17 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
         shadowSize: [41, 41]
     });
 
+    const previousMarker = L.marker(previousCoords, { icon: redIcon }).addTo(map);
+    previousMarker.bindPopup(`<b>Išvykimas: ${previousStop.stop}</b><br/>Laikai: ${previousStop.times.join(', ')}`).openPopup();
+    layersRef.current.push(previousMarker);
+
     const currentMarker = L.marker(currentCoords, { icon: redIcon }).addTo(map);
-    currentMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.times.join(', ')}`).openPopup();
+    currentMarker.bindPopup(`<b>Atvykimas: ${currentStop.stop}</b><br/>Laikai: ${currentStop.times.join(', ')}`);
     layersRef.current.push(currentMarker);
-
-    const nextMarker = L.marker(nextCoords, { icon: redIcon }).addTo(map);
-    nextMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${nextStop.times.join(', ')}`);
-    layersRef.current.push(nextMarker);
     
-    let bounds = L.latLngBounds([currentCoords, nextCoords]);
+    let bounds = L.latLngBounds([previousCoords, currentCoords]);
 
-    // The route geometry FROM the current stop TO the next stop is stored on the CURRENT stop object.
+    // The route geometry FROM the previous stop TO the current stop is stored on the CURRENT stop object.
     if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
       const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
       const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
@@ -88,7 +88,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
 
     setIsLoading(false);
 
-  }, [currentStop, nextStop]);
+  }, [currentStop, previousStop]);
 
   return (
     <div className="relative h-full w-full">
