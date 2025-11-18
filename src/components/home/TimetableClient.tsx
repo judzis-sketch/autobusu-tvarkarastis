@@ -237,20 +237,20 @@ export default function TimetableClient() {
 
   const handleStopClick = (clickedStop: TimetableEntry) => {
     if (!timetable) return;
-
+  
     const currentIndex = timetable.findIndex(s => s.id === clickedStop.id);
     const isLastStop = currentIndex === timetable.length - 1;
-
-    // A stop is clickable if it's not the last one.
-    if (isLastStop) {
+  
+    // A stop is clickable if it's not the last one and has geometry.
+    if (isLastStop || !clickedStop.routeGeometry) {
       return;
     }
-
+  
     const currentStop = timetable[currentIndex];
     const nextStop = timetable[currentIndex + 1];
-
+  
     // We must have geometry on the current stop to show the path to the next one.
-    if (currentStop.coords && nextStop.coords && currentStop.routeGeometry) {
+    if (currentStop.coords && nextStop && nextStop.coords) {
       setSelectedStopDetail({
         current: currentStop,
         next: nextStop,
@@ -259,6 +259,7 @@ export default function TimetableClient() {
       toast({
         title: "Trūksta duomenų",
         description: "Trūksta kelio geometrijos arba koordinačių duomenų, kad būtų galima atvaizduoti maršrutą.",
+        variant: 'destructive'
       });
     }
   };
@@ -398,7 +399,7 @@ export default function TimetableClient() {
                         <div className="space-y-4">
                           {filteredTimetable.map((s, i) => {
                              const isLastStop = i === filteredTimetable.length - 1;
-                             const canOpenMap = !isLastStop;
+                             const canOpenMap = !isLastStop && !!s.routeGeometry;
                              const distanceToNext = s.distanceToNext;
                              const travelTime = calculateTravelTime(distanceToNext);
                              
