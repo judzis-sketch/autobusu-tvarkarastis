@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, FormEvent } from 'react';
+import { useState, useMemo, FormEvent, useCallback } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '../ui/button';
@@ -249,7 +249,6 @@ export default function TimetableClient() {
     const currentStop = timetable[currentIndex];
     const nextStop = timetable[currentIndex + 1];
   
-    // We must have geometry on the current stop to show the path to the next one.
     if (currentStop.coords && nextStop && nextStop.coords) {
       setSelectedStopDetail({
         current: currentStop,
@@ -264,6 +263,41 @@ export default function TimetableClient() {
     }
   };
 
+  const navigateStop = useCallback((direction: 'next' | 'prev') => {
+    if (!selectedStopDetail || !timetable) return;
+  
+    const currentIndex = timetable.findIndex(s => s.id === selectedStopDetail.current.id);
+  
+    let newIndex;
+    if (direction === 'next') {
+      newIndex = currentIndex + 1;
+    } else {
+      newIndex = currentIndex - 1;
+    }
+  
+    // Check boundaries
+    if (newIndex < 0 || newIndex >= timetable.length - 1) {
+      return; // Can't go before the first or past the second to last stop
+    }
+  
+    const newCurrentStop = timetable[newIndex];
+    const newNextStop = timetable[newIndex + 1];
+  
+    // Ensure the new segment is valid before updating
+    if (newCurrentStop.routeGeometry && newCurrentStop.coords && newNextStop.coords) {
+      setSelectedStopDetail({
+        current: newCurrentStop,
+        next: newNextStop
+      });
+    } else {
+       toast({
+        title: "Navigacija negalima",
+        description: "Sekanti arba ankstesnė atkarpa neturi reikalingų maršruto duomenų.",
+        variant: "destructive"
+      })
+    }
+  }, [selectedStopDetail, timetable, toast]);
+
 
   const calculateTravelTime = (distanceInMeters?: number) => {
     if (distanceInMeters === undefined || distanceInMeters === null) return null;
@@ -274,6 +308,18 @@ export default function TimetableClient() {
     if (timeMinutes < 1) return "< 1 min.";
     return `~ ${timeMinutes} min.`;
   }
+
+  const isFirstStopInSheet = useMemo(() => {
+    if (!selectedStopDetail || !timetable) return false;
+    return timetable.findIndex(s => s.id === selectedStopDetail.current.id) === 0;
+  }, [selectedStopDetail, timetable]);
+
+  const isLastStopInSheet = useMemo(() => {
+      if (!selectedStopDetail || !timetable) return false;
+      // The "segment" is from current to next. The last valid segment starts at the second-to-last stop.
+      return timetable.findIndex(s => s.id === selectedStopDetail.current.id) >= timetable.length - 2;
+  }, [selectedStopDetail, timetable]);
+
 
   if (isLoadingRoutes) {
     return (
@@ -407,15 +453,15 @@ export default function TimetableClient() {
                               <div key={s.id || i} className="border-b pb-3 space-y-1">
                                  <Button 
                                   variant="link" 
-                                  className="font-medium flex items-center gap-2 p-0 h-auto text-foreground hover:no-underline"
+                                  className="font-medium text-base flex items-center gap-2 p-0 h-auto text-foreground hover:no-underline"
                                   onClick={() => handleStopClick(s)}
                                   disabled={!canOpenMap}
                                  >
                                   <MapPin className={`h-4 w-4 ${s.coords ? (canOpenMap ? 'text-primary' : 'text-accent') : 'text-muted-foreground'}`} />
                                   <span className={canOpenMap ? 'hover:underline' : 'cursor-default'}>{s.stop}</span>
                                 </Button>
-                                <div className="text-sm text-accent-foreground/80 flex items-center gap-2 ml-6">
-                                  <Clock className="h-3 w-3 text-muted-foreground" />
+                                <div className="text-base text-accent-foreground/80 flex items-center gap-2 ml-6">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
                                   <span>{(s.times || []).join(', ')}</span>
                                 </div>
                                 {!isLastStop && distanceToNext !== undefined && distanceToNext !== null && travelTime && (
@@ -456,27 +502,35 @@ export default function TimetableClient() {
       </div>
 
       <Sheet open={!!selectedStopDetail} onOpenChange={(isOpen) => !isOpen && setSelectedStopDetail(null)}>
-        <SheetContent side="bottom" className="h-[75vh]">
+        <SheetContent side="bottom" className="h-[85vh] flex flex-col">
           {selectedStopDetail && (
             <>
               <SheetHeader>
-                <SheetTitle className="text-center">Atstumas tarp stotelių</SheetTitle>
-                <SheetDescription className="text-center flex items-center justify-center gap-2">
-                   <span className="font-semibold">Išvykimas:</span>
-                   <span>{selectedStopDetail.current.stop}</span>
-                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                   <span className="font-semibold">Atvykimas:</span>
-                   <span>{selectedStopDetail.next.stop}</span>
-                </SheetDescription>
-                 <div className="text-center font-bold text-lg text-primary pt-2">
+                <SheetTitle className="text-center">Maršruto atkarpa</SheetTitle>
+                 <div className="text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+                   <span className="font-semibold">{selectedStopDetail.current.stop}</span>
+                   <ArrowRight className="h-4 w-4" />
+                   <span className="font-semibold">{selectedStopDetail.next.stop}</span>
+                 </div>
+                 <div className="text-center font-bold text-lg text-primary pt-1">
                     {calculateTravelTime(selectedStopDetail.current.distanceToNext)}
                  </div>
               </SheetHeader>
-              <div className="h-[calc(100%-120px)] mt-4 rounded-md overflow-hidden border">
+              <div className="flex-grow min-h-0 mt-2 rounded-md overflow-hidden border">
                 <StopToStopMap 
                     currentStop={selectedStopDetail.current}
                     nextStop={selectedStopDetail.next}
                 />
+              </div>
+              <div className="flex justify-center items-center gap-4 pt-4">
+                  <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInSheet}>
+                      <ChevronLeft className="h-4 w-4 mr-2" />
+                      Ankstesnė
+                  </Button>
+                  <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInSheet}>
+                      Kita
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
               </div>
             </>
           )}

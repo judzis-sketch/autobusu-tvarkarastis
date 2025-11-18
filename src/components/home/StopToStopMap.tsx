@@ -38,7 +38,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
     }
-  }, [currentStop.coords]);
+  }, []); // Run only once
 
   // Update markers, polyline and bounds when stops change
   useEffect(() => {
