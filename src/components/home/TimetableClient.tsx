@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '../ui/button';
@@ -271,7 +271,7 @@ export default function TimetableClient() {
   };
 
   const calculateTravelTime = (distanceInMeters?: number) => {
-    if (!distanceInMeters) return null;
+    if (distanceInMeters === undefined || distanceInMeters === null) return null;
     const averageSpeedKmh = 30;
     const distanceInKm = distanceInMeters / 1000;
     const timeHours = distanceInKm / averageSpeedKmh;
@@ -406,9 +406,10 @@ export default function TimetableClient() {
                              if (!timetable) return null;
                              const originalIndex = timetable.findIndex(ts => ts.id === s.id);
                              const canOpenMap = s.coords && originalIndex < timetable.length - 1 && timetable[originalIndex+1].coords;
+                             const travelTime = calculateTravelTime(s.distanceToNext);
                              
                              return (
-                              <div key={s.id || i} className="border-b pb-3">
+                              <div key={s.id || i} className="border-b pb-3 space-y-1">
                                  <Button 
                                   variant="link" 
                                   className="font-medium flex items-center gap-2 p-0 h-auto text-foreground hover:no-underline"
@@ -418,10 +419,19 @@ export default function TimetableClient() {
                                   <MapPin className={`h-4 w-4 ${s.coords ? (canOpenMap ? 'text-primary' : 'text-accent') : 'text-muted-foreground'}`} />
                                   <span className={canOpenMap ? 'hover:underline' : 'cursor-default'}>{s.stop}</span>
                                 </Button>
-                                <div className="text-sm text-accent-foreground/80 mt-1 flex items-center gap-2 ml-6">
+                                <div className="text-sm text-accent-foreground/80 flex items-center gap-2 ml-6">
                                   <Clock className="h-3 w-3 text-muted-foreground" />
-                                  {(s.times || []).join(', ')}
+                                  <span>{(s.times || []).join(', ')}</span>
                                 </div>
+                                {s.distanceToNext && travelTime && originalIndex < timetable.length - 1 && (
+                                   <div className="text-sm text-muted-foreground flex items-center gap-2 ml-6">
+                                     <RouteIcon className="h-3 w-3" />
+                                     <span>{(s.distanceToNext / 1000).toFixed(2)} km</span>
+                                     <span className="text-xs">({travelTime})</span>
+                                     <ArrowRight className="h-3 w-3" />
+                                     <span>{timetable[originalIndex + 1]?.stop}</span>
+                                   </div>
+                                )}
                               </div>
                              )
                           })}
