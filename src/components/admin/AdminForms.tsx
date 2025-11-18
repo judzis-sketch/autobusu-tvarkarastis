@@ -432,14 +432,20 @@ export default function AdminForms() {
     
     setIsDeleting(routeId);
     try {
+      // 1. Get all documents in the subcollection
       const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
+      
+      // 2. Create a batch to delete all subcollection documents
       const batch = writeBatch(firestore);
       timetableSnapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);
       });
+      
+      // 3. Commit the batch
       await batch.commit();
 
+      // 4. Delete the parent document
       const routeRef = doc(firestore, 'routes', routeId);
       await deleteDoc(routeRef);
 
@@ -684,7 +690,7 @@ export default function AdminForms() {
                                               Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
                                           </DialogDescription>
                                       </DialogHeader>
-                                      <div className="mt-4 flex justify-end gap-2">
+                                      <DialogFooter>
                                         <DialogClose asChild>
                                           <Button type="button" variant="outline">Atšaukti</Button>
                                         </DialogClose>
@@ -694,7 +700,7 @@ export default function AdminForms() {
                                               Ištrinti
                                           </Button>
                                         </DialogClose>
-                                      </div>
+                                      </DialogFooter>
                                     </DialogContent>
                                   </Dialog>
                               </div>
@@ -795,7 +801,7 @@ export default function AdminForms() {
                                                     Šis veiksmas visam laikui ištrins stotelę "{stop.stop}". Šio veiksmo negalima anuliuoti.
                                                 </DialogDescription>
                                             </DialogHeader>
-                                            <div className="mt-4 flex justify-end gap-2">
+                                            <DialogFooter>
                                                 <DialogClose asChild>
                                                     <Button type="button" variant="outline">Atšaukti</Button>
                                                 </DialogClose>
@@ -805,7 +811,7 @@ export default function AdminForms() {
                                                       Ištrinti
                                                   </Button>
                                                 </DialogClose>
-                                            </div>
+                                            </DialogFooter>
                                         </DialogContent>
                                       </Dialog>
                                   </div>
