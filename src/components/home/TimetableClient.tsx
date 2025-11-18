@@ -240,20 +240,20 @@ export default function TimetableClient() {
     if (!timetable) return;
 
     const currentIndex = timetable.findIndex(s => s.id === stop.id);
-    // Do not open the map for the last stop
     if (currentIndex === -1 || currentIndex >= timetable.length - 1) {
-      return;
+      return; // Cannot show map for the last stop
     }
 
+    const currentStop = timetable[currentIndex];
     const nextStop = timetable[currentIndex + 1];
-    
-    // The button to open map is only enabled if both stops have coordinates.
-    if (stop.coords && nextStop.coords) {
-       // We must pass the routeGeometry from the *current* stop, as it describes the path TO the next stop
-      setSelectedStopDetail({
-        current: stop, // Pass the original 'stop' object which contains its routeGeometry
-        next: nextStop
-      });
+
+    if (currentStop.coords && nextStop.coords) {
+        // The GEOMETRY and DISTANCE to the NEXT stop are stored on the CURRENT stop object.
+        // So, we pass the current stop object which contains the correct path data.
+        setSelectedStopDetail({
+            current: currentStop,
+            next: nextStop,
+        });
     } else {
        toast({
         title: "Trūksta duomenų",
@@ -261,7 +261,7 @@ export default function TimetableClient() {
         variant: "destructive"
       });
     }
-  };
+};
 
   const calculateTravelTime = (distanceInMeters?: number) => {
     if (distanceInMeters === undefined || distanceInMeters === null) return null;
@@ -398,8 +398,12 @@ export default function TimetableClient() {
                           {filteredTimetable.map((s, i) => {
                              if (!timetable) return null;
                              const originalIndex = timetable.findIndex(ts => ts.id === s.id);
-                             const canOpenMap = s.coords && originalIndex < timetable.length - 1 && timetable[originalIndex+1].coords;
-                             const travelTime = calculateTravelTime(s.distanceToNext);
+                             const nextStop = timetable[originalIndex + 1];
+                             const canOpenMap = s.coords && nextStop && nextStop.coords;
+                             
+                             // The distance and travel time to the NEXT stop are stored on the CURRENT stop object.
+                             const distanceToNext = s.distanceToNext;
+                             const travelTime = calculateTravelTime(distanceToNext);
                              
                              return (
                               <div key={s.id || i} className="border-b pb-3 space-y-1">
@@ -416,13 +420,13 @@ export default function TimetableClient() {
                                   <Clock className="h-3 w-3 text-muted-foreground" />
                                   <span>{(s.times || []).join(', ')}</span>
                                 </div>
-                                {s.distanceToNext !== undefined && s.distanceToNext !== null && travelTime && originalIndex < timetable.length - 1 && (
+                                {distanceToNext !== undefined && distanceToNext !== null && travelTime && nextStop && (
                                    <div className="text-sm text-muted-foreground flex items-center gap-2 ml-6">
                                      <RouteIcon className="h-3 w-3" />
-                                     <span>{(s.distanceToNext / 1000).toFixed(2)} km</span>
+                                     <span>{(distanceToNext / 1000).toFixed(2)} km</span>
                                      <span className="text-xs">({travelTime})</span>
                                      <ArrowRight className="h-3 w-3" />
-                                     <span>{timetable[originalIndex + 1]?.stop}</span>
+                                     <span>{nextStop.stop}</span>
                                    </div>
                                 )}
                               </div>
