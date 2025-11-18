@@ -13,30 +13,37 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+type AlternativeRoute = {
+  distance: number;
+  geometry: LatLngTuple[];
+  isFallback: boolean;
+};
+
 interface AdminMapProps {
   newStopCoords: LatLngTuple | null;
   onMapClick: (lat: number, lng: number) => void;
-  existingStops: TimetableEntry[]; // Changed from stopPositions to pass full stop data
+  onRouteSelect: (route: AlternativeRoute) => void;
+  existingStops: TimetableEntry[];
   lastStopPosition: LatLngTuple | null;
-  manualRoutePoints: LatLngTuple[];
-  calculatedRoute: { distance: number; geometry: LatLngTuple[] } | null;
+  alternativeRoutes: AlternativeRoute[];
+  selectedRouteGeometry: LatLngTuple[];
 }
 
 export default function AdminMap({
     newStopCoords,
     onMapClick,
+    onRouteSelect,
     existingStops,
     lastStopPosition,
-    manualRoutePoints,
-    calculatedRoute,
+    alternativeRoutes,
+    selectedRouteGeometry
 }: AdminMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const newStopMarkerRef = useRef<L.Marker | null>(null);
   const lastStopMarkerRef = useRef<L.Marker | null>(null);
   const existingStopMarkersRef = useRef<L.Marker[]>([]);
-  const manualPointMarkersRef = useRef<L.Marker[]>([]);
-  const routePolylineRef = useRef<L.Polyline | null>(null);
+  const routePolylinesRef = useRef<L.Polyline[]>([]);
   const existingRoutePolylinesRef = useRef<L.Polyline[]>([]);
 
   const redIcon = useMemo(() => new L.Icon({
@@ -56,15 +63,6 @@ export default function AdminMap({
       popupAnchor: [1, -34],
       shadowSize: [41, 41]
   }), []);
-
-  const blueIcon = useMemo(() => new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-  }), []);
   
   const orangeIcon = useMemo(() => new L.Icon({
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
@@ -75,8 +73,6 @@ export default function AdminMap({
       shadowSize: [41, 41]
   }), []);
 
-
-  const defaultIcon = useMemo(() => new L.Icon.Default(), []);
 
   // Initialize map
   useEffect(() => {
@@ -142,7 +138,7 @@ export default function AdminMap({
 
   }, [existingStops, greyIcon]);
 
-  // Update last stop marker (default/black)
+  // Update last stop marker (orange)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -158,39 +154,42 @@ export default function AdminMap({
     }
   }, [lastStopPosition, orangeIcon]);
 
-  // Update manual waypoint markers (blue)
+
+  // Draw alternative and selected routes
   useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
+      const map = mapInstanceRef.current;
+      if (!map) return;
 
-    manualPointMarkersRef.current.forEach(marker => marker.remove());
-    manualPointMarkersRef.current = [];
+      // Clear previous route polylines
+      routePolylinesRef.current.forEach(p => p.remove());
+      routePolylinesRef.current = [];
+      
+      if (alternativeRoutes.length > 0) {
+          const bounds = L.latLngBounds([]);
 
-    manualRoutePoints.forEach(pos => {
-      const manualMarker = L.marker(pos, { icon: blueIcon }).addTo(map);
-      manualPointMarkersRef.current.push(manualMarker);
-    });
-  }, [manualRoutePoints, blueIcon]);
+          alternativeRoutes.forEach(route => {
+              const isSelected = selectedRouteGeometry === route.geometry;
+              const polyline = L.polyline(route.geometry, {
+                  color: isSelected ? 'blue' : 'grey',
+                  weight: isSelected ? 6 : 5,
+                  opacity: isSelected ? 0.9 : 0.6,
+              }).addTo(map);
+              
+              polyline.on('click', () => {
+                  onRouteSelect(route);
+              });
+              
+              routePolylinesRef.current.push(polyline);
+              bounds.extend(polyline.getBounds());
+          });
 
-  // Draw calculated route for the new segment (blue)
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
+          if(bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+          }
+      }
+      
+  }, [alternativeRoutes, selectedRouteGeometry, onRouteSelect]);
 
-    if (routePolylineRef.current) {
-      routePolylineRef.current.remove();
-      routePolylineRef.current = null;
-    }
-
-    if (calculatedRoute) {
-      routePolylineRef.current = L.polyline(calculatedRoute.geometry, {
-        color: 'blue',
-        weight: 5,
-        opacity: 0.8,
-      }).addTo(map);
-      map.fitBounds(routePolylineRef.current.getBounds(), { padding: [50, 50] });
-    }
-  }, [calculatedRoute]);
 
   return <div ref={mapRef} style={{ height: '100%', width: '100%' }} />;
 }
