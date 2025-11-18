@@ -518,7 +518,7 @@ export default function TimetableClient() {
           {selectedStopDetail && (
             <>
               <DialogHeader>
-                 <DialogTitle className="sr-only">Maršruto atkarpa</DialogTitle>
+                 <DialogTitle className="sr-only">Maršruto atkarpa nuo {selectedStopDetail.current.stop} iki {selectedStopDetail.next.stop}</DialogTitle>
                  <DialogDescription className="sr-only">
                     Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {selectedStopDetail.next.stop}.
                  </DialogDescription>
@@ -530,7 +530,7 @@ export default function TimetableClient() {
                  <div className="grid grid-cols-3 items-center text-center py-2">
                     <div className="text-left">
                        <p className="text-xs text-muted-foreground">Išvyksta</p>
-                       <p className="font-bold text-lg">{(selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes || []).join(', ')}</p>
+                       <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || []).join(', ')}</p>
                     </div>
                     <div className="flex flex-col items-center justify-center border-x">
                         <Watch className="h-5 w-5 text-primary" />
