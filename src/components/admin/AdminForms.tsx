@@ -273,16 +273,16 @@ export default function AdminForms() {
       setAlternativeRoutes([]);
       try {
           const allPoints: LatLngTuple[] = [lastStopCoords, ...waypoints, [coordsToUse.lat, coordsToUse.lng]];
-          const routes = await getRoute(allPoints, true);
-          if (routes && routes.length > 0) {
-              setAlternativeRoutes(routes);
-              const firstRoute = routes[0];
+          const routesData = await getRoute(allPoints, true);
+          if (routesData && routesData.length > 0) {
+              setAlternativeRoutes(routesData);
+              const firstRoute = routesData[0];
               setSelectedRouteGeometry(firstRoute.geometry);
               const distanceInKm = firstRoute.distance / 1000;
               setValue('distanceToNext', String(distanceInKm.toFixed(3)));
               toast({
                   title: 'Maršrutai rasti',
-                  description: `Pasirinkite vieną iš ${routes.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
+                  description: `Pasirinkite vieną iš ${routesData.length} maršruto variantų paspausdami ant jo žemėlapyje.`,
               });
           } else {
               toast({
@@ -432,20 +432,20 @@ export default function AdminForms() {
     
     setIsDeleting(routeId);
     try {
-      // 1. Get all documents in the subcollection
+      // Get all documents in the subcollection
       const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
       
-      // 2. Create a batch to delete all subcollection documents
+      // Create a batch to delete all subcollection documents
       const batch = writeBatch(firestore);
       timetableSnapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);
       });
       
-      // 3. Commit the batch
+      // Commit the batch
       await batch.commit();
 
-      // 4. Delete the parent document
+      // Delete the parent document
       const routeRef = doc(firestore, 'routes', routeId);
       await deleteDoc(routeRef);
 
@@ -694,12 +694,15 @@ export default function AdminForms() {
                                         <DialogClose asChild>
                                           <Button type="button" variant="outline">Atšaukti</Button>
                                         </DialogClose>
-                                        <DialogClose asChild>
-                                          <Button type="button" onClick={() => handleDeleteRoute(route.id!)} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
-                                              {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                              Ištrinti
-                                          </Button>
-                                        </DialogClose>
+                                        <Button 
+                                          type="button" 
+                                          onClick={() => handleDeleteRoute(route.id!)} 
+                                          disabled={isDeleting === route.id} 
+                                          className="bg-destructive hover:bg-destructive/90"
+                                        >
+                                          {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                          Ištrinti
+                                        </Button>
                                       </DialogFooter>
                                     </DialogContent>
                                   </Dialog>
@@ -805,12 +808,15 @@ export default function AdminForms() {
                                                 <DialogClose asChild>
                                                     <Button type="button" variant="outline">Atšaukti</Button>
                                                 </DialogClose>
-                                                <DialogClose asChild>
-                                                  <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
-                                                      {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                      Ištrinti
-                                                  </Button>
-                                                </DialogClose>
+                                                <Button 
+                                                  type="button" 
+                                                  onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} 
+                                                  disabled={isDeleting === stop.id} 
+                                                  className="bg-destructive hover:bg-destructive/90"
+                                                >
+                                                  {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                  Ištrinti
+                                                </Button>
                                             </DialogFooter>
                                         </DialogContent>
                                       </Dialog>
