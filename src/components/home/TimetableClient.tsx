@@ -44,8 +44,8 @@ const StopToStopMap = dynamic(() => import('./StopToStopMap'), {
 });
 
 interface StopDetail {
-  previous: TimetableEntry;
   current: TimetableEntry;
+  next: TimetableEntry;
 }
 
 export default function TimetableClient() {
@@ -239,14 +239,18 @@ export default function TimetableClient() {
     if (!timetable) return;
 
     const currentIndex = timetable.findIndex(s => s.id === clickedStop.id);
-    if (currentIndex <= 0) return; // Cannot show route to the first stop
+    if (currentIndex === -1 || currentIndex === timetable.length - 1) {
+      // Cannot show route from the last stop
+      return;
+    } 
 
-    const previousStop = timetable[currentIndex - 1];
+    const currentStop = timetable[currentIndex];
+    const nextStop = timetable[currentIndex + 1];
 
-    if (previousStop && previousStop.coords && clickedStop.coords && clickedStop.routeGeometry) {
+    if (currentStop.coords && nextStop.coords && currentStop.routeGeometry) {
       setSelectedStopDetail({
-        previous: previousStop,
-        current: clickedStop,
+        current: currentStop,
+        next: nextStop,
       });
     } else {
       toast({
@@ -390,10 +394,10 @@ export default function TimetableClient() {
                       ) : filteredTimetable.length > 0 ? (
                         <div className="space-y-4">
                           {filteredTimetable.map((s, i) => {
-                             const isFirstStop = i === 0;
-                             const canOpenMap = !isFirstStop && !!s.routeGeometry;
-                             const distanceToCurrent = s.distanceToNext;
-                             const travelTime = calculateTravelTime(distanceToCurrent);
+                             const isLastStop = i === filteredTimetable.length - 1;
+                             const canOpenMap = !isLastStop && !!s.routeGeometry;
+                             const distanceToNext = s.distanceToNext;
+                             const travelTime = calculateTravelTime(distanceToNext);
                              
                              return (
                               <div key={s.id || i} className="border-b pb-3 space-y-1">
@@ -410,12 +414,12 @@ export default function TimetableClient() {
                                   <Clock className="h-3 w-3 text-muted-foreground" />
                                   <span>{(s.times || []).join(', ')}</span>
                                 </div>
-                                {!isFirstStop && distanceToCurrent !== undefined && distanceToCurrent !== null && travelTime && (
+                                {!isLastStop && distanceToNext !== undefined && distanceToNext !== null && travelTime && (
                                    <div className="text-sm text-muted-foreground flex items-center gap-2 ml-6">
                                      <RouteIcon className="h-3 w-3" />
-                                     <span>Nuo {filteredTimetable[i - 1]?.stop}</span>
+                                     <span>Iki {filteredTimetable[i + 1]?.stop}</span>
                                      <ArrowRight className="h-3 w-3" />
-                                     <span>{(distanceToCurrent / 1000).toFixed(2)} km</span>
+                                     <span>{(distanceToNext / 1000).toFixed(2)} km</span>
                                      <span className="text-xs">({travelTime})</span>
                                    </div>
                                 )}
@@ -455,10 +459,10 @@ export default function TimetableClient() {
                 <SheetTitle className="text-center">Atstumas tarp stotelių</SheetTitle>
                 <SheetDescription className="text-center flex items-center justify-center gap-2">
                    <span className="font-semibold">Išvykimas:</span>
-                   <span>{selectedStopDetail.previous.stop}</span>
+                   <span>{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
                    <span className="font-semibold">Atvykimas:</span>
-                   <span>{selectedStopDetail.current.stop}</span>
+                   <span>{selectedStopDetail.next.stop}</span>
                 </SheetDescription>
                  <div className="text-center font-bold text-lg text-primary pt-2">
                     {calculateTravelTime(selectedStopDetail.current.distanceToNext)}
@@ -466,8 +470,8 @@ export default function TimetableClient() {
               </SheetHeader>
               <div className="h-[calc(100%-120px)] mt-4 rounded-md overflow-hidden border">
                 <StopToStopMap 
-                    previousStop={selectedStopDetail.previous}
                     currentStop={selectedStopDetail.current}
+                    nextStop={selectedStopDetail.next}
                 />
               </div>
             </>
