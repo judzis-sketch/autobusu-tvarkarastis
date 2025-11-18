@@ -124,8 +124,6 @@ export default function AdminForms() {
 
   const firestore = useFirestore();
 
-  const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
-  
   const routesCollapsibleRef = useRef<HTMLDivElement>(null);
   const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
 
@@ -710,7 +708,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               onSubmit={timetableForm.handleSubmit(handleAddTimetable)}
               className="space-y-6"
             >
-             <Collapsible open={isRoutesListOpen} onOpenChange={setIsRoutesListOpen} ref={routesCollapsibleRef} className="space-y-2">
+             <Collapsible ref={routesCollapsibleRef} className="space-y-2">
                 <CollapsibleTrigger asChild>
                     <Button type="button" variant="outline" className="w-full justify-between">
                         <div className="flex items-center gap-2">
@@ -852,28 +850,27 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                     <FormItem>
                       <FormLabel>Naujos stotelės pavadinimas</FormLabel>
                       <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
-                          <FormControl>
-                            <Input
-                              placeholder="Vinco Kudirkos aikštė"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                setAddressQuery(e.target.value);
-                                if (!isAddressPopoverOpen) {
-                                  setIsAddressPopoverOpen(true);
-                                }
-                              }}
-                              onFocus={() => {
-                                if (addressQuery.length > 2 && addressResults.length > 0) {
-                                  setIsAddressPopoverOpen(true)
-                                }
-                              }}
-                              autoComplete="off"
-                            />
-                          </FormControl>
-                        <PopoverTrigger asChild>
-                           <div className='hidden'></div>
-                        </PopoverTrigger>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Input
+                                placeholder="Vinco Kudirkos aikštė"
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  setAddressQuery(e.target.value);
+                                  if (!isAddressPopoverOpen) {
+                                    setIsAddressPopoverOpen(true);
+                                  }
+                                }}
+                                onFocus={() => {
+                                  if (addressQuery.length > 2 && addressResults.length > 0) {
+                                    setIsAddressPopoverOpen(true)
+                                  }
+                                }}
+                                autoComplete="off"
+                              />
+                            </FormControl>
+                          </PopoverTrigger>
                         <PopoverContent
                           className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
                           align="start"
