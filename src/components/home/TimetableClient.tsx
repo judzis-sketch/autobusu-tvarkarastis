@@ -390,7 +390,7 @@ export default function TimetableClient() {
                 </CardHeader>
                 <CardContent>
                   <TabsContent value="list">
-                    <ScrollArea className="h-[400px] pr-4 mt-4">
+                    <ScrollArea className="h-[600px] pr-4 mt-4">
                       {isLoadingTimetable ? (
                         <div className="space-y-4">
                           {[...Array(5)].map((_, i) => (
@@ -434,7 +434,7 @@ export default function TimetableClient() {
                     </ScrollArea>
                   </TabsContent>
                   <TabsContent value="map">
-                    <div className="h-[400px] mt-4 rounded-md overflow-hidden border">
+                    <div className="h-[600px] mt-4 rounded-md overflow-hidden border">
                       {timetableWithCoords.length > 0 ? (
                         <Map stops={timetableWithCoords} />
                       ) : (
