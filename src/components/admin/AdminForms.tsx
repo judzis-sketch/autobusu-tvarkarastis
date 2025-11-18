@@ -124,9 +124,6 @@ export default function AdminForms() {
 
   const firestore = useFirestore();
 
-  const routesCollapsibleRef = useRef<HTMLDivElement>(null);
-  const stopsCollapsibleRef = useRef<HTMLDivElement>(null);
-
   // --- START: Rewritten state for map logic ---
   const [newStopCoords, setNewStopCoords] = useState<LatLngTuple | null>(null);
   const [manualRoutePoints, setManualRoutePoints] = useState<LatLngTuple[]>([]);
@@ -708,7 +705,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               onSubmit={timetableForm.handleSubmit(handleAddTimetable)}
               className="space-y-6"
             >
-             <Collapsible ref={routesCollapsibleRef} className="space-y-2">
+             <Collapsible className="space-y-2">
                 <CollapsibleTrigger asChild>
                     <Button type="button" variant="outline" className="w-full justify-between">
                         <div className="flex items-center gap-2">
@@ -798,7 +795,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               />
 
               {watchedRouteId && (
-                 <Collapsible ref={stopsCollapsibleRef}>
+                 <Collapsible>
                     <CollapsibleTrigger asChild>
                         <Button type="button" variant="outline" className="w-full justify-between">
                             <div className="flex items-center gap-2">
