@@ -174,18 +174,23 @@ export default function AdminForms() {
 
   // Handle address search
   useEffect(() => {
-    if (debouncedAddressQuery.length > 2) {
-      setIsAddressSearching(true);
-      searchAddresses(debouncedAddressQuery).then(results => {
-        setAddressResults(results);
-        setIsAddressSearching(false);
-        setIsAddressPopoverOpen(true);
-      });
-    } else {
-      setAddressResults([]);
-      setIsAddressPopoverOpen(false);
-    }
+    const performSearch = async () => {
+        if (debouncedAddressQuery.length > 2) {
+            setIsAddressSearching(true);
+            const results = await searchAddresses(debouncedAddressQuery);
+            setAddressResults(results);
+            setIsAddressSearching(false);
+            if (results.length > 0) {
+              setIsAddressPopoverOpen(true);
+            }
+        } else {
+            setAddressResults([]);
+            setIsAddressPopoverOpen(false);
+        }
+    };
+    performSearch();
   }, [debouncedAddressQuery]);
+
 
   const handleAddressSelect = (address: AddressResult) => {
     setValue('stop', address.display_name, { shouldValidate: true });
@@ -858,59 +863,59 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
 
               <div className="space-y-4 pt-4 border-t">
-                 <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
-                  <div className="space-y-2">
-                    <FormField
-                      control={timetableForm.control}
-                      name="stop"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Naujos stotelės pavadinimas</FormLabel>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                                <Input 
-                                  placeholder="Vinco Kudirkos aikštė" 
-                                  {...field} 
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    setAddressQuery(e.target.value);
-                                  }}
-                                  autoComplete="off"
-                                />
-                            </FormControl>
-                          </PopoverTrigger>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1">
-                    {isAddressSearching ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                            <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                            Ieškoma...
-                        </div>
-                    ) : addressResults.length > 0 ? (
-                      <div className="space-y-1">
-                        {addressResults.map((address) => (
-                          <Button
-                            key={address.place_id}
-                            type="button"
-                            variant="ghost"
-                            className="w-full h-auto text-left justify-start p-2"
-                            onClick={() => handleAddressSelect(address)}
-                          >
-                            <div className="flex flex-col">
-                                <span className="text-sm">{address.display_name}</span>
-                            </div>
-                          </Button>
-                        ))}
-                      </div>
-                    ) : debouncedAddressQuery.length > 2 ? (
-                      <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
-                    ) : null}
-                  </PopoverContent>
-                </Popover>
+                  <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
+                      <PopoverTrigger asChild>
+                          <div className="space-y-2">
+                              <FormField
+                                  control={timetableForm.control}
+                                  name="stop"
+                                  render={({ field }) => (
+                                      <FormItem>
+                                          <FormLabel>Naujos stotelės pavadinimas</FormLabel>
+                                          <FormControl>
+                                              <Input
+                                                  placeholder="Vinco Kudirkos aikštė"
+                                                  {...field}
+                                                  onChange={(e) => {
+                                                      field.onChange(e);
+                                                      setAddressQuery(e.target.value);
+                                                  }}
+                                                  autoComplete="off"
+                                              />
+                                          </FormControl>
+                                          <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                          </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1" align="start">
+                          {isAddressSearching ? (
+                              <div className="p-4 text-center text-sm text-muted-foreground">
+                                  <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                                  Ieškoma...
+                              </div>
+                          ) : addressResults.length > 0 ? (
+                              <div className="space-y-1">
+                                  {addressResults.map((address) => (
+                                      <Button
+                                          key={address.place_id}
+                                          type="button"
+                                          variant="ghost"
+                                          className="w-full h-auto text-left justify-start p-2"
+                                          onClick={() => handleAddressSelect(address)}
+                                      >
+                                          <div className="flex flex-col">
+                                              <span className="text-sm">{address.display_name}</span>
+                                          </div>
+                                      </Button>
+                                  ))}
+                              </div>
+                          ) : debouncedAddressQuery.length > 2 ? (
+                              <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
+                          ) : null}
+                      </PopoverContent>
+                  </Popover>
 
                 <FormField
                   control={timetableForm.control}
@@ -1221,3 +1226,5 @@ const handleRouteSelection = (route: AlternativeRoute) => {
     </div>
   );
 }
+
+    
