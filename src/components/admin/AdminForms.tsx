@@ -414,8 +414,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
       }
       
       const hasPreviousStops = !!lastStopCoords;
-
-      if (hasPreviousStops && selectedRouteGeometry.length === 0) {
+      if (hasPreviousStops && selectedRouteGeometry.length === 0 && manualRoutePoints.length === 0) {
         toast({
           title: 'Klaida!',
           description: 'Prašome apskaičiuoti ir pasirinkti maršrutą prieš išsaugant.',
