@@ -16,8 +16,8 @@ L.Icon.Default.mergeOptions({
 
 
 interface StopToStopMapProps {
-  currentStop: TimetableEntry;
-  nextStop: TimetableEntry;
+  currentStop: TimetableEntry; // The "from" stop
+  nextStop: TimetableEntry;    // The "to" stop (this one contains the geometry)
 }
 
 export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapProps) {
@@ -29,7 +29,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   // Initialize map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
-      const defaultCenter: [number, number] = (currentStop.coords as LatLngTuple) || [55.7333, 26.2500];
+      const defaultCenter: LatLngTuple = (currentStop.coords as LatLngTuple) || [55.7333, 26.2500];
       const map = L.map(mapRef.current).setView(defaultCenter, 14);
       mapInstanceRef.current = map;
 
@@ -77,10 +77,9 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
     // Create bounds that will contain both markers.
     let bounds = L.latLngBounds([currentCoords, nextCoords]);
 
-    // The route geometry FROM the current stop TO the next stop is stored on the currentStop object.
-    // Check if it exists and draw it.
-    if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
-      const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
+    // The route geometry FROM the current stop TO the next stop is stored on the NEXT stop object.
+    if (nextStop.routeGeometry && nextStop.routeGeometry.length > 0) {
+      const leafletPath = nextStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
       const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
       layersRef.current.push(routePolyline);
       // Extend the bounds to include the entire polyline.
@@ -96,7 +95,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
 
     setIsLoading(false);
 
-  }, [currentStop, nextStop]); // This effect MUST re-run when currentStop or nextStop changes.
+  }, [currentStop, nextStop]);
 
   return (
     <div className="relative h-full w-full">
