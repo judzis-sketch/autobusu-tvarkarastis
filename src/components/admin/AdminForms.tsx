@@ -110,7 +110,6 @@ export default function AdminForms() {
 
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
-  const [routeToDelete, setRouteToDelete] = useState<Route | null>(null);
 
   const firestore = useFirestore();
   const [alternativeRoutes, setAlternativeRoutes] = useState<{ distance: number; geometry: LatLngTuple[] }[]>([]);
@@ -433,6 +432,7 @@ export default function AdminForms() {
     
     setIsDeleting(routeId);
     try {
+      // Delete subcollection
       const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
       const batch = writeBatch(firestore);
@@ -441,6 +441,7 @@ export default function AdminForms() {
       });
       await batch.commit();
 
+      // Delete the route document itself
       const routeRef = doc(firestore, 'routes', routeId);
       await deleteDoc(routeRef);
 
@@ -450,7 +451,6 @@ export default function AdminForms() {
       toast({ title: 'Klaida!', description: 'Nepavyko ištrinti maršruto.', variant: 'destructive' });
     } finally {
       setIsDeleting(null);
-      setRouteToDelete(null);
     }
   };
 
@@ -687,13 +687,15 @@ export default function AdminForms() {
                                           </DialogDescription>
                                       </DialogHeader>
                                       <DialogFooter>
-                                          <DialogClose asChild>
-                                              <Button type="button" variant="outline">Atšaukti</Button>
-                                          </DialogClose>
+                                        <DialogClose asChild>
+                                          <Button type="button" variant="outline">Atšaukti</Button>
+                                        </DialogClose>
+                                        <DialogClose asChild>
                                           <Button type="button" onClick={() => handleDeleteRoute(route.id!)} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
                                               {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                               Ištrinti
                                           </Button>
+                                        </DialogClose>
                                       </DialogFooter>
                                     </DialogContent>
                                   </Dialog>
@@ -799,10 +801,12 @@ export default function AdminForms() {
                                                 <DialogClose asChild>
                                                     <Button type="button" variant="outline">Atšaukti</Button>
                                                 </DialogClose>
-                                                 <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
-                                                    {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                    Ištrinti
-                                                </Button>
+                                                <DialogClose asChild>
+                                                  <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
+                                                      {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                      Ištrinti
+                                                  </Button>
+                                                </DialogClose>
                                             </DialogFooter>
                                         </DialogContent>
                                       </Dialog>
@@ -1087,5 +1091,3 @@ export default function AdminForms() {
     </div>
   );
 }
-
-    
