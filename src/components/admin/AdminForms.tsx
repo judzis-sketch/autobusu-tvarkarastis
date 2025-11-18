@@ -432,7 +432,6 @@ export default function AdminForms() {
     
     setIsDeleting(routeId);
     try {
-      // Delete subcollection
       const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
       const batch = writeBatch(firestore);
@@ -441,7 +440,6 @@ export default function AdminForms() {
       });
       await batch.commit();
 
-      // Delete the route document itself
       const routeRef = doc(firestore, 'routes', routeId);
       await deleteDoc(routeRef);
 
@@ -686,15 +684,17 @@ export default function AdminForms() {
                                               Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
                                           </DialogDescription>
                                       </DialogHeader>
-                                      <DialogFooter>
+                                      <div className="mt-4 flex justify-end gap-2">
                                         <DialogClose asChild>
                                           <Button type="button" variant="outline">Atšaukti</Button>
                                         </DialogClose>
-                                        <Button type="button" onClick={() => handleDeleteRoute(route.id!)} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
-                                            {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                            Ištrinti
-                                        </Button>
-                                      </DialogFooter>
+                                        <DialogClose asChild>
+                                          <Button type="button" onClick={() => handleDeleteRoute(route.id!)} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
+                                              {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                              Ištrinti
+                                          </Button>
+                                        </DialogClose>
+                                      </div>
                                     </DialogContent>
                                   </Dialog>
                               </div>
@@ -795,15 +795,17 @@ export default function AdminForms() {
                                                     Šis veiksmas visam laikui ištrins stotelę "{stop.stop}". Šio veiksmo negalima anuliuoti.
                                                 </DialogDescription>
                                             </DialogHeader>
-                                            <DialogFooter>
+                                            <div className="mt-4 flex justify-end gap-2">
                                                 <DialogClose asChild>
                                                     <Button type="button" variant="outline">Atšaukti</Button>
                                                 </DialogClose>
-                                                <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
-                                                    {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                    Ištrinti
-                                                </Button>
-                                            </DialogFooter>
+                                                <DialogClose asChild>
+                                                  <Button type="button" onClick={() => handleDeleteStop(watchedRouteId, stop.id!)} disabled={isDeleting === stop.id} className="bg-destructive hover:bg-destructive/90">
+                                                      {isDeleting === stop.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                      Ištrinti
+                                                  </Button>
+                                                </DialogClose>
+                                            </div>
                                         </DialogContent>
                                       </Dialog>
                                   </div>
@@ -1087,5 +1089,3 @@ export default function AdminForms() {
     </div>
   );
 }
-
-    
