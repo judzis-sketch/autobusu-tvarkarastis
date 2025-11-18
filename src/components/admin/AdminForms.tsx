@@ -109,7 +109,6 @@ export default function AdminForms() {
   const [routeToDelete, setRouteToDelete] = useState<Route | null>(null);
   const [stopToDelete, setStopToDelete] = useState<(TimetableEntry & { routeId: string }) | null>(null);
 
-
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
 
@@ -139,7 +138,6 @@ export default function AdminForms() {
   const watchedRouteId = watch('routeId');
 
   const selectedRouteForDisplay = useMemo(() => routes?.find(r => r.id === watchedRouteId), [routes, watchedRouteId]);
-
 
   const timetableQuery = useMemoFirebase(() => {
     if (!firestore || !watchedRouteId) return null;
@@ -250,7 +248,7 @@ export default function AdminForms() {
     },
   });
   
-  const handleCalculateDistance = useCallback(async () => {
+ const handleCalculateDistance = useCallback(async () => {
       const coordsToUse = getValues('coords');
 
       if (!lastStopCoords) {
@@ -273,8 +271,9 @@ export default function AdminForms() {
       setIsCalculatingDistance(true);
       setAlternativeRoutes([]);
       try {
-          const allPoints: LatLngTuple[] = [lastStopCoords, ...waypoints, [coordsToUse.lat, coordsToUse.lng]];
-          const routesData = await getRoute(allPoints, true); // <--- THIS IS THE CRITICAL FIX
+          // OSRM provides alternatives only for 2 points.
+          const pointsForApi: LatLngTuple[] = [lastStopCoords, [coordsToUse.lat, coordsToUse.lng]];
+          const routesData = await getRoute(pointsForApi, true); 
           
           if (routesData && routesData.length > 0) {
               setAlternativeRoutes(routesData);
@@ -289,7 +288,7 @@ export default function AdminForms() {
           } else {
               toast({
                   title: 'Maršrutų apskaičiavimo klaida',
-                  description: 'Nepavyko gauti maršruto iš OSRM tarnybos.',
+                  description: 'Nepavyko gauti maršruto iš OSRM tarnybos. Gavo 0 maršrutų.',
                   variant: 'destructive',
               });
           }
@@ -303,19 +302,12 @@ export default function AdminForms() {
       } finally {
           setIsCalculatingDistance(false);
       }
-  }, [getValues, lastStopCoords, setValue, toast, waypoints]);
+  }, [getValues, lastStopCoords, setValue, toast]);
 
   const handleCoordsChange = useCallback((lat: number, lng: number) => {
-      const currentCoords = getValues('coords');
-      // Set new stop coordinates only if they are not set yet
-      if (!currentCoords.lat && !currentCoords.lng) {
-        setValue('coords.lat', lat, { shouldValidate: true });
-        setValue('coords.lng', lng, { shouldValidate: true });
-      } else {
-        // Otherwise, add as a waypoint
-        setWaypoints(prev => [...prev, [lat, lng]]);
-      }
-  }, [setValue, getValues]);
+      setValue('coords.lat', lat, { shouldValidate: true });
+      setValue('coords.lng', lng, { shouldValidate: true });
+  }, [setValue]);
 
   const handleRouteSelection = useCallback((routeIndex: number) => {
     if (!alternativeRoutes || alternativeRoutes.length <= routeIndex) return;
@@ -323,11 +315,9 @@ export default function AdminForms() {
     const selectedRoute = alternativeRoutes[routeIndex];
     const distanceInKm = selectedRoute.distance / 1000;
 
-    // This was the missing piece. Update both geometry and distance.
     setSelectedRouteGeometry(selectedRoute.geometry);
     setValue('distanceToNext', String(distanceInKm.toFixed(3)));
 
-    // Reorder array so the selected route is always the first one (for correct coloring)
     const newRoutes = [...alternativeRoutes];
     const [reorderedItem] = newRoutes.splice(routeIndex, 1);
     newRoutes.unshift(reorderedItem);
@@ -843,7 +833,7 @@ export default function AdminForms() {
                   
                 <div>
                   <FormLabel>Naujos stotelės koordinatės (pasirinktinai)</FormLabel>
-                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte naujos stotelės vietą (raudonas žymeklis). Vėlesni paspaudimai pridės tarpinius maršruto taškus (mėlyni žymekliai).</p>
+                  <p className="text-sm text-muted-foreground">Paspauskite ant žemėlapio, kad parinktumėte naujos stotelės vietą (raudonas žymeklis).</p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                       <Controller
                           control={control}
@@ -1069,7 +1059,7 @@ export default function AdminForms() {
               type="button" 
               onClick={handleDeleteRoute} 
               disabled={isDeleting} 
-              className="bg-destructive hover:bg-destructive/90"
+              variant="destructive"
             >
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ištrinti
@@ -1093,7 +1083,7 @@ export default function AdminForms() {
               type="button" 
               onClick={handleDeleteStop}
               disabled={isDeleting} 
-              className="bg-destructive hover:bg-destructive/90"
+              variant="destructive"
             >
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ištrinti
