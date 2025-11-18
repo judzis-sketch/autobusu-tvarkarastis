@@ -100,7 +100,7 @@ export default function AdminForms() {
   const { toast } = useToast();
   const [isPendingRoute, startTransitionRoute] = useTransition();
   const [isPendingTimetable, startTransitionTimetable] = useTransition();
-  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Store ID of item being deleted
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [lastStopCoords, setLastStopCoords] = useState<[number, number] | null>(null);
   
@@ -238,7 +238,7 @@ export default function AdminForms() {
     };
 
     fetchLastStop();
-  }, [watchedRouteId, firestore, timetableStops]); // Refetch on route change or after adding/deleting a stop
+  }, [watchedRouteId, firestore, timetableStops]);
 
 
   const routeForm = useForm<z.infer<typeof routeSchema>>({
@@ -398,7 +398,6 @@ export default function AdminForms() {
       }
       
       if (selectedRouteGeometry) {
-        // Convert LatLngTuple[] to { lat: number; lng: number }[] for Firestore
         payload.routeGeometry = selectedRouteGeometry.map(point => ({ lat: point[0], lng: point[1] }));
       }
 
@@ -426,15 +425,15 @@ export default function AdminForms() {
     });
   };
 
-  const handleDeleteRoute = async () => {
-    if (!routeToDelete || !routeToDelete.id || !firestore) {
+  const handleDeleteRoute = async (routeId: string) => {
+    if (!routeId || !firestore) {
       toast({ title: 'Klaida!', description: 'Nepasirinktas maršrutas trynimui.', variant: 'destructive' });
       return;
     }
     
-    setIsDeleting(routeToDelete.id);
+    setIsDeleting(routeId);
     try {
-      const timetableRef = collection(firestore, 'routes', routeToDelete.id, 'timetable');
+      const timetableRef = collection(firestore, 'routes', routeId, 'timetable');
       const timetableSnapshot = await getDocs(timetableRef);
       const batch = writeBatch(firestore);
       timetableSnapshot.docs.forEach((doc) => {
@@ -442,7 +441,7 @@ export default function AdminForms() {
       });
       await batch.commit();
 
-      const routeRef = doc(firestore, 'routes', routeToDelete.id);
+      const routeRef = doc(firestore, 'routes', routeId);
       await deleteDoc(routeRef);
 
       toast({ title: 'Pavyko!', description: 'Maršrutas ir jo tvarkaraščiai sėkmingai ištrinti.' });
@@ -674,29 +673,29 @@ export default function AdminForms() {
                                   <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingRoute(route)}>
                                     <Pencil className="h-4 w-4 text-muted-foreground"/>
                                   </Button>
-                                  <Dialog open={routeToDelete?.id === route.id} onOpenChange={(isOpen) => !isOpen && setRouteToDelete(null)}>
-                                      <DialogTrigger asChild>
-                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRouteToDelete(route)}>
-                                          <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                        </Button>
-                                      </DialogTrigger>
-                                      <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Ar tikrai norite ištrinti maršrutą?</DialogTitle>
-                                            <DialogDescription>
-                                                Šis veiksmas visam laikui ištrins maršrutą "{routeToDelete?.number} - {routeToDelete?.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <DialogFooter>
-                                            <DialogClose asChild>
-                                                <Button type="button" variant="outline">Atšaukti</Button>
-                                            </DialogClose>
-                                            <Button type="button" onClick={handleDeleteRoute} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
-                                                {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                Ištrinti
-                                            </Button>
-                                        </DialogFooter>
-                                      </DialogContent>
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7">
+                                        <Trash2 className="h-4 w-4 text-destructive/70"/>
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                          <DialogTitle>Ar tikrai norite ištrinti maršrutą?</DialogTitle>
+                                          <DialogDescription>
+                                              Šis veiksmas visam laikui ištrins maršrutą "{route.number} - {route.name}" ir visus susijusius tvarkaraščio įrašus. Šio veiksmo negalima anuliuoti.
+                                          </DialogDescription>
+                                      </DialogHeader>
+                                      <DialogFooter>
+                                          <DialogClose asChild>
+                                              <Button type="button" variant="outline">Atšaukti</Button>
+                                          </DialogClose>
+                                          <Button type="button" onClick={() => handleDeleteRoute(route.id!)} disabled={isDeleting === route.id} className="bg-destructive hover:bg-destructive/90">
+                                              {isDeleting === route.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                              Ištrinti
+                                          </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
                                   </Dialog>
                               </div>
                             </div>
@@ -1088,3 +1087,5 @@ export default function AdminForms() {
     </div>
   );
 }
+
+    
