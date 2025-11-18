@@ -454,7 +454,7 @@ export default function TimetableClient() {
                               <div key={s.id || i} className="border-b pb-3 space-y-1">
                                  <Button 
                                   variant="link" 
-                                  className="font-medium text-lg flex items-center gap-2 p-0 h-auto text-foreground hover:no-underline"
+                                  className="font-medium text-base flex items-center gap-2 p-0 h-auto text-foreground hover:no-underline"
                                   onClick={() => handleStopClick(s)}
                                   disabled={!canOpenMap}
                                  >
@@ -463,12 +463,12 @@ export default function TimetableClient() {
                                 </Button>
 
                                 <div className="flex items-start gap-4 ml-6">
-                                    <div className="text-lg text-accent-foreground/80 flex items-center gap-2">
+                                    <div className="text-base text-accent-foreground/80 flex items-center gap-2">
                                       <Clock className="h-4 w-4 text-muted-foreground" />
                                       <span>{(s.arrivalTimes || (s as any).times || []).join(', ')}</span>
                                     </div>
                                     {s.departureTimes && s.departureTimes.length > 0 && (
-                                       <div className="text-lg text-accent-foreground/80 flex items-center gap-2 border-l pl-4">
+                                       <div className="text-base text-accent-foreground/80 flex items-center gap-2 border-l pl-4">
                                           <span className="text-sm text-muted-foreground">Išvyksta:</span>
                                           <span>{s.departureTimes.join(', ')}</span>
                                       </div>
