@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useMemo } from 'react';
-import L, { LatLngTuple } from 'leaflet';
+import L, { LatLngTuple, LeafletMouseEvent } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { TimetableEntry } from '@/lib/types';
 
@@ -204,7 +204,8 @@ export default function AdminMap({
               opacity: 0.6,
           }).addTo(map);
           
-          polyline.on('click', () => {
+          polyline.on('click', (e: LeafletMouseEvent) => {
+              L.DomEvent.stop(e); // Stop the event from propagating to the map
               onRouteSelect(route);
           });
           
