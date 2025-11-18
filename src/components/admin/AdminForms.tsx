@@ -343,18 +343,21 @@ export default function AdminForms() {
     }
 }, [getValues, lastStopCoords, toast, setValue, manualRoutePoints]);
 
-const handleMapClick = (lat: number, lng: number, isIntermediate: boolean) => {
-    // If it's an intermediate point click
-    if (isIntermediate) {
-        setManualRoutePoints(prev => [...prev, [lat, lng]]);
-        setAlternativeRoutes([]); // Clear alternatives if user starts drawing manually
-        setSelectedRouteGeometry([]);
-        setValue('distanceToNext', '');
-    } else { // It's the first click, setting the new stop
+const handleMapClick = (lat: number, lng: number) => {
+    const currentCoords = getValues('coords');
+
+    // If the main stop hasn't been set yet, set it.
+    if (!currentCoords || !currentCoords.lat || !currentCoords.lng) {
         setValue('coords.lat', lat, { shouldValidate: true });
         setValue('coords.lng', lng, { shouldValidate: true });
         setManualRoutePoints([]); // Reset manual points when a new stop is chosen
         setAlternativeRoutes([]);
+        setSelectedRouteGeometry([]);
+        setValue('distanceToNext', '');
+    } else {
+        // If the main stop is set, add subsequent clicks as intermediate points.
+        setManualRoutePoints(prev => [...prev, [lat, lng]]);
+        setAlternativeRoutes([]); // Clear alternatives if user starts drawing manually
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
     }
