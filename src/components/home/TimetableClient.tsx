@@ -525,10 +525,10 @@ export default function TimetableClient() {
               <div className="flex justify-center items-center gap-4 pt-4">
                   <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInSheet}>
                       <ChevronLeft className="h-4 w-4 mr-2" />
-                      Ankstesnė
+                      Ankstesnė stotelė
                   </Button>
                   <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInSheet}>
-                      Kita
+                      Kita stotelė
                       <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
               </div>
