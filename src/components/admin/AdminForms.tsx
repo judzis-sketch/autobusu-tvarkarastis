@@ -289,7 +289,7 @@ export default function AdminForms() {
           [newStopCoords.lat, newStopCoords.lng]
         ];
         
-        const routesData = await getRoute(allPoints, true); // IMPORTANT: set alternatives to true
+        const routesData = await getRoute(allPoints, true);
         
         if (routesData && routesData.length > 0) {
             if (routesData[0].isFallback) {
@@ -305,7 +305,6 @@ export default function AdminForms() {
                 });
             }
             setAlternativeRoutes(routesData);
-            // DO NOT auto-select a route. Let the user choose.
         } else {
             toast({
                 title: 'Maršrutų apskaičiavimo klaida',
@@ -326,11 +325,9 @@ export default function AdminForms() {
 }, [getValues, lastStopCoords, toast, setValue]);
 
 const handleMapClick = (lat: number, lng: number) => {
-    // A click on the map always sets the new stop's coordinates
     setValue('coords.lat', lat, { shouldValidate: true });
     setValue('coords.lng', lng, { shouldValidate: true });
     
-    // Reset any previous calculation
     setAlternativeRoutes([]);
     setSelectedRouteGeometry([]);
     setValue('distanceToNext', '');
@@ -388,8 +385,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
         return;
       }
+      
+      const hasPreviousStops = !!lastStopCoords;
 
-      if (lastStopCoords && selectedRouteGeometry.length === 0) {
+      if (hasPreviousStops && selectedRouteGeometry.length === 0) {
         toast({
           title: 'Klaida!',
           description: 'Prašome apskaičiuoti ir pasirinkti maršrutą prieš išsaugant.',

@@ -29,7 +29,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   // Initialize map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
-      const defaultCenter: [number, number] = currentStop.coords || [55.7333, 26.2500];
+      const defaultCenter: [number, number] = (currentStop.coords as LatLngTuple) || [55.7333, 26.2500];
       const map = L.map(mapRef.current).setView(defaultCenter, 14);
       mapInstanceRef.current = map;
 
@@ -56,7 +56,6 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
 
     if (!currentCoords || !nextCoords) {
         setIsLoading(false);
-        // Maybe show a message to the user that coordinates are missing
         return;
     }
 
@@ -80,7 +79,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
     
     let routePolyline: L.Polyline;
 
-    // Check if the ADMIN-DEFINED route geometry exists on the current stop
+    // Use the ADMIN-DEFINED route geometry from the current stop
     if (currentStop.routeGeometry && currentStop.routeGeometry.length > 0) {
       const leafletPath = currentStop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
       routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
