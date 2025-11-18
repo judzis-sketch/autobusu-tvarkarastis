@@ -43,7 +43,7 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
   // Update markers, polyline and bounds when stops change
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map) return;
+    if (!map || !currentStop || !nextStop) return;
 
     // Clear existing layers
     layersRef.current.forEach((layer) => layer.remove());
@@ -86,12 +86,11 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
       const routePolyline = L.polyline(leafletPath, { color: 'blue', weight: 5 }).addTo(map);
       layersRef.current.push(routePolyline);
       if (routePolyline.getBounds().isValid()) {
-        bounds = routePolyline.getBounds();
+        bounds.extend(routePolyline.getBounds());
       }
     } else {
         console.warn("No routeGeometry found for stop:", currentStop.stop, ". Not drawing a path.");
     }
-
 
     // Fit map bounds to the calculated route or the markers
     if (bounds.isValid()) {
