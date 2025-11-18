@@ -846,10 +846,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Naujos stotelės pavadinimas</FormLabel>
-                      <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
+                       <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
                           <PopoverTrigger asChild>
                             <FormControl>
-                              <Input
+                               <Input
                                 placeholder="Vinco Kudirkos aikštė"
                                 {...field}
                                 onChange={(e) => {
@@ -946,10 +946,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                 <div>
                   <FormLabel>Maršruto sudarymas</FormLabel>
                   <p className="text-sm text-muted-foreground">
-                    1. Pasirinkite adresą iš paieškos arba paspauskite žemėlapyje, kur bus **nauja stotelė** (raudonas žymeklis).<br/>
-                    2. Jei reikia, pridėkite **tarpinius taškus** (mėlyni žymekliai), kad patikslintumėte kelią. <br/>
-                    3. Paspauskite "Apskaičiuoti maršrutą". Jei bus rastos kelios alternatyvos, jos atsiras pilka spalva.<br/>
-                    4. Paspauskite ant norimo kelio, kad jį pasirinktumėte (nusidažys mėlynai).
+                    1. **Pažymėkite naują stotelę:** Adreso paieškoje raskite norimą vietą arba paspauskite tiesiai ant žemėlapio. Pirmas paspaudimas visada pažymi naujos stotelės vietą (raudonas žymeklis).<br/>
+                    2. **Patikslinkite kelią (nebūtina):** Jei automatiškai rastas kelias netinka, galite pridėti tarpinių taškų. Tiesiog paspauskite ant žemėlapio tose vietose, per kurias maršrutas turi eiti. Atsiras mėlyni žymekliai.<br/>
+                    3. **Apskaičiuokite maršrutą:** Paspauskite mygtuką "Apskaičiuoti maršrutą".<br/>
+                    4. **Pasirinkite variantą:** Jei sistema ras kelis kelio variantus, jie bus atvaizduoti pilka spalva. Paspauskite ant norimos linijos, kad ją pasirinktumėte (ji nusidažys mėlynai).
                   </p>
                   <div className="grid grid-cols-2 gap-4 mt-2">
                       <Controller
@@ -1209,7 +1209,6 @@ const handleRouteSelection = (route: AlternativeRoute) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
