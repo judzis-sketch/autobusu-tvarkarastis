@@ -16,7 +16,6 @@ L.Icon.Default.mergeOptions({
 type AlternativeRoute = {
   distance: number;
   geometry: LatLngTuple[];
-  isFallback: boolean;
 };
 
 interface AdminMapProps {

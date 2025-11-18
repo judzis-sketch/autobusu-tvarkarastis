@@ -832,77 +832,79 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
 
               <div className="space-y-4 pt-4 border-t">
-                <FormField
-                  control={timetableForm.control}
-                  name="stop"
-                  render={({ field }) => (
-                    <FormItem ref={addressInputRef}>
-                      <FormLabel>Naujos stotelės pavadinimas</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Vinco Kudirkos aikštė"
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            setAddressQuery(e.target.value);
-                            if (e.target.value.length > 2) {
-                              setIsAddressPopoverOpen(true);
-                            } else {
-                              setIsAddressPopoverOpen(false);
-                            }
-                          }}
-                          onBlur={() => {
-                            // Delay hiding to allow click on popover
-                            setTimeout(() => setIsAddressPopoverOpen(false), 150);
-                          }}
-                          onFocus={() => {
-                              if (addressQuery.length > 2 && addressResults.length > 0) {
+                <div ref={addressInputRef}>
+                  <FormField
+                    control={timetableForm.control}
+                    name="stop"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Naujos stotelės pavadinimas</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Vinco Kudirkos aikštė"
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setAddressQuery(e.target.value);
+                              if (e.target.value.length > 2) {
                                 setIsAddressPopoverOpen(true);
+                              } else {
+                                setIsAddressPopoverOpen(false);
                               }
-                          }}
-                          autoComplete="off"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
+                            }}
+                             onBlur={() => {
+                              // Delay hiding to allow click on popover
+                              setTimeout(() => setIsAddressPopoverOpen(false), 150);
+                            }}
+                            onFocus={() => {
+                                if (addressQuery.length > 2 && addressResults.length > 0) {
+                                  setIsAddressPopoverOpen(true);
+                                }
+                            }}
+                            autoComplete="off"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
                 <Popover open={isAddressPopoverOpen}>
-                    <PopoverTrigger asChild>
-                        <div />
-                    </PopoverTrigger>
-                    <PopoverContent
-                        className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
-                        style={{ width: addressInputRef.current?.offsetWidth }}
-                        onOpenAutoFocus={(e) => e.preventDefault()}
-                        align="start"
-                    >
-                      {isAddressSearching ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                          Ieškoma...
-                        </div>
-                      ) : addressResults.length > 0 ? (
-                        <div className="space-y-1">
-                          {addressResults.map((address) => (
-                            <Button
-                              key={address.place_id}
-                              type="button"
-                              variant="ghost"
-                              className="w-full h-auto text-left justify-start p-2"
-                              onClick={() => handleAddressSelect(address)}
-                            >
-                              <div className="flex flex-col">
-                                <span className="text-sm">{address.display_name}</span>
-                              </div>
-                            </Button>
-                          ))}
-                        </div>
-                      ) : debouncedAddressQuery.length > 2 ? (
-                        <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
-                      ) : null}
-                    </PopoverContent>
+                  <PopoverTrigger asChild>
+                    <div />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
+                    style={{ width: addressInputRef.current?.offsetWidth }}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    align="start"
+                  >
+                    {isAddressSearching ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                        Ieškoma...
+                      </div>
+                    ) : addressResults.length > 0 ? (
+                      <div className="space-y-1">
+                        {addressResults.map((address) => (
+                          <Button
+                            key={address.place_id}
+                            type="button"
+                            variant="ghost"
+                            className="w-full h-auto text-left justify-start p-2"
+                            onClick={() => handleAddressSelect(address)}
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm">{address.display_name}</span>
+                            </div>
+                          </Button>
+                        ))}
+                      </div>
+                    ) : debouncedAddressQuery.length > 2 ? (
+                      <p className="p-4 text-center text-sm text-muted-foreground">Adresų nerasta.</p>
+                    ) : null}
+                  </PopoverContent>
                 </Popover>
 
                 <FormField
@@ -946,7 +948,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   
                 <div>
                   <FormLabel>Maršruto sudarymas</FormLabel>
-                   <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     1. **Pažymėkite naują stotelę:** Adreso paieškoje raskite norimą vietą arba paspauskite tiesiai ant žemėlapio. Pirmas paspaudimas visada pažymi naujos stotelės vietą (raudonas žymeklis).<br/>
                     2. **Patikslinkite kelią (nebūtina):** Jei automatiškai rastas kelias netinka, galite pridėti tarpinių taškų. Tiesiog paspauskite ant žemėlapio tose vietose, per kurias maršrutas turi eiti. Atsiras mėlyni žymekliai.<br/>
                     3. **Apskaičiuokite maršrutą:** Paspauskite mygtuką "Apskaičiuoti maršrutą".<br/>
