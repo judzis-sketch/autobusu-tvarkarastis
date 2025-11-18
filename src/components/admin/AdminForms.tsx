@@ -183,6 +183,8 @@ export default function AdminForms() {
             setIsAddressSearching(false);
             if (results.length > 0) {
               setIsAddressPopoverOpen(true);
+            } else {
+              setIsAddressPopoverOpen(false);
             }
         } else {
             setAddressResults([]);
@@ -333,13 +335,14 @@ export default function AdminForms() {
         const routesData = await getRoute(allPoints, true);
         
         if (routesData && routesData.length > 0) {
-            if (manualRoutePoints.length > 0) {
+            if (manualRoutePoints.length > 0 || routesData.length === 1) {
                setSelectedRouteGeometry(routesData[0].geometry);
                setValue('distanceToNext', String((routesData[0].distance / 1000).toFixed(3)));
                toast({
                     title: 'Maršrutas apskaičiuotas',
                     description: `Atstumas: ${(routesData[0].distance / 1000).toFixed(3)} km. Galite išsaugoti stotelę.`,
                });
+               setAlternativeRoutes([]); // Clear alternatives if we auto-selected one
                return;
             }
             else {
@@ -379,6 +382,7 @@ const handleMapClick = (lat: number, lng: number) => {
     } else {
         // If the main stop is set, add subsequent clicks as intermediate points.
         setManualRoutePoints(prev => [...prev, [lat, lng]]);
+        // Reset routes when a new point is added, forcing recalculation
         setAlternativeRoutes([]);
         setSelectedRouteGeometry([]);
         setValue('distanceToNext', '');
@@ -866,7 +870,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Naujos stotelės pavadinimas</FormLabel>
-                      <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
+                       <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Input
@@ -875,6 +879,14 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                               onChange={(e) => {
                                 field.onChange(e);
                                 setAddressQuery(e.target.value);
+                                if (!isAddressPopoverOpen) {
+                                  setIsAddressPopoverOpen(true);
+                                }
+                              }}
+                              onFocus={() => {
+                                if (addressQuery.length > 2 && addressResults.length > 0) {
+                                  setIsAddressPopoverOpen(true)
+                                }
                               }}
                               autoComplete="off"
                             />
@@ -883,6 +895,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                         <PopoverContent
                           className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
                           align="start"
+                          onOpenAutoFocus={(e) => e.preventDefault()}
                         >
                           {isAddressSearching ? (
                             <div className="p-4 text-center text-sm text-muted-foreground">
