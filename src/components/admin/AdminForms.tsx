@@ -106,7 +106,6 @@ export default function AdminForms() {
   
   const [editingStop, setEditingStop] = useState<TimetableEntry | null>(null);
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
-  const [isStopDeleteDialogOpen, setIsStopDeleteDialogOpen] = useState(false);
 
 
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
@@ -320,7 +319,7 @@ export default function AdminForms() {
     if (selectedRoute) {
       const distanceInKm = selectedRoute.distance / 1000;
       setValue('distanceToNext', String(distanceInKm.toFixed(3)));
-      setSelectedRouteGeometry(selectedRoute.geometry); // THIS WAS THE BUG. This line was missing.
+      setSelectedRouteGeometry(selectedRoute.geometry);
       toast({
         title: 'Maršrutas pasirinktas',
         description: `Pasirinkto maršruto atstumas: ${distanceInKm.toFixed(3)} km`,
@@ -472,7 +471,6 @@ export default function AdminForms() {
       toast({ title: 'Klaida!', description: 'Nepavyko ištrinti stotelės.', variant: 'destructive' });
     } finally {
       setIsDeleting(null);
-      setIsStopDeleteDialogOpen(false); // Close the dialog
     }
   };
   
@@ -785,7 +783,7 @@ export default function AdminForms() {
                                       <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingStop(stop)}>
                                         <Pencil className="h-4 w-4 text-muted-foreground"/>
                                       </Button>
-                                       <Dialog open={isStopDeleteDialogOpen} onOpenChange={setIsStopDeleteDialogOpen}>
+                                      <Dialog>
                                         <DialogTrigger asChild>
                                           <Button type="button" variant="ghost" size="icon" className="h-7 w-7">
                                             <Trash2 className="h-4 w-4 text-destructive/70"/>
