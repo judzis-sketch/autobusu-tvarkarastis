@@ -159,14 +159,16 @@ export default function AdminForms() {
   });
 
   useEffect(() => {
-      if (editingStop) {
-          editStopForm.reset({
-              stop: editingStop.stop,
-              arrivalTimes: editingStop.arrivalTimes.join(', '),
-              departureTimes: editingStop.departureTimes?.join(', ') || '',
-          });
-      }
+    if (editingStop) {
+        const arrivalTimes = editingStop.arrivalTimes || (editingStop as any).times || [];
+        editStopForm.reset({
+            stop: editingStop.stop,
+            arrivalTimes: arrivalTimes.join(', '),
+            departureTimes: editingStop.departureTimes?.join(', ') || '',
+        });
+    }
   }, [editingStop, editStopForm]);
+
 
   useEffect(() => {
     if (editingRoute) {
@@ -378,7 +380,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
 
   const handleAddTimetable = (values: z.infer<typeof timetableSchema>) => {
     startTransitionTimetable(async () => {
-        const { routeId, stop, arrivalTimes, departureTimes, distanceToNext } = values;
+        const { routeId, stop, arrivalTimes, departureTimes } = values;
 
         if (!firestore) {
             toast({ title: 'Klaida!', description: 'Duomenų bazė nepasiekiama.', variant: 'destructive' });
@@ -399,7 +401,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         const parsedDepartureTimes = departureTimes?.split(',').map((t) => t.trim()).filter(Boolean) || [];
 
         // This is the new stop we are about to create.
-        const newStopPayload: Omit<TimetableEntry, 'id' | 'distanceToNext' | 'routeGeometry'> & { times?: string[] } = {
+        const newStopPayload: Omit<TimetableEntry, 'id' > = {
             stop,
             arrivalTimes: parsedArrivalTimes,
             departureTimes: parsedDepartureTimes.length > 0 ? parsedDepartureTimes : undefined,
@@ -426,7 +428,9 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                     return;
                 }
 
-                const distanceInKm = parseFloat(distanceToNext || '0');
+                const distanceToNextString = timetableForm.getValues('distanceToNext');
+                const distanceInKm = parseFloat(distanceToNextString || '0');
+
                 if (isNaN(distanceInKm) && allPoints.length > 1) {
                      toast({ title: 'Klaida!', description: 'Atstumas turi būti skaičius.', variant: 'destructive' });
                     return;
@@ -524,6 +528,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
             stop: values.stop,
             arrivalTimes: parsedArrivalTimes,
             departureTimes: parsedDepartureTimes.length > 0 ? parsedDepartureTimes : null,
+            times: null, // Remove old field if it exists
         });
         toast({ title: 'Pavyko!', description: 'Stotelės duomenys atnaujinti.' });
         setEditingStop(null);
