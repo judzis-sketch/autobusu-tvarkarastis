@@ -977,7 +977,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                           )}
                       />
                   </div>
-                  <div className="mt-4 h-64 w-full rounded-md overflow-hidden border">
+                  <div className="mt-4 h-[500px] w-full rounded-md overflow-hidden border">
                       <AdminMap
                           newStopCoords={newStopCoords}
                           onMapClick={handleMapClick}
