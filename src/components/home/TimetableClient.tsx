@@ -24,7 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, ArrowDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -241,15 +241,16 @@ export default function TimetableClient() {
     const currentIndex = timetable.findIndex(s => s.id === clickedStop.id);
     const isLastStop = currentIndex === timetable.length - 1;
   
-    // A stop is clickable if it's not the last one and has geometry.
-    if (isLastStop || !clickedStop.routeGeometry) {
+    // A stop is clickable if it's not the last one.
+    if (isLastStop) {
       return;
     }
   
     const currentStop = timetable[currentIndex];
     const nextStop = timetable[currentIndex + 1];
   
-    if (currentStop.coords && nextStop && nextStop.coords) {
+    // And has geometry data to the next stop.
+    if (currentStop.routeGeometry && currentStop.coords && nextStop && nextStop.coords) {
       setSelectedStopDetail({
         current: currentStop,
         next: nextStop,
@@ -309,12 +310,12 @@ export default function TimetableClient() {
     return `~ ${timeMinutes} min.`;
   }
 
-  const isFirstStopInSheet = useMemo(() => {
+  const isFirstStopInDialog = useMemo(() => {
     if (!selectedStopDetail || !timetable) return false;
     return timetable.findIndex(s => s.id === selectedStopDetail.current.id) === 0;
   }, [selectedStopDetail, timetable]);
 
-  const isLastStopInSheet = useMemo(() => {
+  const isLastStopInDialog = useMemo(() => {
       if (!selectedStopDetail || !timetable) return false;
       // The "segment" is from current to next. The last valid segment starts at the second-to-last stop.
       return timetable.findIndex(s => s.id === selectedStopDetail.current.id) >= timetable.length - 2;
@@ -445,7 +446,7 @@ export default function TimetableClient() {
                         <div className="space-y-4">
                           {filteredTimetable.map((s, i) => {
                              const isLastStop = i === filteredTimetable.length - 1;
-                             const canOpenMap = !isLastStop && !!s.routeGeometry;
+                             const canOpenMap = !isLastStop; // Any stop but the last can be clicked
                              const distanceToNext = s.distanceToNext;
                              const travelTime = calculateTravelTime(distanceToNext);
                              
@@ -464,7 +465,7 @@ export default function TimetableClient() {
                                 <div className="flex items-start gap-4 ml-6">
                                     <div className="text-base text-accent-foreground/80 flex items-center gap-2">
                                       <Clock className="h-4 w-4 text-muted-foreground" />
-                                      <span>{(s.arrivalTimes || []).join(', ')}</span>
+                                      <span>{(s.arrivalTimes || (s as any).times || []).join(', ')}</span>
                                     </div>
                                     {s.departureTimes && s.departureTimes.length > 0 && (
                                        <div className="text-base text-accent-foreground/80 flex items-center gap-2 border-l pl-4">
@@ -512,12 +513,12 @@ export default function TimetableClient() {
         )}
       </div>
 
-      <Sheet open={!!selectedStopDetail} onOpenChange={(isOpen) => !isOpen && setSelectedStopDetail(null)}>
-        <SheetContent side="bottom" className="h-[85vh] flex flex-col">
+      <Dialog open={!!selectedStopDetail} onOpenChange={(isOpen) => !isOpen && setSelectedStopDetail(null)}>
+        <DialogContent className="max-w-3xl h-[85vh] flex flex-col">
           {selectedStopDetail && (
             <>
-              <SheetHeader>
-                <SheetTitle className="text-center">Maršruto atkarpa</SheetTitle>
+              <DialogHeader>
+                <DialogTitle className="text-center">Maršruto atkarpa</DialogTitle>
                  <div className="text-center text-base flex items-center justify-center gap-2">
                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4" />
@@ -526,27 +527,27 @@ export default function TimetableClient() {
                  <div className="text-center font-bold text-lg text-primary pt-1">
                     {calculateTravelTime(selectedStopDetail.current.distanceToNext)}
                  </div>
-              </SheetHeader>
+              </DialogHeader>
               <div className="flex-grow min-h-0 mt-2 rounded-md overflow-hidden border">
                 <StopToStopMap 
                     currentStop={selectedStopDetail.current}
                     nextStop={selectedStopDetail.next}
                 />
               </div>
-              <div className="flex justify-center items-center gap-4 pt-4">
-                  <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInSheet}>
+              <DialogFooter className="sm:justify-center pt-4">
+                  <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInDialog}>
                       <ChevronLeft className="h-4 w-4 mr-2" />
                       Ankstesnė stotelė
                   </Button>
-                  <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInSheet}>
+                  <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInDialog}>
                       Kita stotelė
                       <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
-              </div>
+              </DialogFooter>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
