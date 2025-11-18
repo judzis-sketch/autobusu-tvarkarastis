@@ -147,7 +147,6 @@ export default function AdminForms() {
     return query(collection(firestore, `routes/${watchedRouteId}/timetable`), orderBy('createdAt', 'asc'));
   }, [firestore, watchedRouteId]);
   const { data: timetableStops, isLoading: isLoadingTimetableStops } = useCollection<TimetableEntry>(timetableQuery);
-  const stopPositions = useMemo(() => timetableStops?.map(s => s.coords).filter(Boolean) as [number, number][] || [], [timetableStops]);
   
   const editStopForm = useForm<z.infer<typeof editStopSchema>>({
       resolver: zodResolver(editStopSchema),
@@ -251,7 +250,7 @@ export default function AdminForms() {
   });
   
   const handleCalculateDistance = useCallback(async () => {
-    const coordsToUse = getValues('coords');
+    const newStopCoords = getValues('coords');
 
     if (!lastStopCoords) {
         toast({
@@ -261,7 +260,7 @@ export default function AdminForms() {
         });
         return;
     }
-    if (!coordsToUse || !coordsToUse.lat || !coordsToUse.lng) {
+    if (!newStopCoords || !newStopCoords.lat || !newStopCoords.lng) {
         toast({
             title: 'Negalima apskaičiuoti',
             description: 'Prašome pažymėti naujos stotelės vietą žemėlapyje.',
@@ -275,19 +274,30 @@ export default function AdminForms() {
     setValue('distanceToNext', '');
 
     try {
-        const allPoints: LatLngTuple[] = [lastStopCoords, ...manualRoutePoints, [coordsToUse.lat, coordsToUse.lng]];
+        const allPoints: LatLngTuple[] = [
+          lastStopCoords,
+          ...manualRoutePoints, 
+          [newStopCoords.lat, newStopCoords.lng]
+        ];
+        
         const routesData = await getRoute(allPoints);
         
         if (routesData && routesData.length > 0) {
             const primaryRoute = routesData[0];
+            if (primaryRoute.isFallback) {
+               toast({
+                    title: 'Maršrutas apskaičiuotas (atsarginis planas)',
+                    description: `OSRM tarnyba negalėjo rasti kelio. Naudojama tiesi linija. Atstumas: ${(primaryRoute.distance / 1000).toFixed(3)} km.`,
+                    variant: 'default',
+               });
+            } else {
+                 toast({
+                    title: 'Maršrutas apskaičiuotas',
+                    description: `Apskaičiuotas atstumas: ${(primaryRoute.distance / 1000).toFixed(3)} km.`,
+                });
+            }
             setCalculatedRoute(primaryRoute);
-            const distanceInKm = primaryRoute.distance / 1000;
-            setValue('distanceToNext', String(distanceInKm.toFixed(3)));
-            
-            toast({
-                title: 'Maršrutas apskaičiuotas',
-                description: `Apskaičiuotas atstumas: ${distanceInKm.toFixed(3)} km. Jei maršrutas tinkamas, galite pridėti stotelę.`,
-            });
+            setValue('distanceToNext', String((primaryRoute.distance / 1000).toFixed(3)));
         } else {
             toast({
                 title: 'Maršrutų apskaičiavimo klaida',
@@ -853,7 +863,7 @@ const handleMapClick = (lat: number, lng: number) => {
                       <AdminMap
                           newStopCoords={watchedCoords?.lat && watchedCoords?.lng ? [watchedCoords.lat, watchedCoords.lng] : null}
                           onMapClick={handleMapClick}
-                          stopPositions={stopPositions}
+                          existingStops={timetableStops || []}
                           lastStopPosition={lastStopCoords}
                           manualRoutePoints={manualRoutePoints}
                           calculatedRoute={calculatedRoute}

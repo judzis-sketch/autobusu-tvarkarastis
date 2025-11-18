@@ -3,6 +3,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import type { TimetableEntry } from '@/lib/types';
 
 // Fix for default icon paths using online URLs
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -15,7 +16,7 @@ L.Icon.Default.mergeOptions({
 interface AdminMapProps {
   newStopCoords: LatLngTuple | null;
   onMapClick: (lat: number, lng: number) => void;
-  stopPositions: LatLngTuple[];
+  existingStops: TimetableEntry[]; // Changed from stopPositions to pass full stop data
   lastStopPosition: LatLngTuple | null;
   manualRoutePoints: LatLngTuple[];
   calculatedRoute: { distance: number; geometry: LatLngTuple[] } | null;
@@ -24,7 +25,7 @@ interface AdminMapProps {
 export default function AdminMap({
     newStopCoords,
     onMapClick,
-    stopPositions,
+    existingStops,
     lastStopPosition,
     manualRoutePoints,
     calculatedRoute,
@@ -36,6 +37,7 @@ export default function AdminMap({
   const existingStopMarkersRef = useRef<L.Marker[]>([]);
   const manualPointMarkersRef = useRef<L.Marker[]>([]);
   const routePolylineRef = useRef<L.Polyline | null>(null);
+  const existingRoutePolylinesRef = useRef<L.Polyline[]>([]);
 
   const redIcon = useMemo(() => new L.Icon({
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
@@ -63,6 +65,16 @@ export default function AdminMap({
       popupAnchor: [1, -34],
       shadowSize: [41, 41]
   }), []);
+  
+  const orangeIcon = useMemo(() => new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  }), []);
+
 
   const defaultIcon = useMemo(() => new L.Icon.Default(), []);
 
@@ -101,19 +113,34 @@ export default function AdminMap({
     }
   }, [newStopCoords, redIcon]);
 
-  // Update existing stops (grey)
+  // Update existing stops (grey) and their route geometries (orange)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
+    // Clear previous layers
     existingStopMarkersRef.current.forEach(marker => marker.remove());
     existingStopMarkersRef.current = [];
+    existingRoutePolylinesRef.current.forEach(polyline => polyline.remove());
+    existingRoutePolylinesRef.current = [];
+
+    const stopPositions = existingStops.map(s => s.coords).filter(Boolean) as LatLngTuple[];
 
     stopPositions.forEach(pos => {
       const stopMarker = L.marker(pos, { icon: greyIcon }).addTo(map);
       existingStopMarkersRef.current.push(stopMarker);
     });
-  }, [stopPositions, greyIcon]);
+
+    // Draw existing route geometries
+    existingStops.forEach(stop => {
+      if (stop.routeGeometry && stop.routeGeometry.length > 0) {
+        const path = stop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
+        const polyline = L.polyline(path, { color: 'orange', weight: 3, opacity: 0.7 }).addTo(map);
+        existingRoutePolylinesRef.current.push(polyline);
+      }
+    });
+
+  }, [existingStops, greyIcon]);
 
   // Update last stop marker (default/black)
   useEffect(() => {
@@ -126,9 +153,10 @@ export default function AdminMap({
     }
 
     if (lastStopPosition) {
-      lastStopMarkerRef.current = L.marker(lastStopPosition, { icon: defaultIcon }).addTo(map);
+      // Use orange icon for last stop for better visibility among other grey ones
+      lastStopMarkerRef.current = L.marker(lastStopPosition, { icon: orangeIcon }).addTo(map);
     }
-  }, [lastStopPosition, defaultIcon]);
+  }, [lastStopPosition, orangeIcon]);
 
   // Update manual waypoint markers (blue)
   useEffect(() => {
@@ -144,7 +172,7 @@ export default function AdminMap({
     });
   }, [manualRoutePoints, blueIcon]);
 
-  // Draw calculated route
+  // Draw calculated route for the new segment (blue)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
