@@ -530,7 +530,7 @@ export default function TimetableClient() {
                  <div className="grid grid-cols-3 items-center text-center py-2">
                     <div className="text-left">
                        <p className="text-xs text-muted-foreground">Išvyksta</p>
-                       <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || []).join(', ')}</p>
+                       <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || (selectedStopDetail.current as any).times || []).join(', ')}</p>
                     </div>
                     <div className="flex flex-col items-center justify-center border-x">
                         <Watch className="h-5 w-5 text-primary" />
@@ -539,7 +539,7 @@ export default function TimetableClient() {
                     </div>
                     <div className="text-right">
                        <p className="text-xs text-muted-foreground">Atvyksta</p>
-                       <p className="font-bold text-lg">{((selectedStopDetail.next.arrivalTimes) || []).join(', ')}</p>
+                       <p className="font-bold text-lg">{((selectedStopDetail.next.arrivalTimes) || (selectedStopDetail.next as any).times || []).join(', ')}</p>
                     </div>
                  </div>
               </DialogHeader>
