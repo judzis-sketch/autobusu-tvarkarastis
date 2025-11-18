@@ -242,23 +242,16 @@ export default function TimetableClient() {
     const currentIndex = timetable.findIndex(s => s.id === stop.id);
     // Do not open the map for the last stop
     if (currentIndex === -1 || currentIndex >= timetable.length - 1) {
-      // You could show a toast message here if you want
-      // toast({ title: "Informacija", description: "Tai paskutinė maršruto stotelė." });
       return;
     }
 
     const nextStop = timetable[currentIndex + 1];
     
     // The button to open map is only enabled if both stops have coordinates.
-    // So we can assume they exist here.
     if (stop.coords && nextStop.coords) {
        // We must pass the routeGeometry from the *current* stop, as it describes the path TO the next stop
       setSelectedStopDetail({
-        current: {
-          ...stop,
-          // Explicitly pass the geometry from the current stop
-          routeGeometry: stop.routeGeometry,
-        },
+        current: stop, // Pass the original 'stop' object which contains its routeGeometry
         next: nextStop
       });
     } else {
