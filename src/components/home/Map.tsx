@@ -76,25 +76,14 @@ export default function Map({ stops }: MapProps) {
     // Collect all stored route geometries from each stop to form the full path
     const fullRoutePath: LatLngTuple[] = [];
     
-    stops.forEach((stop, index) => {
+    stops.forEach((stop) => {
         // The geometry to the *next* stop is stored on the *current* stop object.
         if (stop.routeGeometry && stop.routeGeometry.length > 0) {
             const segmentPath = stop.routeGeometry.map(p => [p.lat, p.lng] as LatLngTuple);
             fullRoutePath.push(...segmentPath);
-        } else if (stop.coords && stops[index + 1]?.coords) {
-            // Fallback to a straight line if no geometry is stored for this segment
-            if (fullRoutePath.length === 0 || fullRoutePath[fullRoutePath.length - 1] !== stop.coords) {
-                 fullRoutePath.push(stop.coords as LatLngTuple);
-            }
-            fullRoutePath.push(stops[index + 1].coords as LatLngTuple);
         }
     });
 
-     // Add the very first stop if it hasn't been added
-    if (stops.length > 0 && stops[0].coords && fullRoutePath.length === 0) {
-        fullRoutePath.push(stops[0].coords as LatLngTuple);
-    }
-    
     if (fullRoutePath.length > 1) {
         const polyline = L.polyline(fullRoutePath, { color: 'blue' }).addTo(map);
         layersRef.current.push(polyline);

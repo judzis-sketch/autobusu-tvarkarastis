@@ -389,9 +389,13 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         return;
       }
 
-      if (selectedRouteGeometry.length === 0 && lastStopCoords) {
-          toast({ title: 'Klaida!', description: 'Prašome apskaičiuoti ir pasirinkti maršrutą prieš išsaugant.', variant: 'destructive' });
-          return;
+      if (lastStopCoords && selectedRouteGeometry.length === 0) {
+        toast({
+          title: 'Klaida!',
+          description: 'Prašome apskaičiuoti ir pasirinkti maršrutą prieš išsaugant.',
+          variant: 'destructive',
+        });
+        return;
       }
 
       const parsedTimes = times.split(',').map((t) => t.trim()).filter(Boolean);
