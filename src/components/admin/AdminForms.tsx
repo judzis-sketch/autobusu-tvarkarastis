@@ -124,7 +124,6 @@ export default function AdminForms() {
 
   const firestore = useFirestore();
 
-  const [isStopsListOpen, setIsStopsListOpen] = useState(false);
   const [isRoutesListOpen, setIsRoutesListOpen] = useState(false);
   
   const routesCollapsibleRef = useRef<HTMLDivElement>(null);
@@ -202,24 +201,6 @@ export default function AdminForms() {
     setIsAddressPopoverOpen(false);
     setAddressResults([]);
   };
-
-  const handleClickOutside = (event: MouseEvent, ref: React.RefObject<HTMLDivElement>, setOpen: (open: boolean) => void) => {
-    if (ref.current && !ref.current.contains(event.target as Node)) {
-      setOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    const handleStopsClick = (e: MouseEvent) => handleClickOutside(e, stopsCollapsibleRef, setIsStopsListOpen);
-    const handleRoutesClick = (e: MouseEvent) => handleClickOutside(e, routesCollapsibleRef, setIsRoutesListOpen);
-
-    document.addEventListener('mousedown', handleStopsClick);
-    document.addEventListener('mousedown', handleRoutesClick);
-    return () => {
-      document.removeEventListener('mousedown', handleStopsClick);
-      document.removeEventListener('mousedown', handleRoutesClick);
-    };
-  }, []);
   
   useEffect(() => {
       if (editingStop) {
@@ -819,7 +800,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               />
 
               {watchedRouteId && (
-                 <Collapsible open={isStopsListOpen} onOpenChange={setIsStopsListOpen} ref={stopsCollapsibleRef}>
+                 <Collapsible ref={stopsCollapsibleRef}>
                     <CollapsibleTrigger asChild>
                         <Button type="button" variant="outline" className="w-full justify-between">
                             <div className="flex items-center gap-2">
@@ -870,8 +851,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Naujos stotelės pavadinimas</FormLabel>
-                       <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
-                        <PopoverTrigger asChild>
+                      <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
                           <FormControl>
                             <Input
                               placeholder="Vinco Kudirkos aikštė"
@@ -891,6 +871,8 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                               autoComplete="off"
                             />
                           </FormControl>
+                        <PopoverTrigger asChild>
+                           <div className='hidden'></div>
                         </PopoverTrigger>
                         <PopoverContent
                           className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
