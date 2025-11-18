@@ -11,7 +11,7 @@ delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
 });
 
 
@@ -69,8 +69,12 @@ export default function Map({ stops }: MapProps) {
     // Add markers for each stop
     stopPositionsWithData.forEach((stop) => {
       const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
-      const times = stop.arrivalTimes || (stop as any).times || [];
-      marker.bindPopup(`<b>${stop.stop}</b><br/>Laikai: ${times.join(', ')}`);
+      const arrivalTimes = stop.arrivalTimes || (stop as any).times || [];
+      let popupContent = `<b>${stop.stop}</b><br/>Atvyksta: ${arrivalTimes.join(', ')}`;
+      if (stop.departureTimes && stop.departureTimes.length > 0) {
+        popupContent += `<br/>Išvyksta: ${stop.departureTimes.join(', ')}`;
+      }
+      marker.bindPopup(popupContent);
       layersRef.current.push(marker);
     });
 

@@ -62,15 +62,25 @@ export default function StopToStopMap({ currentStop, nextStop }: StopToStopMapPr
         shadowSize: [41, 41]
     });
 
-    const fromTimes = currentStop.arrivalTimes || (currentStop as any).times || [];
-    const toTimes = nextStop.arrivalTimes || (nextStop as any).times || [];
+    const fromArrivalTimes = currentStop.arrivalTimes || (currentStop as any).times || [];
+    let fromPopupContent = `<b>Išvykimas: ${currentStop.stop}</b><br/>Atvyksta: ${fromArrivalTimes.join(', ')}`;
+    if (currentStop.departureTimes && currentStop.departureTimes.length > 0) {
+      fromPopupContent += `<br/>Išvyksta: ${currentStop.departureTimes.join(', ')}`;
+    }
+
+    const toArrivalTimes = nextStop.arrivalTimes || (nextStop as any).times || [];
+    let toPopupContent = `<b>Atvykimas: ${nextStop.stop}</b><br/>Atvyksta: ${toArrivalTimes.join(', ')}`;
+    if (nextStop.departureTimes && nextStop.departureTimes.length > 0) {
+        toPopupContent += `<br/>Išvyksta: ${nextStop.departureTimes.join(', ')}`;
+    }
+
 
     const fromMarker = L.marker(fromCoords, { icon: redIcon }).addTo(map);
-    fromMarker.bindPopup(`<b>Išvykimas: ${currentStop.stop}</b><br/>Laikai: ${fromTimes.join(', ')}`).openPopup();
+    fromMarker.bindPopup(fromPopupContent).openPopup();
     layersRef.current.push(fromMarker);
 
     const toMarker = L.marker(toCoords, { icon: redIcon }).addTo(map);
-    toMarker.bindPopup(`<b>Atvykimas: ${nextStop.stop}</b><br/>Laikai: ${toTimes.join(', ')}`);
+    toMarker.bindPopup(toPopupContent);
     layersRef.current.push(toMarker);
     
     let bounds = L.latLngBounds([fromCoords, toCoords]);
