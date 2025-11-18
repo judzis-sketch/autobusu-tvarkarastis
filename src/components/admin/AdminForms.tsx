@@ -135,6 +135,8 @@ export default function AdminForms() {
   const [isAddressSearching, setIsAddressSearching] = useState(false);
   const [isAddressPopoverOpen, setIsAddressPopoverOpen] = useState(false);
   const debouncedAddressQuery = useDebounce(addressQuery, 300);
+  const anchorRef = useRef<HTMLDivElement>(null);
+
 
   const routesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -846,29 +848,30 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Naujos stotelės pavadinimas</FormLabel>
-                       <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                               <Input
-                                placeholder="Vinco Kudirkos aikštė"
-                                {...field}
-                                onChange={(e) => {
-                                  field.onChange(e);
-                                  setAddressQuery(e.target.value);
-                                  if (!isAddressPopoverOpen) {
-                                    setIsAddressPopoverOpen(true);
-                                  }
-                                }}
-                                onFocus={() => {
-                                  if (addressQuery.length > 2 && addressResults.length > 0) {
-                                    setIsAddressPopoverOpen(true)
-                                  }
-                                }}
-                                autoComplete="off"
-                              />
-                            </FormControl>
-                          </PopoverTrigger>
+                      <Popover open={isAddressPopoverOpen} onOpenChange={setIsAddressPopoverOpen}>
+                        <div ref={anchorRef}>
+                          <FormControl>
+                            <Input
+                              placeholder="Vinco Kudirkos aikštė"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                setAddressQuery(e.target.value);
+                                if (!isAddressPopoverOpen) {
+                                  setIsAddressPopoverOpen(true);
+                                }
+                              }}
+                              onFocus={() => {
+                                if (addressQuery.length > 2 && addressResults.length > 0) {
+                                  setIsAddressPopoverOpen(true)
+                                }
+                              }}
+                              autoComplete="off"
+                            />
+                          </FormControl>
+                        </div>
                         <PopoverContent
+                          anchorRef={anchorRef}
                           className="w-[--radix-popover-trigger-width] max-h-60 overflow-auto p-1"
                           align="start"
                           onOpenAutoFocus={(e) => e.preventDefault()}
