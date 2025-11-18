@@ -56,7 +56,7 @@ function decodePolyline(str: string): LatLngTuple[] {
 /**
  * Fetches driving routes (distance and geometry) between multiple coordinates using the OSRM API.
  * @param coordinates - An array of coordinates [[lat, lng], [lat, lng], ...].
- * @param alternatives - Whether to fetch alternative routes (only works well for 2 coordinates).
+ * @param alternatives - Whether to fetch alternative routes.
  * @returns An array of route objects, each with distance and decoded geometry, or null if fails.
  */
 export async function getRoute(
@@ -70,16 +70,18 @@ export async function getRoute(
   }
   
   const coordsString = coordinates.map(coord => `${coord[1]},${coord[0]}`).join(';');
-  const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=polyline&alternatives=${alternatives}`;
+  // Increased snap-to-road radius to 50m to be more tolerant of inexact clicks
+  const radiuses = coordinates.map(() => 50).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=polyline&alternatives=${alternatives}&radiuses=${radiuses}`;
 
   try {
     const response = await fetch(url);
+    const data = await response.json();
+
     if (!response.ok) {
-      console.error(`OSRM API request failed with status: ${response.status}`);
+      console.error(`OSRM API request failed with status: ${response.status}`, data);
       return null;
     }
-
-    const data = await response.json();
 
     if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
       return data.routes.map((route: any) => ({
@@ -87,7 +89,7 @@ export async function getRoute(
         geometry: decodePolyline(route.geometry),
       }));
     } else {
-      console.error('OSRM API did not return a valid route with geometry.', data);
+      console.error('OSRM API did not return a valid route. Response:', data);
       return null;
     }
   } catch (error) {
