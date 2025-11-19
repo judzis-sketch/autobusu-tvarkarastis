@@ -71,6 +71,7 @@ export default function Map({ stops, onStopClick }: MapProps) {
     stopPositionsWithData.forEach((stop, index) => {
       const isLastStop = index === stopPositionsWithData.length - 1;
       const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
+      
       const arrivalTimes = stop.arrivalTimes || (stop as any).times || [];
       let popupContent = `<b>${stop.stop}</b><br/>Atvyksta: ${arrivalTimes.join(', ')}`;
       if (stop.departureTimes && stop.departureTimes.length > 0) {
@@ -78,11 +79,17 @@ export default function Map({ stops, onStopClick }: MapProps) {
       }
       marker.bindPopup(popupContent);
 
+      // Show popup on hover
+      marker.on('mouseover', () => {
+        marker.openPopup();
+      });
+      marker.on('mouseout', () => {
+        marker.closePopup();
+      });
+      
+      // Open dialog on click, but not for the last stop
       if (!isLastStop) {
         marker.on('click', () => onStopClick(stop));
-      } else {
-        // For the last stop, the popup works, but clicking does nothing extra.
-        // We could also disable the click event entirely if preferred.
       }
 
       layersRef.current.push(marker);
