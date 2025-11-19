@@ -60,6 +60,12 @@ type NearbyStop = TimetableEntry & {
   distance: number;
 };
 
+interface NearbyRouteGroup {
+    stopName: string;
+    distance: number;
+    routes: Omit<NearbyStop, 'distance' | 'stop'>[];
+}
+
 
 export default function TimetableClient() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
@@ -69,7 +75,7 @@ export default function TimetableClient() {
   const [activeSearch, setActiveSearch] = useState('');
   const [isFindingLocation, setIsFindingLocation] = useState(false);
   const [isSearchingStops, setIsSearchingStops] = useState(false);
-  const [nearbyStops, setNearbyStops] = useState<NearbyStop[] | null>(null);
+  const [nearbyRouteGroup, setNearbyRouteGroup] = useState<NearbyRouteGroup | null>(null);
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -195,9 +201,8 @@ export default function TimetableClient() {
           return;
         }
 
-        let allStops: NearbyStop[] = [];
-        const routeMap = new Map(routes.map(r => [r.id, r]));
-
+        let allStopsWithDistance: NearbyStop[] = [];
+        
         for (const route of routes) {
           if (!route.id) continue;
           const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`), orderBy('createdAt', 'asc'));
@@ -206,7 +211,7 @@ export default function TimetableClient() {
             const stopData = doc.data() as TimetableEntry;
             if (stopData.coords) {
               const distance = getDistance(latitude, longitude, stopData.coords![0], stopData.coords![1]);
-              allStops.push({
+              allStopsWithDistance.push({
                   ...stopData,
                   id: doc.id,
                   routeId: route.id!,
@@ -218,25 +223,42 @@ export default function TimetableClient() {
           });
         }
         
-        if (allStops.length === 0) {
+        if (allStopsWithDistance.length === 0) {
             toast({ title: 'Nerasta stotelių', description: 'Sistemoje nerasta stotelių su koordinatėmis.', variant: 'destructive'});
             setIsFindingLocation(false);
             return;
         }
 
-        allStops.sort((a, b) => a.distance - b.distance);
-        const topStops = allStops.slice(0, 5);
+        allStopsWithDistance.sort((a, b) => a.distance - b.distance);
+        const nearestStop = allStopsWithDistance[0];
 
-        if (topStops.length > 0) {
-           toast({
-              title: 'Artimiausios stotelės rastos!',
-              description: `Rastos ${topStops.length} stotelės šalia Jūsų.`,
-            });
-            setNearbyStops(topStops);
-        } else {
-             toast({ title: 'Klaida', description: 'Nepavyko rasti artimiausių stotelių.', variant: 'destructive'});
+        if (!nearestStop) {
+            toast({ title: 'Klaida', description: 'Nepavyko rasti artimiausios stotelės.', variant: 'destructive'});
+            setIsFindingLocation(false);
+            return;
         }
+        
+        // Find all routes that pass through a stop with the same name
+        const routesForNearestStop = allStopsWithDistance
+            .filter(stop => stop.stop === nearestStop.stop)
+            .map(stop => ({
+                routeId: stop.routeId,
+                routeName: stop.routeName,
+                routeNumber: stop.routeNumber,
+                arrivalTimes: stop.arrivalTimes,
+                id: stop.id,
+            }));
+            
+        toast({
+          title: 'Stotelė rasta!',
+          description: `Artimiausia stotelė yra "${nearestStop.stop}". Rasta maršrutų: ${routesForNearestStop.length}.`,
+        });
 
+        setNearbyRouteGroup({
+            stopName: nearestStop.stop,
+            distance: nearestStop.distance,
+            routes: routesForNearestStop,
+        });
 
         setIsFindingLocation(false);
       },
@@ -251,14 +273,14 @@ export default function TimetableClient() {
     );
   };
   
-  const handleNearbyStopSelect = (stop: NearbyStop) => {
-    setSelectedRouteId(stop.routeId);
-    setSearchInput(stop.stop);
-    setActiveSearch(stop.stop);
-    setNearbyStops(null);
+  const handleNearbyStopSelect = (route: Omit<NearbyStop, 'distance' | 'stop'>, stopName: string) => {
+    setSelectedRouteId(route.routeId);
+    setSearchInput(stopName);
+    setActiveSearch(stopName);
+    setNearbyRouteGroup(null);
     toast({
       title: 'Maršrutas parinktas',
-      description: `Kraunamas maršrutas "${stop.routeNumber} - ${stop.routeName}"`,
+      description: `Kraunamas maršrutas "${route.routeNumber} - ${route.routeName}"`,
     });
   }
 
@@ -576,7 +598,7 @@ export default function TimetableClient() {
         <DialogContent className="max-w-4xl w-full h-screen p-4 flex flex-col">
           {selectedStopDetail && (
             <>
-              <div className="flex-shrink-0 pt-2 pb-1">
+              <div className="flex-shrink-0 pt-1 pb-1">
                  <DialogHeader>
                     <DialogTitle>
                         {showFullPath ? 'Visas likęs maršrutas' : 'Maršruto atkarpa'}
@@ -619,7 +641,7 @@ export default function TimetableClient() {
                 />
               </div>
               <div className="flex-shrink-0 pt-2">
-                  <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center pt-2">
+                  <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center pt-1">
                       <div className="flex items-center space-x-2">
                         <Switch id="full-path-switch" checked={showFullPath} onCheckedChange={setShowFullPath} />
                         <Label htmlFor="full-path-switch">Rodyti visą likusį maršrutą</Label>
@@ -641,39 +663,39 @@ export default function TimetableClient() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={!!nearbyStops} onOpenChange={() => setNearbyStops(null)}>
+      <Dialog open={!!nearbyRouteGroup} onOpenChange={() => setNearbyRouteGroup(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rastos stotelės šalia Jūsų</DialogTitle>
-            <DialogDescription>
-              Pasirinkite stotelę iš sąrašo, kad pamatytumėte jos tvarkaraštį.
-            </DialogDescription>
+            <DialogTitle>Rasti maršrutai</DialogTitle>
+             {nearbyRouteGroup && (
+                <DialogDescription>
+                    Artimiausia stotelė yra "{nearbyRouteGroup.stopName}" (už {(nearbyRouteGroup.distance * 1000).toFixed(0)} m). Pasirinkite norimą maršrutą.
+                </DialogDescription>
+            )}
           </DialogHeader>
           <div className="py-4">
-            {nearbyStops && nearbyStops.length > 0 ? (
+            {nearbyRouteGroup && nearbyRouteGroup.routes.length > 0 ? (
               <ul className="space-y-2">
-                {nearbyStops.map(stop => (
-                  <li key={stop.id}>
+                {nearbyRouteGroup.routes.map(route => (
+                  <li key={route.id}>
                     <Button 
                       variant="outline" 
                       className="w-full h-auto justify-start text-left" 
-                      onClick={() => handleNearbyStopSelect(stop)}
+                      onClick={() => handleNearbyStopSelect(route, nearbyRouteGroup.stopName)}
                     >
                       <div className="flex-grow">
-                        <p className="font-semibold">{stop.stop}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Maršrutas {stop.routeNumber}: {stop.routeName}
+                        <p className="font-semibold">Maršrutas {route.routeNumber}: {route.routeName}</p>
+                         <p className="text-sm text-muted-foreground flex items-center gap-2">
+                           <Clock className="h-4 w-4" />
+                           <span>Atvyksta: {(route.arrivalTimes || []).join(', ')}</span>
                         </p>
-                      </div>
-                      <div className="text-right text-sm text-muted-foreground">
-                        <p>{(stop.distance * 1000).toFixed(0)} m</p>
                       </div>
                     </Button>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-center text-muted-foreground">Artimų stotelių nerasta.</p>
+              <p className="text-center text-muted-foreground">Maršrutų nerasta.</p>
             )}
           </div>
         </DialogContent>
