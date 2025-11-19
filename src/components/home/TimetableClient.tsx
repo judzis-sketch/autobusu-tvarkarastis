@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, FormEvent, useCallback } from 'react';
@@ -83,6 +84,7 @@ export default function TimetableClient() {
   const [isSearchingStops, setIsSearchingStops] = useState(false);
   const [nearbyRouteGroup, setNearbyRouteGroup] = useState<NearbyRouteGroup[] | null>(null);
   const [searchDialogTitle, setSearchDialogTitle] = useState('Rasti maršrutai');
+  const [isRouteSelectedFromDropdown, setIsRouteSelectedFromDropdown] = useState(false);
 
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -119,36 +121,40 @@ export default function TimetableClient() {
 
   const handleSearchSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!searchInput.trim()) {
+    const searchTerm = searchInput.trim();
+    if (!searchTerm) {
         setActiveSearch('');
         return;
     }
 
-    // If a route IS selected from the dropdown, search within it.
-    // Otherwise, always perform a global search.
-    if (selectedRouteId && !nearbyRouteGroup) { // Check if a global search result is not already open
-        setActiveSearch(searchInput);
+    // If a route was explicitly selected by the user from the dropdown,
+    // then search only within that route.
+    if (selectedRouteId && isRouteSelectedFromDropdown) {
+        setActiveSearch(searchTerm);
         return;
     }
 
+    // Otherwise, always perform a global search across all routes.
     if (!firestore || !routes) {
         toast({ title: 'Klaida', description: 'Maršrutų sąrašas dar neužkrautas.', variant: 'destructive' });
         return;
     }
 
     setIsSearchingStops(true);
-    toast({ title: 'Ieškoma stotelės...', description: `Ieškoma "${searchInput}" visuose maršrutuose.` });
+    toast({ title: 'Ieškoma stotelės...', description: `Ieškoma "${searchTerm}" visuose maršrutuose.` });
 
     let allFoundStops: (TimetableEntry & { routeId: string; routeName: string; routeNumber?: string })[] = [];
 
     for (const route of routes) {
         if (!route.id) continue;
+        // Optimization: Use a where clause if the stop names are consistent.
+        // For now, fetching all and filtering client-side is okay for smaller datasets.
         const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`));
         const stopsSnapshot = await getDocs(stopsQuery);
 
         stopsSnapshot.forEach(doc => {
             const stopData = doc.data() as TimetableEntry;
-            if (stopData.stop.toLowerCase().includes(searchInput.trim().toLowerCase())) {
+            if (stopData.stop.toLowerCase().includes(searchTerm.toLowerCase())) {
                 allFoundStops.push({
                     ...stopData,
                     id: doc.id,
@@ -163,7 +169,7 @@ export default function TimetableClient() {
     if (allFoundStops.length === 0) {
         toast({
             title: 'Stotelė nerasta',
-            description: `Stotelė pavadinimu "${searchInput}" nerasta jokiame maršrute.`,
+            description: `Stotelė pavadinimu "${searchTerm}" nerasta jokiame maršrute.`,
             variant: 'destructive',
         });
     } else {
@@ -192,7 +198,7 @@ export default function TimetableClient() {
             description: `Rasta ${resultGroups.length} stotelių atitinkančių paiešką.`
         })
 
-        setSearchDialogTitle(`Paieškos "${searchInput}" rezultatai`);
+        setSearchDialogTitle(`Paieškos "${searchTerm}" rezultatai`);
         setNearbyRouteGroup(resultGroups);
     }
 
@@ -330,6 +336,7 @@ export default function TimetableClient() {
     setSearchInput(stopName);
     setActiveSearch(stopName);
     setNearbyRouteGroup(null);
+    setIsRouteSelectedFromDropdown(false);
     toast({
       title: 'Maršrutas parinktas',
       description: `Kraunamas maršrutas "${route.routeNumber} - ${route.routeName}"`,
@@ -514,6 +521,7 @@ export default function TimetableClient() {
                   onValueChange={(value) => {
                     setSelectedRouteId(value);
                     handleClearSearch();
+                    setIsRouteSelectedFromDropdown(true);
                   }}
                   value={selectedRouteId ?? ''}
                 >
@@ -764,7 +772,3 @@ export default function TimetableClient() {
     </>
   );
 }
-
-    
-
-    
