@@ -760,19 +760,14 @@ export default function TimetableClient() {
                                   <span className={canOpenMap ? 'hover:underline' : 'cursor-default'}>{s.stop}</span>
                                 </Button>
 
-                                <div className="space-y-1 ml-6">
-                                    <div className="text-base text-accent-foreground/80 flex items-center gap-2">
-                                      <Clock className="h-4 w-4 text-muted-foreground" />
-                                      <span className="text-sm text-muted-foreground w-20">Atvyksta:</span>
-                                      <span>{(s.arrivalTimes || (s as any).times || []).join(', ')}</span>
-                                    </div>
-                                    {s.departureTimes && s.departureTimes.length > 0 && (
-                                       <div className="text-base text-accent-foreground/80 flex items-center gap-2">
-                                          <Clock className="h-4 w-4 text-muted-foreground" />
-                                          <span className="text-sm text-muted-foreground w-20">Išvyksta:</span>
-                                          <span>{s.departureTimes.join(', ')}</span>
-                                      </div>
+                                <div className="flex items-center gap-2 pl-6">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">{(s.arrivalTimes || (s as any).times || []).join(', ')}</span>
+                                    {s.departureTimes && s.departureTimes.length > 0 && JSON.stringify(s.departureTimes) !== JSON.stringify(s.arrivalTimes) && (
+                                      <span className="text-muted-foreground/80"> (išv. {s.departureTimes.join(', ')})</span>
                                     )}
+                                  </p>
                                 </div>
 
 
