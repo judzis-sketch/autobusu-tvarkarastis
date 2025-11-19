@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, FormEvent, useCallback } from 'react';
@@ -510,79 +511,95 @@ export default function TimetableClient() {
             />
           </div>
         )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <Card>
+             <CardHeader>
+                <CardTitle>Stotelės paieška</CardTitle>
+                <CardDescription>
+                  Ieškokite stotelės pagal pavadinimą visuose maršrutuose.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="stop-search-input">Stotelės pavadinimas</Label>
+                      <div className="relative flex-grow">
+                          <Input 
+                            id="stop-search-input"
+                            placeholder="pvz., Vinco Kudirkos aikštė"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                          />
+                          {searchInput && !isRouteSelectedFromDropdown && (
+                          <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                              onClick={handleClearSearch}
+                          >
+                              <X className="h-4 w-4 text-muted-foreground"/>
+                          </Button>
+                          )}
+                      </div>
+                  </div>
+                   <Button type="submit" variant="secondary" disabled={isSearchingStops}>
+                      {isSearchingStops ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4 mr-2" />}
+                      Ieškoti stotelės
+                  </Button>
+                </form>
+              </CardContent>
+           </Card>
+           
+           <Card className="flex flex-col">
+             <CardHeader>
+                <CardTitle>Rasti artimiausią stotelę</CardTitle>
+                <CardDescription>
+                  Leiskite mums nustatyti jūsų vietą ir parodyti artimiausias stoteles.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-grow justify-center">
+                 <Button 
+                    className="w-full" 
+                    variant="outline" 
+                    onClick={handleFindNearestStop}
+                    disabled={isFindingLocation}
+                >
+                    {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
+                    Naudoti mano lokaciją
+                </Button>
+              </CardContent>
+           </Card>
+        </div>
+
+
         <Card>
           <CardHeader>
-            <CardTitle>Maršruto ir stotelės paieška</CardTitle>
+            <CardTitle>Maršrutų sąrašas</CardTitle>
             <CardDescription>
-              Pasirinkite maršrutą arba ieškokite stotelės pagal pavadinimą visuose maršrutuose.
+              Pasirinkite maršrutą iš sąrašo, kad pamatytumėte jo tvarkaraštį.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-             <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Stotelės paieška</label>
-                    <div className="relative flex-grow">
-                        <Input 
-                        placeholder="Įveskite stotelės pavadinimą..."
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        />
-                        {searchInput && (
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                            onClick={handleClearSearch}
-                        >
-                            <X className="h-4 w-4 text-muted-foreground"/>
-                        </Button>
-                        )}
-                    </div>
-                </div>
-                 <Button type="submit" variant="secondary" disabled={isSearchingStops}>
-                    {isSearchingStops ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4 mr-2" />}
-                    Ieškoti stotelės
-                </Button>
-             </form>
-
-            <div className="flex items-center gap-4">
-                <div className="flex-1 border-t"></div>
-                <span className="text-xs text-muted-foreground">ARBA</span>
-                <div className="flex-1 border-t"></div>
-            </div>
-            
-            <div className="space-y-2">
-                <label className="text-sm font-medium">Pasirinkite maršrutą</label>
-                 <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="local">
-                    <AccordionTrigger>Vietinio susisiekimo maršrutai ({localRoutes.length})</AccordionTrigger>
-                    <AccordionContent>
-                      <ScrollArea className="h-60">
-                        {renderRouteList(localRoutes)}
-                      </ScrollArea>
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="long-distance">
-                    <AccordionTrigger>Tolimojo susisiekimo maršrutai ({longDistanceRoutes.length})</AccordionTrigger>
-                    <AccordionContent>
-                      <ScrollArea className="h-60">
-                        {renderRouteList(longDistanceRoutes)}
-                      </ScrollArea>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-            </div>
-
-            <Button 
-                className="w-full" 
-                variant="outline" 
-                onClick={handleFindNearestStop}
-                disabled={isFindingLocation}
-            >
-                {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
-                Rasti artimiausią stotelę pagal mano lokaciją
-            </Button>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="local">
+                <AccordionTrigger>Vietinio susisiekimo maršrutai ({localRoutes.length})</AccordionTrigger>
+                <AccordionContent>
+                  <ScrollArea className="h-60">
+                    {renderRouteList(localRoutes)}
+                  </ScrollArea>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="long-distance">
+                <AccordionTrigger>Tolimojo susisiekimo maršrutai ({longDistanceRoutes.length})</AccordionTrigger>
+                <AccordionContent>
+                  <ScrollArea className="h-60">
+                    {renderRouteList(longDistanceRoutes)}
+                  </ScrollArea>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </CardContent>
         </Card>
 
