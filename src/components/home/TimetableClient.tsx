@@ -151,13 +151,6 @@ export default function TimetableClient() {
     );
   }, [timetable, activeSearch]);
 
-  const activeDaysModifier: DayOfWeek = useMemo(() => {
-    if (!selectedRoute?.days) return { dayOfWeek: [] };
-    const activeDays = selectedRoute.days.map(day => dayNameToNumber[day]).filter(dayNum => dayNum !== undefined);
-    return { dayOfWeek: activeDays };
-  }, [selectedRoute]);
-
-
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     if (date && routes) {
@@ -713,8 +706,11 @@ export default function TimetableClient() {
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
-                      <CardTitle className="text-3xl">Maršrutas: {selectedRoute?.number}</CardTitle>
-                      <CardDescription>{selectedRoute?.name}</CardDescription>
+                      <div className="text-sm text-muted-foreground">Maršrutas</div>
+                      <CardTitle className="text-2xl font-bold">
+                        {selectedRoute?.number && <span className="mr-2">{selectedRoute.number}</span>}
+                        {selectedRoute?.name}
+                      </CardTitle>
                       {selectedRoute?.days && selectedRoute.days.length > 0 && (
                         <div className="flex flex-wrap items-center gap-2 mt-2">
                            <CalendarDays className="h-4 w-4 text-muted-foreground"/>
