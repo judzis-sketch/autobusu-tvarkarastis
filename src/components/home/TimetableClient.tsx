@@ -53,6 +53,14 @@ interface StopDetail {
   remaining: TimetableEntry[];
 }
 
+type NearbyStop = TimetableEntry & {
+  routeId: string;
+  routeName: string;
+  routeNumber?: string;
+  distance: number;
+};
+
+
 export default function TimetableClient() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedStopDetail, setSelectedStopDetail] = useState<StopDetail | null>(null);
@@ -61,6 +69,7 @@ export default function TimetableClient() {
   const [activeSearch, setActiveSearch] = useState('');
   const [isFindingLocation, setIsFindingLocation] = useState(false);
   const [isSearchingStops, setIsSearchingStops] = useState(false);
+  const [nearbyStops, setNearbyStops] = useState<NearbyStop[] | null>(null);
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -177,7 +186,7 @@ export default function TimetableClient() {
         const { latitude, longitude } = position.coords;
         toast({
           title: 'Vieta rasta!',
-          description: 'Ieškoma artimiausios stotelės...',
+          description: 'Ieškoma artimiausių stotelių...',
         });
 
         if (!firestore || !routes) {
@@ -186,8 +195,9 @@ export default function TimetableClient() {
           return;
         }
 
-        let allStops: (TimetableEntry & { routeId: string })[] = [];
-        // Fetch all stops from all routes
+        let allStops: NearbyStop[] = [];
+        const routeMap = new Map(routes.map(r => [r.id, r]));
+
         for (const route of routes) {
           if (!route.id) continue;
           const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`), orderBy('createdAt', 'asc'));
@@ -195,7 +205,15 @@ export default function TimetableClient() {
           stopsSnapshot.forEach(doc => {
             const stopData = doc.data() as TimetableEntry;
             if (stopData.coords) {
-              allStops.push({ ...stopData, id: doc.id, routeId: route.id! });
+              const distance = getDistance(latitude, longitude, stopData.coords![0], stopData.coords![1]);
+              allStops.push({
+                  ...stopData,
+                  id: doc.id,
+                  routeId: route.id!,
+                  routeName: route.name,
+                  routeNumber: route.number,
+                  distance: distance
+              });
             }
           });
         }
@@ -206,27 +224,17 @@ export default function TimetableClient() {
             return;
         }
 
-        let nearestStop: (TimetableEntry & { routeId: string }) | null = null;
-        let minDistance = Infinity;
+        allStops.sort((a, b) => a.distance - b.distance);
+        const topStops = allStops.slice(0, 5);
 
-        allStops.forEach(stop => {
-          const distance = getDistance(latitude, longitude, stop.coords![0], stop.coords![1]);
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearestStop = stop;
-          }
-        });
-
-        if (nearestStop) {
+        if (topStops.length > 0) {
            toast({
-              title: 'Artimiausia stotelė rasta!',
-              description: `"${nearestStop.stop}" (${(minDistance).toFixed(2)} km). Kraunamas tvarkaraštis...`,
+              title: 'Artimiausios stotelės rastos!',
+              description: `Rastos ${topStops.length} stotelės šalia Jūsų.`,
             });
-            setSelectedRouteId(nearestStop.routeId);
-            setSearchInput(nearestStop.stop);
-            setActiveSearch(nearestStop.stop);
+            setNearbyStops(topStops);
         } else {
-             toast({ title: 'Klaida', description: 'Nepavyko rasti artimiausios stotelės.', variant: 'destructive'});
+             toast({ title: 'Klaida', description: 'Nepavyko rasti artimiausių stotelių.', variant: 'destructive'});
         }
 
 
@@ -242,6 +250,18 @@ export default function TimetableClient() {
       }
     );
   };
+  
+  const handleNearbyStopSelect = (stop: NearbyStop) => {
+    setSelectedRouteId(stop.routeId);
+    setSearchInput(stop.stop);
+    setActiveSearch(stop.stop);
+    setNearbyStops(null);
+    toast({
+      title: 'Maršrutas parinktas',
+      description: `Kraunamas maršrutas "${stop.routeNumber} - ${stop.routeName}"`,
+    });
+  }
+
 
   const handleStopClick = useCallback((clickedStop: TimetableEntry) => {
     if (!timetable) return;
@@ -618,6 +638,44 @@ export default function TimetableClient() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={!!nearbyStops} onOpenChange={() => setNearbyStops(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rastos stotelės šalia Jūsų</DialogTitle>
+            <DialogDescription>
+              Pasirinkite stotelę iš sąrašo, kad pamatytumėte jos tvarkaraštį.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {nearbyStops && nearbyStops.length > 0 ? (
+              <ul className="space-y-2">
+                {nearbyStops.map(stop => (
+                  <li key={stop.id}>
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-auto justify-start text-left" 
+                      onClick={() => handleNearbyStopSelect(stop)}
+                    >
+                      <div className="flex-grow">
+                        <p className="font-semibold">{stop.stop}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Maršrutas {stop.routeNumber}: {stop.routeName}
+                        </p>
+                      </div>
+                      <div className="text-right text-sm text-muted-foreground">
+                        <p>{(stop.distance * 1000).toFixed(0)} m</p>
+                      </div>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-center text-muted-foreground">Artimų stotelių nerasta.</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
