@@ -115,12 +115,19 @@ export default function Header() {
               ) : user ? (
                 <>
                   {isAdmin && (
-                     <Button asChild variant="outline">
-                        <Link href="/admin">
-                            <Cog />
-                            <span>Administravimas</span>
-                        </Link>
-                    </Button>
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button asChild variant="outline" size="icon">
+                              <Link href="/admin">
+                                  <Cog className="h-5 w-5" />
+                                  <span className="sr-only">Administravimas</span>
+                              </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Administravimas</p>
+                        </TooltipContent>
+                      </Tooltip>
                   )}
                    <Tooltip>
                       <TooltipTrigger asChild>
@@ -135,12 +142,19 @@ export default function Header() {
                     </Tooltip>
                 </>
               ) : (
-                <Button asChild variant="ghost">
-                    <Link href="/login">
-                        <UserIcon />
-                        <span>Admin prisijungimas</span>
-                    </Link>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button asChild variant="ghost" size="icon">
+                        <Link href="/login">
+                            <UserIcon className="h-5 w-5" />
+                            <span className="sr-only">Admin prisijungimas</span>
+                        </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Administratoriaus prisijungimas</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </TooltipProvider>
           </div>
