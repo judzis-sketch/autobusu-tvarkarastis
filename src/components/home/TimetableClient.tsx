@@ -63,7 +63,13 @@ type NearbyStop = TimetableEntry & {
 interface NearbyRouteGroup {
     stopName: string;
     distance: number;
-    routes: Omit<NearbyStop, 'distance' | 'stop'>[];
+    routes: {
+      routeId: string;
+      routeName: string;
+      routeNumber?: string;
+      arrivalTimes?: string[];
+      id: string;
+    }[];
 }
 
 
@@ -273,7 +279,7 @@ export default function TimetableClient() {
     );
   };
   
-  const handleNearbyStopSelect = (route: Omit<NearbyStop, 'distance' | 'stop'>, stopName: string) => {
+  const handleNearbyStopSelect = (route: { routeId: string, routeName: string, routeNumber?: string }, stopName: string) => {
     setSelectedRouteId(route.routeId);
     setSearchInput(stopName);
     setActiveSearch(stopName);
@@ -669,15 +675,15 @@ export default function TimetableClient() {
             <DialogTitle>Rasti maršrutai</DialogTitle>
              {nearbyRouteGroup && (
                 <DialogDescription>
-                    Artimiausia stotelė yra "{nearbyRouteGroup.stopName}" (už {(nearbyRouteGroup.distance * 1000).toFixed(0)} m). Pasirinkite norimą maršrutą.
+                    Artimiausia stotelė yra "{nearbyRouteGroup.stopName}" (už {(nearbyRouteGroup.distance * 1000).toFixed(0)} m). Pasirinkite norimą maršrutą iš sąrašo.
                 </DialogDescription>
             )}
           </DialogHeader>
           <div className="py-4">
             {nearbyRouteGroup && nearbyRouteGroup.routes.length > 0 ? (
               <ul className="space-y-2">
-                {nearbyRouteGroup.routes.map(route => (
-                  <li key={route.id}>
+                {nearbyRouteGroup.routes.map((route, index) => (
+                  <li key={`${route.routeId}-${index}`}>
                     <Button 
                       variant="outline" 
                       className="w-full h-auto justify-start text-left" 
@@ -703,3 +709,5 @@ export default function TimetableClient() {
     </>
   );
 }
+
+    
