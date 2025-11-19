@@ -6,6 +6,7 @@ import { useState, useMemo, FormEvent, useCallback } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { DayOfWeek, DayPicker } from 'react-day-picker';
 
 import {
   Accordion,
@@ -23,7 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, Watch } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, Watch, CalendarDays } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '../ui/button';
@@ -35,6 +36,8 @@ import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
+import { Calendar } from '../ui/calendar';
+import 'react-day-picker/dist/style.css';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -72,6 +75,16 @@ interface NearbyRouteGroup {
       id: string; // This is the TimetableEntry ID
     }[];
 }
+
+const dayNameToNumber: { [key: string]: number } = {
+  "Sekmadienis": 0,
+  "Pirmadienis": 1,
+  "Antradienis": 2,
+  "Trečiadienis": 3,
+  "Ketvirtadienis": 4,
+  "Penktadienis": 5,
+  "Šeštadienis": 6,
+};
 
 
 export default function TimetableClient() {
@@ -121,6 +134,12 @@ export default function TimetableClient() {
       stop.stop.toLowerCase().includes(activeSearch.toLowerCase())
     );
   }, [timetable, activeSearch]);
+
+  const activeDaysModifier: DayOfWeek = useMemo(() => {
+    if (!selectedRoute?.days) return { dayOfWeek: [] };
+    const activeDays = selectedRoute.days.map(day => dayNameToNumber[day]).filter(dayNum => dayNum !== undefined);
+    return { dayOfWeek: activeDays };
+  }, [selectedRoute]);
 
 
   const handleSearchSubmit = async (e: FormEvent) => {
@@ -612,13 +631,15 @@ export default function TimetableClient() {
                       <CardTitle>Maršrutas: {selectedRoute?.number}</CardTitle>
                       <CardDescription>{selectedRoute?.name}</CardDescription>
                       {selectedRoute?.days && selectedRoute.days.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                           <CalendarDays className="h-4 w-4 text-muted-foreground"/>
                             {selectedRoute.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
                         </div>
                       )}
                     </div>
                     <TabsList className='w-full sm:w-auto'>
                       <TabsTrigger value="list" className='flex-1 sm:flex-initial'><List className="h-4 w-4 mr-2" />Sąrašas</TabsTrigger>
+                      <TabsTrigger value="calendar" className='flex-1 sm:flex-initial'><CalendarDays className="h-4 w-4 mr-2" />Kalendorius</TabsTrigger>
                       <TabsTrigger value="map" className='flex-1 sm:flex-initial' disabled={timetableWithCoords.length === 0}><MapPin className="h-4 w-4 mr-2" />Žemėlapis</TabsTrigger>
                     </TabsList>
                   </div>
@@ -688,6 +709,19 @@ export default function TimetableClient() {
                         </p>
                       )}
                     </ScrollArea>
+                  </TabsContent>
+                   <TabsContent value="calendar">
+                    <div className="mt-4 flex justify-center">
+                        <Calendar
+                          mode="single"
+                          modifiers={{ active: activeDaysModifier }}
+                          modifiersClassNames={{ active: 'bg-primary/20 rounded-full' }}
+                          weekStartsOn={1}
+                          showOutsideDays
+                          fixedWeeks
+                          className="rounded-md border w-auto"
+                        />
+                    </div>
                   </TabsContent>
                   <TabsContent value="map">
                     <div className="h-[600px] mt-4 rounded-md overflow-hidden border">
@@ -822,5 +856,3 @@ export default function TimetableClient() {
     </>
   );
 }
-
-    
