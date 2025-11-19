@@ -661,7 +661,7 @@ export default function TimetableClient() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Accordion type="single" collapsible className="w-full" defaultValue="local">
+            <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="local">
                 <AccordionTrigger>Vietinio susisiekimo maršrutai ({localRoutes.length})</AccordionTrigger>
                 <AccordionContent>
