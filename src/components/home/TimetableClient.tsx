@@ -523,8 +523,8 @@ export default function TimetableClient() {
         {routesToList.map((r) => (
           <Button
             key={r.id}
-            variant="ghost"
-            className={`w-full justify-start h-auto text-left hover:bg-primary/10 ${selectedRouteId === r.id ? 'bg-primary/10' : ''}`}
+            variant={selectedRouteId === r.id ? 'default' : 'ghost'}
+            className="w-full justify-start h-auto text-left"
             onClick={() => {
               setSelectedRouteId(r.id!);
               handleClearSearch();
@@ -538,7 +538,7 @@ export default function TimetableClient() {
               </p>
               {r.days && r.days.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {r.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                  {r.days.map(day => <Badge key={day} variant={selectedRouteId === r.id ? 'default' : 'secondary'} className="text-xs">{day.slice(0,3)}</Badge>)}
                 </div>
               )}
             </div>
