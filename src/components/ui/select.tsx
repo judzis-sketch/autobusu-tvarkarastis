@@ -146,6 +146,17 @@ const SelectSeparator = React.forwardRef<
 ))
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName
 
+const ScrollArea = React.forwardRef<
+  React.ElementRef<any>,
+  React.ComponentPropsWithoutRef<any>
+>(({ className, children, ...props }, ref) => (
+  <div ref={ref} className={cn("overflow-auto", className)} {...props}>
+    {children}
+  </div>
+))
+ScrollArea.displayName = "ScrollArea"
+
+
 export {
   Select,
   SelectGroup,
