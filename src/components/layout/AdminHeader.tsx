@@ -39,7 +39,7 @@ export default function AdminHeader() {
 
           <div className="flex items-center gap-2">
             <DropdownMenu>
-              <TooltipProvider>
+              <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>

@@ -65,8 +65,8 @@ export default function Header() {
             <h1 className="text-xl font-bold text-foreground font-headline">Autobusų tvarkaraštis</h1>
           </Link>
           <div className="flex items-center gap-2">
-            <TooltipProvider>
-               <DropdownMenu>
+            <DropdownMenu>
+              <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
@@ -81,19 +81,20 @@ export default function Header() {
                     <p>Keisti temą</p>
                   </TooltipContent>
                 </Tooltip>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setTheme('light')}>
-                    Šviesi
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme('dark')}>
-                    Tamsi
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setTheme('system')}>
-                    Sistemos
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
+              </TooltipProvider>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTheme('light')}>
+                  Šviesi
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')}>
+                  Tamsi
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('system')}>
+                  Sistemos
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
