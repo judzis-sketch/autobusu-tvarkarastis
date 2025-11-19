@@ -253,7 +253,7 @@ export default function TimetableClient() {
     const nextStop = timetable[currentIndex + 1];
     const remainingStops = timetable.slice(currentIndex + 1);
   
-    if (currentStop.routeGeometry && currentStop.coords && nextStop && nextStop.coords) {
+    if (currentStop.coords && nextStop && nextStop.coords) {
       setSelectedStopDetail({
         current: currentStop,
         next: nextStop,
@@ -262,7 +262,7 @@ export default function TimetableClient() {
     } else {
       toast({
         title: "Trūksta duomenų",
-        description: "Trūksta kelio geometrijos arba koordinačių duomenų, kad būtų galima atvaizduoti maršrutą.",
+        description: "Trūksta stotelės koordinačių duomenų, kad būtų galima atvaizduoti maršrutą.",
         variant: 'destructive'
       });
     }
@@ -288,7 +288,7 @@ export default function TimetableClient() {
     const newNextStop = timetable[newIndex + 1];
     const newRemainingStops = timetable.slice(newIndex + 1);
   
-    if (newCurrentStop.routeGeometry && newCurrentStop.coords && newNextStop.coords) {
+    if (newCurrentStop.coords && newNextStop.coords) {
       setSelectedStopDetail({
         current: newCurrentStop,
         next: newNextStop,
@@ -537,40 +537,42 @@ export default function TimetableClient() {
       </div>
 
       <Dialog open={!!selectedStopDetail} onOpenChange={(isOpen) => {if (!isOpen) setSelectedStopDetail(null)}}>
-        <DialogContent className="max-w-5xl w-full h-screen p-4 flex flex-col">
+        <DialogContent className="max-w-4xl w-full h-screen p-4 flex flex-col">
           {selectedStopDetail && (
             <>
-              <DialogHeader>
-                 <DialogTitle>
-                    {showFullPath ? 'Visas likęs maršrutas' : 'Maršruto atkarpa'}
-                 </DialogTitle>
-                 <DialogDescription className="sr-only">
-                    Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}.
-                 </DialogDescription>
-                 <div className="text-center text-base flex items-center justify-center gap-2 pt-2">
-                   <span className="font-semibold">{selectedStopDetail.current.stop}</span>
-                   <ArrowRight className="h-4 w-4" />
-                   <span className="font-semibold">{finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}</span>
-                 </div>
-              </DialogHeader>
-              <div className="grid grid-cols-3 items-center text-center py-2">
-                <div className="text-left">
-                    <p className="text-xs text-muted-foreground">Išvyksta</p>
-                    <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || (selectedStopDetail.current as any).times || []).join(', ')}</p>
-                </div>
-                <div className="flex flex-col items-center justify-center border-x">
-                    <Watch className="h-5 w-5 text-primary" />
-                    <p className="font-bold text-lg text-primary">
-                      {calculateTravelTime(showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      ({((showFullPath ? fullRemainingDistance! : selectedStopDetail.current.distanceToNext!) / 1000).toFixed(2)} km)
-                    </p>
-                </div>
-                <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Atvyksta</p>
-                    <p className="font-bold text-lg">{((finalDestination ? finalDestination.arrivalTimes : selectedStopDetail.next.arrivalTimes) || (finalDestination || selectedStopDetail.next as any).times || []).join(', ')}</p>
-                </div>
+              <div className="flex-shrink-0">
+                 <DialogHeader>
+                    <DialogTitle>
+                        {showFullPath ? 'Visas likęs maršrutas' : 'Maršruto atkarpa'}
+                    </DialogTitle>
+                    <DialogDescription className="sr-only">
+                        Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}.
+                    </DialogDescription>
+                    <div className="text-center text-base flex items-center justify-center gap-2 pt-2">
+                      <span className="font-semibold">{selectedStopDetail.current.stop}</span>
+                      <ArrowRight className="h-4 w-4" />
+                      <span className="font-semibold">{finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}</span>
+                    </div>
+                 </DialogHeader>
+                  <div className="grid grid-cols-3 items-center text-center py-2">
+                    <div className="text-left">
+                        <p className="text-xs text-muted-foreground">Išvyksta</p>
+                        <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || (selectedStopDetail.current as any).times || []).join(', ')}</p>
+                    </div>
+                    <div className="flex flex-col items-center justify-center border-x">
+                        <Watch className="h-5 w-5 text-primary" />
+                        <p className="font-bold text-lg text-primary">
+                          {calculateTravelTime(showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          ({((showFullPath ? fullRemainingDistance! : selectedStopDetail.current.distanceToNext!) / 1000).toFixed(2)} km)
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Atvyksta</p>
+                        <p className="font-bold text-lg">{((finalDestination ? finalDestination.arrivalTimes : selectedStopDetail.next.arrivalTimes) || (finalDestination || selectedStopDetail.next as any).times || []).join(', ')}</p>
+                    </div>
+                  </div>
               </div>
               <div className="flex-grow min-h-0 mt-2 rounded-md overflow-hidden border">
                 <StopToStopMap 
@@ -580,22 +582,24 @@ export default function TimetableClient() {
                     showFullPath={showFullPath}
                 />
               </div>
-              <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center pt-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch id="full-path-switch" checked={showFullPath} onCheckedChange={setShowFullPath} />
-                    <Label htmlFor="full-path-switch">Rodyti visą likusį maršrutą</Label>
-                  </div>
-                  <div className='flex gap-2'>
-                    <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInDialog}>
-                        <ChevronLeft className="h-4 w-4 mr-2" />
-                        Ankstesnė
-                    </Button>
-                    <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInDialog}>
-                        Kita
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  </div>
-              </DialogFooter>
+              <div className="flex-shrink-0">
+                  <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center pt-4">
+                      <div className="flex items-center space-x-2">
+                        <Switch id="full-path-switch" checked={showFullPath} onCheckedChange={setShowFullPath} />
+                        <Label htmlFor="full-path-switch">Rodyti visą likusį maršrutą</Label>
+                      </div>
+                      <div className='flex gap-2'>
+                        <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInDialog}>
+                            <ChevronLeft className="h-4 w-4 mr-2" />
+                            Ankstesnė
+                        </Button>
+                        <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInDialog}>
+                            Kita
+                            <ChevronRight className="h-4 w-4 ml-2" />
+                        </Button>
+                      </div>
+                  </DialogFooter>
+              </div>
             </>
           )}
         </DialogContent>
