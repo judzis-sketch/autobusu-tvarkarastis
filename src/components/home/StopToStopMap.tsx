@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import type { TimetableEntry } from '@/lib/types';
 import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -28,6 +28,24 @@ export default function StopToStopMap({ currentStop, nextStop, remainingStops, s
   const layersRef = useRef<L.Layer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const redIcon = useMemo(() => new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  }), []);
+  
+   const greenIcon = useMemo(() => new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  }), []);
+
   // Initialize map
   useEffect(() => {
     if (mapRef.current && !mapInstanceRef.current) {
@@ -54,24 +72,6 @@ export default function StopToStopMap({ currentStop, nextStop, remainingStops, s
 
     const fromCoords = currentStop.coords as LatLngTuple;
     
-    const redIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
-    
-     const greenIcon = new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-
     const fromArrivalTimes = currentStop.arrivalTimes || (currentStop as any).times || [];
     let fromPopupContent = `<b>Išvykimas: ${currentStop.stop}</b><br/>Atvyksta: ${fromArrivalTimes.join(', ')}`;
     if (currentStop.departureTimes && currentStop.departureTimes.length > 0) {

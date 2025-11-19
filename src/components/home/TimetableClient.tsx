@@ -552,26 +552,26 @@ export default function TimetableClient() {
                    <ArrowRight className="h-4 w-4" />
                    <span className="font-semibold">{finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}</span>
                  </div>
-                 <div className="grid grid-cols-3 items-center text-center py-2">
-                    <div className="text-left">
-                       <p className="text-xs text-muted-foreground">Išvyksta</p>
-                       <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || (selectedStopDetail.current as any).times || []).join(', ')}</p>
-                    </div>
-                    <div className="flex flex-col items-center justify-center border-x">
-                        <Watch className="h-5 w-5 text-primary" />
-                        <p className="font-bold text-lg text-primary">
-                          {calculateTravelTime(showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          ({((showFullPath ? fullRemainingDistance! : selectedStopDetail.current.distanceToNext!) / 1000).toFixed(2)} km)
-                        </p>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-xs text-muted-foreground">Atvyksta</p>
-                       <p className="font-bold text-lg">{((finalDestination ? finalDestination.arrivalTimes : selectedStopDetail.next.arrivalTimes) || (finalDestination || selectedStopDetail.next as any).times || []).join(', ')}</p>
-                    </div>
-                 </div>
               </DialogHeader>
+              <div className="grid grid-cols-3 items-center text-center py-2">
+                <div className="text-left">
+                    <p className="text-xs text-muted-foreground">Išvyksta</p>
+                    <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || (selectedStopDetail.current as any).times || []).join(', ')}</p>
+                </div>
+                <div className="flex flex-col items-center justify-center border-x">
+                    <Watch className="h-5 w-5 text-primary" />
+                    <p className="font-bold text-lg text-primary">
+                      {calculateTravelTime(showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      ({((showFullPath ? fullRemainingDistance! : selectedStopDetail.current.distanceToNext!) / 1000).toFixed(2)} km)
+                    </p>
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Atvyksta</p>
+                    <p className="font-bold text-lg">{((finalDestination ? finalDestination.arrivalTimes : selectedStopDetail.next.arrivalTimes) || (finalDestination || selectedStopDetail.next as any).times || []).join(', ')}</p>
+                </div>
+              </div>
               <div className="flex-grow min-h-0 mt-2 rounded-md overflow-hidden border">
                 <StopToStopMap 
                     currentStop={selectedStopDetail.current}
