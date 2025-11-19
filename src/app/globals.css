@@ -130,6 +130,30 @@ body {
   .large-text .text-lg {
     font-size: 1.25rem; /* Equivalent to text-xl */
   }
+
+  /* Weekend styles for react-day-picker */
+  .rdp-head_cell:nth-child(6) .weekend-head,
+  .rdp-head_cell:nth-child(7) .weekend-head {
+    color: hsl(var(--destructive));
+  }
+  .dark .rdp-head_cell:nth-child(6) .weekend-head,
+  .dark .rdp-head_cell:nth-child(7) .weekend-head {
+    color: hsl(var(--destructive));
+  }
+
+  .day-weekend {
+    color: hsl(var(--destructive));
+  }
+  .day-weekend:hover {
+    background-color: hsl(var(--destructive) / 0.1);
+  }
+
+  .dark .day-weekend {
+    color: hsl(var(--destructive));
+  }
+  .dark .day-weekend:hover {
+    background-color: hsl(var(--destructive) / 0.2);
+  }
 }
 
 /* Custom Leaflet icon styles */

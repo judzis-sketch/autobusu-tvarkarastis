@@ -3,7 +3,7 @@
 import * as React from "react"
 import { lt } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import { DayPicker, type DayOfWeek } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -16,11 +16,17 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  const weekendMatcher: DayOfWeek = { daysOfWeek: [0, 6] };
   return (
     <DayPicker
       locale={lt}
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
+      modifiers={{ weekend: weekendMatcher }}
+      modifiersClassNames={{
+        weekend: "weekend",
+        head_cell: "weekend-head"
+      }}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
