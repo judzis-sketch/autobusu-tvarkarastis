@@ -75,11 +75,12 @@ export default function Map({ stops, onStopClick }: MapProps) {
       const isLastStop = index === stopPositionsWithData.length - 1;
       const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
       
-      const arrivalTimes = stop.arrivalTimes || (stop as any).times || [];
-      let popupContent = `<b>${stop.stop}</b><br/>Atvyksta: ${arrivalTimes.join(', ')}`;
-      if (stop.departureTimes && stop.departureTimes.length > 0) {
-        popupContent += `<br/>Išvyksta: ${stop.departureTimes.join(', ')}`;
-      }
+      const arrivalTimes = (stop.arrivalTimes || (stop as any).times || []).join(', ');
+      const departureTimes = (stop.departureTimes && stop.departureTimes.length > 0) 
+        ? stop.departureTimes.join(', ') 
+        : arrivalTimes;
+
+      const popupContent = `<b>${stop.stop}</b><br/>Atvyksta: ${arrivalTimes}<br/>Išvyksta: ${departureTimes}`;
       marker.bindPopup(popupContent);
 
       // Show popup on hover for desktop, but not mobile to avoid interfering with click
@@ -96,6 +97,11 @@ export default function Map({ stops, onStopClick }: MapProps) {
       marker.on('click', () => {
         if (!isLastStop) {
           onStopClick(stop);
+        } else {
+            // On mobile, click should still show the popup for the last stop
+            if (isMobile) {
+                marker.openPopup();
+            }
         }
       });
 
