@@ -17,9 +17,10 @@ L.Icon.Default.mergeOptions({
 
 interface MapProps {
   stops: TimetableEntry[];
+  onStopClick: (stop: TimetableEntry) => void;
 }
 
-export default function Map({ stops }: MapProps) {
+export default function Map({ stops, onStopClick }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.Layer[]>([]);
@@ -67,7 +68,8 @@ export default function Map({ stops }: MapProps) {
     });
 
     // Add markers for each stop
-    stopPositionsWithData.forEach((stop) => {
+    stopPositionsWithData.forEach((stop, index) => {
+      const isLastStop = index === stopPositionsWithData.length - 1;
       const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
       const arrivalTimes = stop.arrivalTimes || (stop as any).times || [];
       let popupContent = `<b>${stop.stop}</b><br/>Atvyksta: ${arrivalTimes.join(', ')}`;
@@ -75,6 +77,14 @@ export default function Map({ stops }: MapProps) {
         popupContent += `<br/>Išvyksta: ${stop.departureTimes.join(', ')}`;
       }
       marker.bindPopup(popupContent);
+
+      if (!isLastStop) {
+        marker.on('click', () => onStopClick(stop));
+      } else {
+        // For the last stop, the popup works, but clicking does nothing extra.
+        // We could also disable the click event entirely if preferred.
+      }
+
       layersRef.current.push(marker);
     });
 
@@ -113,7 +123,7 @@ export default function Map({ stops }: MapProps) {
         }
     }
 
-  }, [stops]);
+  }, [stops, onStopClick]);
 
   return (
      <div className="relative h-full w-full">

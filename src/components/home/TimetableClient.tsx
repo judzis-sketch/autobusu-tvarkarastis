@@ -235,7 +235,7 @@ export default function TimetableClient() {
     );
   };
 
-  const handleStopClick = (clickedStop: TimetableEntry) => {
+  const handleStopClick = useCallback((clickedStop: TimetableEntry) => {
     if (!timetable) return;
   
     const currentIndex = timetable.findIndex(s => s.id === clickedStop.id);
@@ -262,7 +262,7 @@ export default function TimetableClient() {
         variant: 'destructive'
       });
     }
-  };
+  }, [timetable, toast]);
 
   const navigateStop = useCallback((direction: 'next' | 'prev') => {
     if (!selectedStopDetail || !timetable) return;
@@ -499,7 +499,7 @@ export default function TimetableClient() {
                   <TabsContent value="map">
                     <div className="h-[600px] mt-4 rounded-md overflow-hidden border">
                       {timetableWithCoords.length > 0 ? (
-                        <Map stops={timetableWithCoords} />
+                        <Map stops={timetableWithCoords} onStopClick={handleStopClick} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-muted">
                           <p className="text-muted-foreground">Nėra stotelių su koordinatėmis.</p>
