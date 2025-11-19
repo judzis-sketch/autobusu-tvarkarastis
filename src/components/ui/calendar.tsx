@@ -62,6 +62,8 @@ function Calendar({
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
+        day_weekend: "day-weekend",
+        head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] weekend:text-red-500",
         ...classNames,
       }}
       components={{
@@ -89,7 +91,7 @@ function Calendar({
                 handleChange(value)
               }}
             >
-              <SelectTrigger className="pr-1.5 focus:ring-0 w-32">
+              <SelectTrigger className="pr-1.5 focus:ring-0">
                 <SelectValue>{selected?.props?.children}</SelectValue>
               </SelectTrigger>
               <SelectContent position="popper">
