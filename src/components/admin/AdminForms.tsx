@@ -743,10 +743,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                         {routes.map((route) => (
                           <div key={route.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
                             <div className="flex-grow flex flex-col text-left">
-                              <p>
+                              <div>
                                 <Badge variant={route.type === 'Vietinio susisiekimo' ? 'secondary' : 'outline'} className="mr-2">{route.type === 'Vietinio susisiekimo' ? 'Miesto' : 'Tarpmiestinis'}</Badge>
                                 <span className="font-bold">{route.number}</span> — <span>{route.name}</span>
-                              </p>
+                              </div>
                               {route.days && route.days.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0, 3)}</Badge>)}
@@ -783,10 +783,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                             <SelectValue placeholder="-- Pasirinkti maršrutą --">
                               {selectedRouteForDisplay ? (
                                 <div className="flex flex-col text-left">
-                                  <p>
+                                  <div>
                                     <Badge variant={selectedRouteForDisplay.type === 'Vietinio susisiekimo' ? 'secondary' : 'outline'} className="mr-2">{selectedRouteForDisplay.type === 'Vietinio susisiekimo' ? 'Miesto' : 'Tarpmiestinis'}</Badge>
                                     <span className="font-bold">{selectedRouteForDisplay.number}</span> — <span>{selectedRouteForDisplay.name}</span>
-                                  </p>
+                                  </div>
                                   {selectedRouteForDisplay.days && selectedRouteForDisplay.days.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {selectedRouteForDisplay.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0, 3)}</Badge>)}
@@ -806,10 +806,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                                 value={route.id!}
                               >
                                 <div className="flex-grow flex flex-col text-left">
-                                    <p>
+                                    <div>
                                       <Badge variant={route.type === 'Vietinio susisiekimo' ? 'secondary' : 'outline'} className="mr-2">{route.type === 'Vietinio susisiekimo' ? 'Miesto' : 'Tarpmiestinis'}</Badge>
                                       <span className="font-bold">{route.number}</span> — <span>{route.name}</span>
-                                    </p>
+                                    </div>
                                     {route.days && route.days.length > 0 && (
                                        <div className="flex flex-wrap gap-1 mt-1">
                                           {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
@@ -950,12 +950,12 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                   
                 <div>
                    <FormLabel>Maršruto sudarymas</FormLabel>
-                   <p className="text-sm text-muted-foreground">
+                   <div className="text-sm text-muted-foreground">
                     1. **Pažymėkite naują stotelę:** Paspauskite tiesiai ant žemėlapio. Pirmas paspaudimas visada pažymi naujos stotelės vietą (raudonas žymeklis).<br/>
                     2. **Patikslinkite kelią (nebūtina):** Jei automatiškai rastas kelias netinka, galite pridėti tarpinių taškų. Tiesiog paspauskite ant žemėlapio tose vietose, per kurias maršrutas turi eiti. Atsiras mėlyni žymekliai.<br/>
                     3. **Apskaičiuokite maršrutą:** Paspauskite mygtuką "Apskaičiuoti maršrutą". Tai sujungs ankstesnę stotelę su Jūsų naujai pažymėta vieta.<br/>
                     4. **Pasirinkite variantą:** Jei sistema ras kelis kelio variantus, jie bus atvaizduoti pilka spalva. Paspauskite ant norimos linijos, kad ją pasirinktumėte (ji nusidažys mėlynai).
-                  </p>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                       <Controller
                           control={control}
