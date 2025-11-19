@@ -129,7 +129,7 @@ export default function TimetableClient() {
     const selectedDayName = dayNumberToName[selectedDate.getDay()];
     if (!selectedDayName) return routes;
 
-    return routes.filter(route => route.days.includes(selectedDayName));
+    return routes.filter(route => route.days && route.days.includes(selectedDayName));
   }, [routes, selectedDate]);
   
   const localRoutes = useMemo(() => filteredRoutes.filter(r => r.type === 'Vietinio susisiekimo') || [], [filteredRoutes]);
