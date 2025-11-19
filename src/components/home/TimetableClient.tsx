@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, FormEvent, useCallback } from 'react';
@@ -8,12 +7,11 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import {
   Card,
   CardContent,
@@ -96,6 +94,9 @@ export default function TimetableClient() {
     return query(collection(firestore, 'routes'), orderBy('number', 'asc'));
   }, [firestore]);
   const { data: routes, isLoading: isLoadingRoutes } = useCollection<Route>(routesQuery);
+
+  const localRoutes = useMemo(() => routes?.filter(r => r.type === 'Vietinio susisiekimo') || [], [routes]);
+  const longDistanceRoutes = useMemo(() => routes?.filter(r => r.type === 'Tolimojo susisiekimo') || [], [routes]);
 
   const timetableQuery = useMemoFirebase(() => {
     if (!firestore || !selectedRouteId) return null;
@@ -459,6 +460,41 @@ export default function TimetableClient() {
     );
   }
 
+  const renderRouteList = (routesToList: Route[]) => {
+    if (routesToList.length === 0) {
+      return <p className="text-sm text-muted-foreground px-4">Šio tipo maršrutų nėra.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-1">
+        {routesToList.map((r) => (
+          <Button
+            key={r.id}
+            variant="ghost"
+            className={`w-full justify-start h-auto text-left ${selectedRouteId === r.id ? 'bg-accent' : ''}`}
+            onClick={() => {
+              setSelectedRouteId(r.id!);
+              handleClearSearch();
+              setIsRouteSelectedFromDropdown(true);
+            }}
+          >
+            <div className="flex flex-col">
+              <p className="font-semibold">
+                <span className="font-bold mr-2">{r.number}</span> —{' '}
+                <span>{r.name}</span>
+              </p>
+              {r.days && r.days.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {r.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
+                </div>
+              )}
+            </div>
+          </Button>
+        ))}
+      </div>
+    );
+  };
+
+
   return (
     <>
       <div className="flex flex-col gap-8">
@@ -517,27 +553,25 @@ export default function TimetableClient() {
             </div>
             
             <div className="space-y-2">
-                 <label className="text-sm font-medium">Pasirinkite maršrutą</label>
-                <Select
-                  onValueChange={(value) => {
-                    setSelectedRouteId(value);
-                    handleClearSearch();
-                    setIsRouteSelectedFromDropdown(true);
-                  }}
-                  value={selectedRouteId ?? ''}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="-- Pasirinkite iš sąrašo --" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {routes && routes.map((r) => (
-                      <SelectItem key={r.id} value={r.id!}>
-                        <span className="font-bold mr-2">{r.number}</span> —{' '}
-                        <span>{r.name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">Pasirinkite maršrutą</label>
+                 <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="local">
+                    <AccordionTrigger>Vietinio susisiekimo maršrutai ({localRoutes.length})</AccordionTrigger>
+                    <AccordionContent>
+                      <ScrollArea className="h-60">
+                        {renderRouteList(localRoutes)}
+                      </ScrollArea>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="long-distance">
+                    <AccordionTrigger>Tolimojo susisiekimo maršrutai ({longDistanceRoutes.length})</AccordionTrigger>
+                    <AccordionContent>
+                      <ScrollArea className="h-60">
+                        {renderRouteList(longDistanceRoutes)}
+                      </ScrollArea>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
             </div>
 
             <Button 
@@ -771,3 +805,5 @@ export default function TimetableClient() {
     </>
   );
 }
+
+    
