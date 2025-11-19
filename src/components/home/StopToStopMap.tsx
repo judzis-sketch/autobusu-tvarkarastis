@@ -72,11 +72,12 @@ export default function StopToStopMap({ currentStop, nextStop, remainingStops, s
 
     const fromCoords = currentStop.coords as LatLngTuple;
     
-    const fromArrivalTimes = currentStop.arrivalTimes || (currentStop as any).times || [];
-    let fromPopupContent = `<b>Išvykimas: ${currentStop.stop}</b><br/>Atvyksta: ${fromArrivalTimes.join(', ')}`;
-    if (currentStop.departureTimes && currentStop.departureTimes.length > 0) {
-      fromPopupContent += `<br/>Išvyksta: ${currentStop.departureTimes.join(', ')}`;
-    }
+    const fromArrivalTimes = (currentStop.arrivalTimes || (currentStop as any).times || []).join(', ');
+    const fromDepartureTimes = (currentStop.departureTimes && currentStop.departureTimes.length > 0) 
+        ? currentStop.departureTimes.join(', ') 
+        : fromArrivalTimes;
+    
+    let fromPopupContent = `<b>Išvykimas: ${currentStop.stop}</b><br/>Atvyksta: ${fromArrivalTimes}<br/>Išvyksta: ${fromDepartureTimes}`;
 
     const fromMarker = L.marker(fromCoords, { icon: greenIcon }).addTo(map);
     fromMarker.bindPopup(fromPopupContent).openPopup();
@@ -92,7 +93,10 @@ export default function StopToStopMap({ currentStop, nextStop, remainingStops, s
                 const stopCoords = stop.coords as LatLngTuple;
                 const marker = L.marker(stopCoords, { icon: redIcon }).addTo(map);
                 const arrival = (stop.arrivalTimes || (stop as any).times || []).join(', ');
-                marker.bindPopup(`<b>${stop.stop}</b><br/>Atvyksta: ${arrival}`);
+                const departure = (stop.departureTimes && stop.departureTimes.length > 0)
+                  ? stop.departureTimes.join(', ')
+                  : arrival;
+                marker.bindPopup(`<b>${stop.stop}</b><br/>Atvyksta: ${arrival}<br/>Išvyksta: ${departure}`);
                 layersRef.current.push(marker);
                 bounds.extend(stopCoords);
             }
@@ -125,11 +129,12 @@ export default function StopToStopMap({ currentStop, nextStop, remainingStops, s
 
         const toCoords = nextStop.coords as LatLngTuple;
 
-        const toArrivalTimes = nextStop.arrivalTimes || (nextStop as any).times || [];
-        let toPopupContent = `<b>Atvykimas: ${nextStop.stop}</b><br/>Atvyksta: ${toArrivalTimes.join(', ')}`;
-        if (nextStop.departureTimes && nextStop.departureTimes.length > 0) {
-            toPopupContent += `<br/>Išvyksta: ${nextStop.departureTimes.join(', ')}`;
-        }
+        const toArrivalTimes = (nextStop.arrivalTimes || (nextStop as any).times || []).join(', ');
+        const toDepartureTimes = (nextStop.departureTimes && nextStop.departureTimes.length > 0)
+            ? nextStop.departureTimes.join(', ')
+            : toArrivalTimes;
+
+        let toPopupContent = `<b>Atvykimas: ${nextStop.stop}</b><br/>Atvyksta: ${toArrivalTimes}<br/>Išvyksta: ${toDepartureTimes}`;
 
         const toMarker = L.marker(toCoords, { icon: redIcon }).addTo(map);
         toMarker.bindPopup(toPopupContent);
