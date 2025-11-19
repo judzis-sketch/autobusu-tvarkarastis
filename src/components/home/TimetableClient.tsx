@@ -112,6 +112,8 @@ export default function TimetableClient() {
   const [isRouteSelectedFromDropdown, setIsRouteSelectedFromDropdown] = useState(false);
   const [highlightedStopId, setHighlightedStopId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [isDateRoutesDialogOpen, setIsDateRoutesDialogOpen] = useState(false);
+  const [dateSpecificRoutes, setDateSpecificRoutes] = useState<{ local: Route[]; longDistance: Route[] } | null>(null);
 
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -122,21 +124,8 @@ export default function TimetableClient() {
   }, [firestore]);
   const { data: routes, isLoading: isLoadingRoutes } = useCollection<Route>(routesQuery);
 
-  const localRoutes = useMemo(() => {
-    const allLocal = routes?.filter(r => r.type === 'Vietinio susisiekimo') || [];
-    if (!selectedDate) return allLocal;
-    const selectedDayName = dayNumberToName[selectedDate.getDay()];
-    if (!selectedDayName) return allLocal;
-    return allLocal.filter(route => route.days && route.days.includes(selectedDayName));
-  }, [routes, selectedDate]);
-
-  const longDistanceRoutes = useMemo(() => {
-      const allLong = routes?.filter(r => r.type === 'Tolimojo susisiekimo') || [];
-      if (!selectedDate) return allLong;
-      const selectedDayName = dayNumberToName[selectedDate.getDay()];
-      if (!selectedDayName) return allLong;
-      return allLong.filter(route => route.days && route.days.includes(selectedDayName));
-  }, [routes, selectedDate]);
+  const localRoutes = useMemo(() => routes?.filter(r => r.type === 'Vietinio susisiekimo') || [], [routes]);
+  const longDistanceRoutes = useMemo(() => routes?.filter(r => r.type === 'Tolimojo susisiekimo') || [], [routes]);
 
 
   const timetableQuery = useMemoFirebase(() => {
@@ -167,6 +156,31 @@ export default function TimetableClient() {
     const activeDays = selectedRoute.days.map(day => dayNameToNumber[day]).filter(dayNum => dayNum !== undefined);
     return { dayOfWeek: activeDays };
   }, [selectedRoute]);
+
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date && routes) {
+        const selectedDayName = dayNumberToName[date.getDay()];
+        if (!selectedDayName) return;
+
+        const activeLocal = localRoutes.filter(route => route.days && route.days.includes(selectedDayName));
+        const activeLongDistance = longDistanceRoutes.filter(route => route.days && route.days.includes(selectedDayName));
+
+        setDateSpecificRoutes({ local: activeLocal, longDistance: activeLongDistance });
+        setIsDateRoutesDialogOpen(true);
+    } else {
+        setDateSpecificRoutes(null);
+    }
+  };
+
+  const handleRouteSelectFromDialog = (routeId: string) => {
+    setSelectedRouteId(routeId);
+    handleClearSearch();
+    setIsRouteSelectedFromDropdown(true);
+    setIsDateRoutesDialogOpen(false);
+    setSelectedDate(undefined);
+  };
 
 
   const handleSearchSubmit = async (e: FormEvent) => {
@@ -509,9 +523,6 @@ export default function TimetableClient() {
 
   const renderRouteList = (routesToList: Route[], type: string) => {
     if (routesToList.length === 0) {
-      if (selectedDate) {
-        return <p className="text-sm text-muted-foreground px-4">Pasirinktą dieną šio tipo maršrutų nėra.</p>;
-      }
       return <p className="text-sm text-muted-foreground px-4">Šio tipo maršrutų nėra.</p>;
     }
     return (
@@ -544,6 +555,31 @@ export default function TimetableClient() {
     );
   };
 
+    const renderRouteListInDialog = (routesToList: Route[], type: string) => {
+    if (routesToList.length === 0) {
+      return <p className="text-sm text-muted-foreground px-1 py-4 text-center">Šio tipo maršrutų nėra.</p>;
+    }
+    return (
+      <div className="flex flex-col gap-1">
+        {routesToList.map((r) => (
+          <Button
+            key={r.id}
+            variant="ghost"
+            className="w-full justify-start h-auto text-left"
+            onClick={() => handleRouteSelectFromDialog(r.id!)}
+          >
+            <div className="flex flex-col">
+              <p className="font-semibold">
+                <span className="font-bold mr-2">{r.number}</span> —{' '}
+                <span>{r.name}</span>
+              </p>
+            </div>
+          </Button>
+        ))}
+      </div>
+    );
+  };
+
 
   return (
     <>
@@ -564,16 +600,16 @@ export default function TimetableClient() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <Card className="lg:col-span-1">
                <CardHeader>
-                <CardTitle>Filtruoti pagal datą</CardTitle>
+                <CardTitle>Paieška pagal datą</CardTitle>
                  <CardDescription>
-                  Pasirinkite dieną ir matysite tik tą dieną kursuojančius maršrutus.
+                  Pasirinkite dieną, kad pamatytumėte visus tą dieną kursuojančius maršrutus.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4 items-center">
                  <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={setSelectedDate}
+                    onSelect={handleDateSelect}
                     locale={lt}
                     weekStartsOn={1}
                     className="rounded-md border p-0"
@@ -654,10 +690,7 @@ export default function TimetableClient() {
           <CardHeader>
             <CardTitle>Maršrutų sąrašas</CardTitle>
              <CardDescription>
-              {selectedDate 
-                ? `Rodomi maršrutai, kursuojantys ${format(selectedDate, 'PPP', { locale: lt })}.`
-                : 'Pasirinkite maršrutą iš sąrašo, kad pamatytumėte jo tvarkaraštį.'
-              }
+              Pasirinkite maršrutą iš sąrašo, kad pamatytumėte jo tvarkaraštį.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -911,6 +944,33 @@ export default function TimetableClient() {
               )}
             </div>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDateRoutesDialogOpen} onOpenChange={setIsDateRoutesDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Maršrutai, kursuojantys {selectedDate ? format(selectedDate, 'yyyy-MM-dd', { locale: lt }) : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Pasirinkite maršrutą, kad pamatytumėte jo tvarkaraštį.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] mt-4">
+            {dateSpecificRoutes && (
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold mb-2 text-lg border-b pb-2">Vietinio susisiekimo maršrutai ({dateSpecificRoutes.local.length})</h3>
+                        {renderRouteListInDialog(dateSpecificRoutes.local, 'Vietinio susisiekimo')}
+                    </div>
+                     <div>
+                        <h3 className="font-semibold mb-2 text-lg border-b pb-2">Tolimojo susisiekimo maršrutai ({dateSpecificRoutes.longDistance.length})</h3>
+                        {renderRouteListInDialog(dateSpecificRoutes.longDistance, 'Tolimojo susisiekimo')}
+                    </div>
+                </div>
+            )}
+            </ScrollArea>
         </DialogContent>
       </Dialog>
     </>
