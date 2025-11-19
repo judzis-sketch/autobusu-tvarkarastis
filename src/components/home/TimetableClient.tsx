@@ -122,18 +122,22 @@ export default function TimetableClient() {
   }, [firestore]);
   const { data: routes, isLoading: isLoadingRoutes } = useCollection<Route>(routesQuery);
 
-  const filteredRoutes = useMemo(() => {
-    if (!routes) return [];
-    if (!selectedDate) return routes;
-
+  const localRoutes = useMemo(() => {
+    const allLocal = routes?.filter(r => r.type === 'Vietinio susisiekimo') || [];
+    if (!selectedDate) return allLocal;
     const selectedDayName = dayNumberToName[selectedDate.getDay()];
-    if (!selectedDayName) return routes;
-
-    return routes.filter(route => route.days && route.days.includes(selectedDayName));
+    if (!selectedDayName) return allLocal;
+    return allLocal.filter(route => route.days && route.days.includes(selectedDayName));
   }, [routes, selectedDate]);
-  
-  const localRoutes = useMemo(() => filteredRoutes.filter(r => r.type === 'Vietinio susisiekimo') || [], [filteredRoutes]);
-  const longDistanceRoutes = useMemo(() => filteredRoutes.filter(r => r.type === 'Tolimojo susisiekimo') || [], [filteredRoutes]);
+
+  const longDistanceRoutes = useMemo(() => {
+      const allLong = routes?.filter(r => r.type === 'Tolimojo susisiekimo') || [];
+      if (!selectedDate) return allLong;
+      const selectedDayName = dayNumberToName[selectedDate.getDay()];
+      if (!selectedDayName) return allLong;
+      return allLong.filter(route => route.days && route.days.includes(selectedDayName));
+  }, [routes, selectedDate]);
+
 
   const timetableQuery = useMemoFirebase(() => {
     if (!firestore || !selectedRouteId) return null;
