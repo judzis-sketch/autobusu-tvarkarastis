@@ -713,7 +713,7 @@ export default function TimetableClient() {
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
-                      <CardTitle>Maršrutas: {selectedRoute?.number}</CardTitle>
+                      <CardTitle className="text-3xl">Maršrutas: {selectedRoute?.number}</CardTitle>
                       <CardDescription>{selectedRoute?.name}</CardDescription>
                       {selectedRoute?.days && selectedRoute.days.length > 0 && (
                         <div className="flex flex-wrap items-center gap-2 mt-2">
