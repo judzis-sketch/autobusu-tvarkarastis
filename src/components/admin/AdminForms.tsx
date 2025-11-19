@@ -1,6 +1,6 @@
 'use client';
 
-import type { Route, TimetableEntry } from '@/lib/types';
+import type { Route, TimetableEntry, RouteType } from '@/lib/types';
 import { useState, useTransition, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,7 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, BusFront, Undo2 } from 'lucide-react';
+import { Loader2, Trash2, Route as RouteIcon, ChevronDown, ListOrdered, Pencil, BusFront, Undo2, Bus, Map } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -63,6 +63,7 @@ import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import type { LatLngTuple } from 'leaflet';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 
 const AdminMap = dynamic(() => import('./AdminMap'), {
   ssr: false,
@@ -76,6 +77,9 @@ const routeSchema = z.object({
   name: z.string().min(3, 'Pavadinimas turi būti bent 3 simbolių ilgio'),
   days: z.array(z.string()).refine(value => value.length > 0, {
     message: "Pasirinkite bent vieną savaitės dieną."
+  }),
+  type: z.enum(['Vietinio susisiekimo', 'Tolimojo susisiekimo'], {
+    required_error: 'Būtina pasirinkti maršruto tipą.'
   })
 });
 
@@ -176,6 +180,7 @@ export default function AdminForms() {
         number: editingRoute.number,
         name: editingRoute.name,
         days: editingRoute.days || [],
+        type: editingRoute.type,
       });
     }
   }, [editingRoute, editRouteForm]);
@@ -348,6 +353,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
       number: '',
       name: '',
       days: [],
+      type: 'Vietinio susisiekimo',
     },
   });
   
@@ -366,7 +372,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
           title: 'Pavyko!',
           description: 'Maršrutas sėkmingai išsaugotas.',
         });
-        routeForm.reset({ number: '', name: '', days: []});
+        routeForm.reset({ number: '', name: '', days: [], type: 'Vietinio susisiekimo' });
       } catch (error) {
         toast({
           title: 'Klaida!',
@@ -582,6 +588,41 @@ const handleRouteSelection = (route: AlternativeRoute) => {
               onSubmit={routeForm.handleSubmit(handleAddRoute)}
               className="space-y-6"
             >
+              <FormField
+                  control={routeForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Maršruto tipas</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Vietinio susisiekimo" />
+                            </FormControl>
+                            <FormLabel className="font-normal flex items-center gap-2">
+                                <Bus className="h-4 w-4" /> Vietinio susisiekimo
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Tolimojo susisiekimo" />
+                            </FormControl>
+                            <FormLabel className="font-normal flex items-center gap-2">
+                                <Map className="h-4 w-4" /> Tolimojo susisiekimo
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={routeForm.control}
@@ -702,7 +743,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                         {routes.map((route) => (
                           <div key={route.id} className="text-sm flex items-center justify-between p-1 hover:bg-muted/50 rounded-md">
                             <div className="flex-grow flex flex-col text-left">
-                              <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
+                              <p>
+                                <Badge variant={route.type === 'Vietinio susisiekimo' ? 'secondary' : 'outline'} className="mr-2">{route.type === 'Vietinio susisiekimo' ? 'Miesto' : 'Tarpmiestinis'}</Badge>
+                                <span className="font-bold">{route.number}</span> — <span>{route.name}</span>
+                              </p>
                               {route.days && route.days.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0, 3)}</Badge>)}
@@ -739,7 +783,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                             <SelectValue placeholder="-- Pasirinkti maršrutą --">
                               {selectedRouteForDisplay ? (
                                 <div className="flex flex-col text-left">
-                                  <p><span className="font-bold">{selectedRouteForDisplay.number}</span> — <span>{selectedRouteForDisplay.name}</span></p>
+                                  <p>
+                                    <Badge variant={selectedRouteForDisplay.type === 'Vietinio susisiekimo' ? 'secondary' : 'outline'} className="mr-2">{selectedRouteForDisplay.type === 'Vietinio susisiekimo' ? 'Miesto' : 'Tarpmiestinis'}</Badge>
+                                    <span className="font-bold">{selectedRouteForDisplay.number}</span> — <span>{selectedRouteForDisplay.name}</span>
+                                  </p>
                                   {selectedRouteForDisplay.days && selectedRouteForDisplay.days.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {selectedRouteForDisplay.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0, 3)}</Badge>)}
@@ -759,7 +806,10 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                                 value={route.id!}
                               >
                                 <div className="flex-grow flex flex-col text-left">
-                                    <p><span className="font-bold">{route.number}</span> — <span>{route.name}</span></p>
+                                    <p>
+                                      <Badge variant={route.type === 'Vietinio susisiekimo' ? 'secondary' : 'outline'} className="mr-2">{route.type === 'Vietinio susisiekimo' ? 'Miesto' : 'Tarpmiestinis'}</Badge>
+                                      <span className="font-bold">{route.number}</span> — <span>{route.name}</span>
+                                    </p>
                                     {route.days && route.days.length > 0 && (
                                        <div className="flex flex-wrap gap-1 mt-1">
                                           {route.days.map(day => <Badge key={day} variant="secondary" className="text-xs">{day.slice(0,3)}</Badge>)}
@@ -1038,6 +1088,40 @@ const handleRouteSelection = (route: AlternativeRoute) => {
           </DialogHeader>
           <Form {...editRouteForm}>
             <form onSubmit={editRouteForm.handleSubmit(handleUpdateRoute)} className="space-y-6 py-4">
+               <FormField
+                  control={editRouteForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Maršruto tipas</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Vietinio susisiekimo" />
+                            </FormControl>
+                            <FormLabel className="font-normal flex items-center gap-2">
+                                <Bus className="h-4 w-4" /> Vietinio susisiekimo
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Tolimojo susisiekimo" />
+                            </FormControl>
+                            <FormLabel className="font-normal flex items-center gap-2">
+                                <Map className="h-4 w-4" /> Tolimojo susisiekimo
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={editRouteForm.control}

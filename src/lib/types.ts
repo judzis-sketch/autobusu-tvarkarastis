@@ -9,10 +9,13 @@ export type TimetableEntry = {
   createdAt?: any;
 };
 
+export type RouteType = 'Vietinio susisiekimo' | 'Tolimojo susisiekimo';
+
 export type Route = {
   id?: string;
   number?: string;
   name: string;
   days: string[];
+  type: RouteType;
   createdAt?: string;
 };

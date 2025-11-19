@@ -33,13 +33,22 @@
               "Sekmadienis"
             ]
           }
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the route.",
+          "enum": [
+            "Vietinio susisiekimo",
+            "Tolimojo susisiekimo"
+          ]
         }
       },
       "required": [
         "id",
         "number",
         "name",
-        "days"
+        "days",
+        "type"
       ]
     },
     "TimetableEntry": {
