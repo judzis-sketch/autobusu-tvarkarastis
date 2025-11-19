@@ -548,13 +548,13 @@ export default function TimetableClient() {
                     <DialogDescription className="sr-only">
                         Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}.
                     </DialogDescription>
-                    <div className="text-center text-base flex items-center justify-center gap-2 pt-2">
-                      <span className="font-semibold">{selectedStopDetail.current.stop}</span>
-                      <ArrowRight className="h-4 w-4" />
-                      <span className="font-semibold">{finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}</span>
-                    </div>
                  </DialogHeader>
-                  <div className="grid grid-cols-3 items-center text-center py-2">
+                <div className="text-center text-base flex items-center justify-center gap-2 py-1">
+                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
+                    <ArrowRight className="h-4 w-4" />
+                    <span className="font-semibold">{finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}</span>
+                </div>
+                <div className="grid grid-cols-3 items-center text-center py-1">
                     <div className="text-left">
                         <p className="text-xs text-muted-foreground">Išvyksta</p>
                         <p className="font-bold text-lg">{((selectedStopDetail.current.departureTimes && selectedStopDetail.current.departureTimes.length > 0 ? selectedStopDetail.current.departureTimes : selectedStopDetail.current.arrivalTimes) || (selectedStopDetail.current as any).times || []).join(', ')}</p>
@@ -572,7 +572,7 @@ export default function TimetableClient() {
                         <p className="text-xs text-muted-foreground">Atvyksta</p>
                         <p className="font-bold text-lg">{((finalDestination ? finalDestination.arrivalTimes : selectedStopDetail.next.arrivalTimes) || (finalDestination || selectedStopDetail.next as any).times || []).join(', ')}</p>
                     </div>
-                  </div>
+                </div>
               </div>
               <div className="flex-grow min-h-0 mt-2 rounded-md overflow-hidden border">
                 <StopToStopMap 
@@ -582,8 +582,8 @@ export default function TimetableClient() {
                     showFullPath={showFullPath}
                 />
               </div>
-              <div className="flex-shrink-0">
-                  <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center pt-4">
+              <div className="flex-shrink-0 pt-2">
+                  <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center">
                       <div className="flex items-center space-x-2">
                         <Switch id="full-path-switch" checked={showFullPath} onCheckedChange={setShowFullPath} />
                         <Label htmlFor="full-path-switch">Rodyti visą likusį maršrutą</Label>
