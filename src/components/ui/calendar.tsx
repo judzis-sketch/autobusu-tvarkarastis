@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ScrollArea } from "./scroll-area"
 
 export type CalendarProps = DayPickerProps
 
