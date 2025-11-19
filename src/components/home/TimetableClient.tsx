@@ -68,7 +68,7 @@ interface NearbyRouteGroup {
       routeId: string;
       routeName: string;
       routeNumber?: string;
-      arrivalTimes?: string[];
+      arrivalTimes: string[];
       id: string;
     }[];
 }
@@ -127,14 +127,11 @@ export default function TimetableClient() {
         return;
     }
 
-    // If a route was explicitly selected by the user from the dropdown,
-    // then search only within that route.
-    if (selectedRouteId && isRouteSelectedFromDropdown) {
+    if (isRouteSelectedFromDropdown && selectedRouteId) {
         setActiveSearch(searchTerm);
         return;
     }
 
-    // Otherwise, always perform a global search across all routes.
     if (!firestore || !routes) {
         toast({ title: 'Klaida', description: 'Maršrutų sąrašas dar neužkrautas.', variant: 'destructive' });
         return;
@@ -147,8 +144,6 @@ export default function TimetableClient() {
 
     for (const route of routes) {
         if (!route.id) continue;
-        // Optimization: Use a where clause if the stop names are consistent.
-        // For now, fetching all and filtering client-side is okay for smaller datasets.
         const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`));
         const stopsSnapshot = await getDocs(stopsQuery);
 
@@ -178,7 +173,7 @@ export default function TimetableClient() {
             if (!acc[stopNameLower]) {
                 acc[stopNameLower] = {
                     stopName: stop.stop,
-                    distance: -1, // Not applicable for search by name
+                    distance: -1, 
                     routes: [],
                 };
             }
@@ -186,7 +181,7 @@ export default function TimetableClient() {
                 routeId: stop.routeId,
                 routeName: stop.routeName,
                 routeNumber: stop.routeNumber,
-                arrivalTimes: stop.arrivalTimes,
+                arrivalTimes: (stop.arrivalTimes || []),
                 id: stop.id,
             });
             return acc;
@@ -208,6 +203,7 @@ export default function TimetableClient() {
   const handleClearSearch = () => {
     setSearchInput('');
     setActiveSearch('');
+    setIsRouteSelectedFromDropdown(false);
   }
 
   const handleFindNearestStop = () => {
@@ -270,7 +266,6 @@ export default function TimetableClient() {
 
         allStopsWithDistance.sort((a, b) => a.distance - b.distance);
         
-        // Group by stop name and find the closest one
         const stopsGroupedByName: { [key: string]: NearbyStop[] } = allStopsWithDistance.reduce((acc, stop) => {
             const name = stop.stop.toLowerCase();
             if (!acc[name]) {
@@ -281,9 +276,9 @@ export default function TimetableClient() {
         }, {} as { [key: string]: NearbyStop[] });
 
         const uniqueNearestStops = Object.values(stopsGroupedByName)
-            .map(group => group.sort((a, b) => a.distance - b.distance)[0]) // Get the closest stop for each name
-            .sort((a, b) => a.distance - b.distance) // Sort the unique stops by distance
-            .slice(0, 5); // Take top 5 unique nearest stops
+            .map(group => group.sort((a, b) => a.distance - b.distance)[0])
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 5);
 
         if(uniqueNearestStops.length === 0) {
             toast({ title: 'Nerasta stotelių', description: 'Nepavyko rasti artimiausių stotelių.', variant: 'destructive'});
@@ -292,14 +287,13 @@ export default function TimetableClient() {
         }
 
         const resultGroups: NearbyRouteGroup[] = uniqueNearestStops.map(stop => {
-            // For each unique stop, find all routes that pass through it
             const routesForThisStop = allStopsWithDistance
                 .filter(s => s.stop.toLowerCase() === stop.stop.toLowerCase())
                 .map(s => ({
                     routeId: s.routeId,
                     routeName: s.routeName,
                     routeNumber: s.routeNumber,
-                    arrivalTimes: s.arrivalTimes,
+                    arrivalTimes: (s.arrivalTimes || []),
                     id: s.id,
                 }));
             
@@ -753,7 +747,7 @@ export default function TimetableClient() {
                                     <p className="font-semibold">Maršrutas {route.routeNumber}: {route.routeName}</p>
                                     <p className="text-sm text-muted-foreground flex items-center gap-2">
                                     <Clock className="h-4 w-4" />
-                                    <span>Atvyksta: {(route.arrivalTimes || []).join(', ')}</span>
+                                    <span>Atvyksta: {route.arrivalTimes.join(', ')}</span>
                                     </p>
                                 </div>
                                 </Button>
