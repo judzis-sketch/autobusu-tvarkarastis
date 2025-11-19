@@ -538,7 +538,7 @@ export default function TimetableClient() {
               </p>
               {r.days && r.days.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {r.days.map(day => <Badge key={day} variant={selectedRouteId === r.id ? 'default' : 'secondary'} className="text-xs">{day.slice(0,3)}</Badge>)}
+                  {r.days.map(day => <Badge key={day} variant={selectedRouteId === r.id ? 'secondary' : 'outline'} className="text-xs">{day.slice(0,3)}</Badge>)}
                 </div>
               )}
             </div>

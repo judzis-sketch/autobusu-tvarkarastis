@@ -62,6 +62,8 @@ function Calendar({
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
+        day_weekend: "text-destructive",
+        head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] weekend:text-destructive",
         ...classNames,
       }}
       components={{
