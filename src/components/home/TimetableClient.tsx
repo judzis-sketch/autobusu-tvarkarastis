@@ -26,7 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, Watch, CalendarDays } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, Watch, CalendarDays, Calendar as CalendarIcon, Map as MapIcon, Star } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '../ui/button';
@@ -597,41 +597,19 @@ export default function TimetableClient() {
           </div>
         )}
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <Card className="lg:col-span-1">
-               <CardHeader>
-                <CardTitle>Paieška pagal datą</CardTitle>
-                 <CardDescription>
-                  Pasirinkite dieną, kad pamatytumėte visus tą dieną kursuojančius maršrutus.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4 items-center">
-                 <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={handleDateSelect}
-                    locale={lt}
-                    weekStartsOn={1}
-                    className="rounded-md border p-0"
-                 />
-                 {selectedDate && (
-                    <Button variant="outline" size="sm" onClick={() => setSelectedDate(undefined)}>
-                        <X className="h-4 w-4 mr-2" />
-                        Išvalyti datą
-                    </Button>
-                 )}
-              </CardContent>
-            </Card>
-
-           <div className="lg:col-span-2 flex flex-col gap-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Stotelės paieška</CardTitle>
-                        <CardDescription>
-                        Ieškokite stotelės pagal pavadinimą visuose maršrutuose.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+        <Card>
+            <CardHeader>
+                <CardTitle>Maršruto paieška</CardTitle>
+                <CardDescription>Raskite maršrutą pagal stotelę, datą arba savo buvimo vietą.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <Tabs defaultValue="stop" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="stop"><Search className="h-4 w-4 mr-2" />Pagal stotelę</TabsTrigger>
+                        <TabsTrigger value="date"><CalendarIcon className="h-4 w-4 mr-2" />Pagal datą</TabsTrigger>
+                        <TabsTrigger value="location"><LocateFixed className="h-4 w-4 mr-2" />Pagal vietovę</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="stop" className="pt-4">
                         <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="stop-search-input">Stotelės pavadinimas</Label>
@@ -660,30 +638,42 @@ export default function TimetableClient() {
                             Ieškoti stotelės
                         </Button>
                         </form>
-                    </CardContent>
-                </Card>
-                
-                <Card className="flex flex-col">
-                    <CardHeader>
-                        <CardTitle>Rasti artimiausią stotelę</CardTitle>
-                        <CardDescription>
-                        Leiskite mums nustatyti jūsų vietą ir parodyti artimiausias stoteles.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col flex-grow justify-center">
-                        <Button 
-                            className="w-full" 
-                            variant="outline" 
-                            onClick={handleFindNearestStop}
-                            disabled={isFindingLocation}
-                        >
-                            {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
-                            Naudoti mano lokaciją
-                        </Button>
-                    </CardContent>
-                </Card>
-           </div>
-        </div>
+                    </TabsContent>
+                    <TabsContent value="date" className="pt-4 flex flex-col items-center">
+                         <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={handleDateSelect}
+                            locale={lt}
+                            weekStartsOn={1}
+                            className="rounded-md border p-0"
+                         />
+                         {selectedDate && (
+                            <Button variant="outline" size="sm" onClick={() => setSelectedDate(undefined)} className="mt-4">
+                                <X className="h-4 w-4 mr-2" />
+                                Išvalyti datą
+                            </Button>
+                         )}
+                    </TabsContent>
+                    <TabsContent value="location" className="pt-4">
+                        <div className="flex flex-col items-center gap-4 text-center">
+                             <p className="text-sm text-muted-foreground">
+                                Leiskite mums nustatyti jūsų vietą ir parodyti artimiausias stoteles.
+                            </p>
+                            <Button 
+                                className="w-full" 
+                                variant="secondary" 
+                                onClick={handleFindNearestStop}
+                                disabled={isFindingLocation}
+                            >
+                                {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
+                                Naudoti mano lokaciją
+                            </Button>
+                        </div>
+                    </TabsContent>
+                </Tabs>
+            </CardContent>
+        </Card>
 
 
         <Card>
