@@ -64,7 +64,7 @@ function decodePolyline(str: string): LatLngTuple[] {
 export async function getRoute(
   coordinates: LatLngTuple[],
   alternatives = false
-): Promise<{ distance: number; geometry: LatLngTuple[]; isFallback: boolean }[]> {
+): Promise<{ distance: number; geometry: LatLngTuple[] }[]> {
   
   if (coordinates.length < 2) {
     console.error("At least two coordinates are required to calculate a route.");
@@ -99,7 +99,6 @@ export async function getRoute(
     return data.routes.map((route: any) => ({
       distance: route.distance, // in meters
       geometry: decodePolyline(route.geometry),
-      isFallback: false, // This is always a real route from OSRM
     }));
 
   } catch (error) {

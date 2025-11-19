@@ -330,7 +330,7 @@ export default function TimetableClient() {
     setSearchInput(stopName);
     setActiveSearch(stopName);
     setNearbyRouteGroup(null);
-    setIsRouteSelectedFromDropdown(false);
+    setIsRouteSelectedFromDropdown(false); // Reset this state so next search is global
     toast({
       title: 'Maršrutas parinktas',
       description: `Kraunamas maršrutas "${route.routeNumber} - ${route.routeName}"`,
@@ -617,7 +617,7 @@ export default function TimetableClient() {
                                      <span>Iki {filteredTimetable[i + 1]?.stop}</span>
                                      <ArrowRight className="h-3 w-3" />
                                      <span>{(distanceToNext / 1000).toFixed(2)} km</span>
-                                     <span className="text-xs">({travelTime})</span>
+                                     <span className="text-xs" dangerouslySetInnerHTML={{ __html: `(${travelTime})` }}></span>
                                    </div>
                                 )}
                               </div>
@@ -673,11 +673,9 @@ export default function TimetableClient() {
                     </div>
                     <div className="flex flex-col items-center justify-center border-x">
                         <Watch className="h-5 w-5 text-primary" />
-                        <p className="font-bold text-lg text-primary">
-                          {calculateTravelTime(showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext)}
-                        </p>
+                        <p className="font-bold text-lg text-primary" dangerouslySetInnerHTML={{ __html: calculateTravelTime(showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext) || '-' }}></p>
                         <p className="text-xs text-muted-foreground">
-                          ({((showFullPath ? fullRemainingDistance! : selectedStopDetail.current.distanceToNext!) / 1000).toFixed(2)} km)
+                          ({(((showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext) || 0) / 1000).toFixed(2)} km)
                         </p>
                     </div>
                     <div className="text-right">
