@@ -330,7 +330,7 @@ export default function TimetableClient() {
     setSearchInput(stopName);
     setActiveSearch(stopName);
     setNearbyRouteGroup(null);
-    setIsRouteSelectedFromDropdown(false); // Reset this state so next search is global
+    setIsRouteSelectedFromDropdown(false);
     toast({
       title: 'Maršrutas parinktas',
       description: `Kraunamas maršrutas "${route.routeNumber} - ${route.routeName}"`,
