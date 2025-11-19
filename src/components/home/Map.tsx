@@ -5,6 +5,8 @@ import type { TimetableEntry } from '@/lib/types';
 import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Loader2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+
 
 // Fix for default icon paths
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -25,6 +27,7 @@ export default function Map({ stops, onStopClick }: MapProps) {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.Layer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const isMobile = useIsMobile();
 
   // Initialize map
   useEffect(() => {
@@ -79,18 +82,22 @@ export default function Map({ stops, onStopClick }: MapProps) {
       }
       marker.bindPopup(popupContent);
 
-      // Show popup on hover
-      marker.on('mouseover', () => {
-        marker.openPopup();
-      });
-      marker.on('mouseout', () => {
-        marker.closePopup();
-      });
-      
-      // Open dialog on click, but not for the last stop
-      if (!isLastStop) {
-        marker.on('click', () => onStopClick(stop));
+      // Show popup on hover for desktop, but not mobile to avoid interfering with click
+      if (!isMobile) {
+        marker.on('mouseover', () => {
+          marker.openPopup();
+        });
+        marker.on('mouseout', () => {
+          marker.closePopup();
+        });
       }
+      
+      // Open dialog on click
+      marker.on('click', () => {
+        if (!isLastStop) {
+          onStopClick(stop);
+        }
+      });
 
       layersRef.current.push(marker);
     });
@@ -130,7 +137,7 @@ export default function Map({ stops, onStopClick }: MapProps) {
         }
     }
 
-  }, [stops, onStopClick]);
+  }, [stops, onStopClick, isMobile]);
 
   return (
      <div className="relative h-full w-full">
