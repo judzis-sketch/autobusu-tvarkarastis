@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, FormEvent, useCallback } from 'react';
@@ -69,7 +70,7 @@ interface NearbyRouteGroup {
       routeName: string;
       routeNumber?: string;
       arrivalTimes: string[];
-      id: string;
+      id: string; // This is the TimetableEntry ID
     }[];
 }
 
@@ -85,6 +86,7 @@ export default function TimetableClient() {
   const [nearbyRouteGroup, setNearbyRouteGroup] = useState<NearbyRouteGroup[] | null>(null);
   const [searchDialogTitle, setSearchDialogTitle] = useState('Rasti maršrutai');
   const [isRouteSelectedFromDropdown, setIsRouteSelectedFromDropdown] = useState(false);
+  const [highlightedStopId, setHighlightedStopId] = useState<string | null>(null);
 
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -124,11 +126,13 @@ export default function TimetableClient() {
     const searchTerm = searchInput.trim();
     if (!searchTerm) {
         setActiveSearch('');
+        setHighlightedStopId(null);
         return;
     }
 
     if (isRouteSelectedFromDropdown && selectedRouteId) {
         setActiveSearch(searchTerm);
+        setHighlightedStopId(null);
         return;
     }
 
@@ -167,6 +171,7 @@ export default function TimetableClient() {
             description: `Stotelė pavadinimu "${searchTerm}" nerasta jokiame maršrute.`,
             variant: 'destructive',
         });
+        setNearbyRouteGroup(null);
     } else {
         const groupedByStopName: { [key: string]: NearbyRouteGroup } = allFoundStops.reduce((acc, stop) => {
             const stopNameLower = stop.stop.toLowerCase();
@@ -204,6 +209,7 @@ export default function TimetableClient() {
     setSearchInput('');
     setActiveSearch('');
     setIsRouteSelectedFromDropdown(false);
+    setHighlightedStopId(null);
   }
 
   const handleFindNearestStop = () => {
@@ -325,12 +331,13 @@ export default function TimetableClient() {
     );
   };
   
-  const handleNearbyStopSelect = (route: { routeId: string, routeName: string, routeNumber?: string }, stopName: string) => {
+  const handleNearbyStopSelect = (route: NearbyRouteGroup['routes'][0], stopName: string) => {
     setSelectedRouteId(route.routeId);
     setSearchInput(stopName);
     setActiveSearch(stopName);
+    setHighlightedStopId(route.id); 
     setNearbyRouteGroup(null);
-    setIsRouteSelectedFromDropdown(false);
+    setIsRouteSelectedFromDropdown(false); 
     toast({
       title: 'Maršrutas parinktas',
       description: `Kraunamas maršrutas "${route.routeNumber} - ${route.routeName}"`,
@@ -634,7 +641,7 @@ export default function TimetableClient() {
                   <TabsContent value="map">
                     <div className="h-[600px] mt-4 rounded-md overflow-hidden border">
                       {timetableWithCoords.length > 0 ? (
-                        <Map stops={timetableWithCoords} onStopClick={handleStopClick} />
+                        <Map stops={timetableWithCoords} onStopClick={handleStopClick} highlightedStopId={highlightedStopId} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-muted">
                           <p className="text-muted-foreground">Nėra stotelių su koordinatėmis.</p>
@@ -734,8 +741,8 @@ export default function TimetableClient() {
                             )}
                         </h3>
                         <ul className="space-y-2 border-l pl-4 ml-1">
-                            {group.routes.map((route, index) => (
-                            <li key={`${route.routeId}-${index}`}>
+                            {group.routes.map((route) => (
+                            <li key={route.routeId + route.id}>
                                 <Button 
                                 variant="outline" 
                                 className="w-full h-auto justify-start text-left" 

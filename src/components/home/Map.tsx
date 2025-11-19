@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import type { TimetableEntry } from '@/lib/types';
 import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -20,14 +20,33 @@ L.Icon.Default.mergeOptions({
 interface MapProps {
   stops: TimetableEntry[];
   onStopClick: (stop: TimetableEntry) => void;
+  highlightedStopId?: string | null;
 }
 
-export default function Map({ stops, onStopClick }: MapProps) {
+export default function Map({ stops, onStopClick, highlightedStopId }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.Layer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const isMobile = useIsMobile();
+
+  const redIcon = useMemo(() => new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+  }), []);
+
+  const greenIcon = useMemo(() => new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  }), []);
 
   // Initialize map
   useEffect(() => {
@@ -54,26 +73,18 @@ export default function Map({ stops, onStopClick }: MapProps) {
     
     setIsLoading(true);
 
-    const stopPositionsWithData = stops.filter(s => s.coords) as (TimetableEntry & { coords: [number, number] })[];
+    const stopPositionsWithData = stops.filter(s => s.coords) as (TimetableEntry & { id: string, coords: [number, number] })[];
     
     if (stopPositionsWithData.length === 0) {
       setIsLoading(false);
       return;
     }
 
-    const redIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
-
     // Add markers for each stop
     stopPositionsWithData.forEach((stop, index) => {
       const isLastStop = index === stopPositionsWithData.length - 1;
-      const marker = L.marker(stop.coords, { icon: redIcon }).addTo(map);
+      const isHighlighted = stop.id === highlightedStopId;
+      const marker = L.marker(stop.coords, { icon: isHighlighted ? greenIcon : redIcon }).addTo(map);
       
       const arrivalTimes = (stop.arrivalTimes || (stop as any).times || []).join(', ');
       const departureTimes = (stop.departureTimes && stop.departureTimes.length > 0) 
@@ -143,7 +154,7 @@ export default function Map({ stops, onStopClick }: MapProps) {
         }
     }
 
-  }, [stops, onStopClick, isMobile]);
+  }, [stops, onStopClick, isMobile, highlightedStopId, redIcon, greenIcon]);
 
   return (
      <div className="relative h-full w-full">
