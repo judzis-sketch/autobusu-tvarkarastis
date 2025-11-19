@@ -132,12 +132,12 @@ body {
   }
 
   /* Weekend styles for react-day-picker */
-  .rdp-head_cell:nth-child(6) .weekend-head,
-  .rdp-head_cell:nth-child(7) .weekend-head {
+  .rdp-head_cell:nth-child(6),
+  .rdp-head_cell:nth-child(7) {
     color: hsl(var(--destructive));
   }
-  .dark .rdp-head_cell:nth-child(6) .weekend-head,
-  .dark .rdp-head_cell:nth-child(7) .weekend-head {
+  .dark .rdp-head_cell:nth-child(6),
+  .dark .rdp-head_cell:nth-child(7) {
     color: hsl(var(--destructive));
   }
 

@@ -643,7 +643,6 @@ export default function TimetableClient() {
                               className="rounded-md border p-0"
                               modifiers={{ weekend: { daysOfWeek: [0, 6] } }}
                               modifiersClassNames={{
-                                head_cell: 'weekend-head',
                                 day_weekend: 'day-weekend',
                               }}
                           />
