@@ -537,7 +537,7 @@ export default function TimetableClient() {
       </div>
 
       <Dialog open={!!selectedStopDetail} onOpenChange={(isOpen) => {if (!isOpen) setSelectedStopDetail(null)}}>
-        <DialogContent className="max-w-3xl h-auto sm:h-[90vh] flex flex-col">
+        <DialogContent className="max-w-6xl w-full h-[95vh] flex flex-col">
           {selectedStopDetail && (
             <>
               <DialogHeader>
