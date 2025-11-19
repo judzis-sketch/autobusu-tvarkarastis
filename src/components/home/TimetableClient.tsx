@@ -414,7 +414,7 @@ export default function TimetableClient() {
             <Tabs defaultValue="list">
               <Card className="flex-grow">
                 <CardHeader>
-                  <div className="flex justify-between items-start">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
                       <CardTitle>Maršrutas: {selectedRoute?.number}</CardTitle>
                       <CardDescription>{selectedRoute?.name}</CardDescription>
@@ -424,9 +424,9 @@ export default function TimetableClient() {
                         </div>
                       )}
                     </div>
-                    <TabsList>
-                      <TabsTrigger value="list"><List className="h-4 w-4 mr-2" />Sąrašas</TabsTrigger>
-                      <TabsTrigger value="map" disabled={timetableWithCoords.length === 0}><MapPin className="h-4 w-4 mr-2" />Žemėlapis</TabsTrigger>
+                    <TabsList className='w-full sm:w-auto'>
+                      <TabsTrigger value="list" className='flex-1 sm:flex-initial'><List className="h-4 w-4 mr-2" />Sąrašas</TabsTrigger>
+                      <TabsTrigger value="map" className='flex-1 sm:flex-initial' disabled={timetableWithCoords.length === 0}><MapPin className="h-4 w-4 mr-2" />Žemėlapis</TabsTrigger>
                     </TabsList>
                   </div>
                 </CardHeader>
@@ -514,15 +514,15 @@ export default function TimetableClient() {
       </div>
 
       <Dialog open={!!selectedStopDetail} onOpenChange={(isOpen) => !isOpen && setSelectedStopDetail(null)}>
-        <DialogContent className="max-w-3xl h-[85vh] flex flex-col">
+        <DialogContent className="max-w-3xl h-auto sm:h-[85vh] flex flex-col">
           {selectedStopDetail && (
             <>
               <DialogHeader>
-                 <DialogTitle className="sr-only">Maršruto atkarpa nuo {selectedStopDetail.current.stop} iki {selectedStopDetail.next.stop}</DialogTitle>
+                <DialogTitle>Maršruto atkarpa</DialogTitle>
                  <DialogDescription className="sr-only">
                     Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {selectedStopDetail.next.stop}.
                  </DialogDescription>
-                 <div className="text-center text-base flex items-center justify-center gap-2">
+                 <div className="text-center text-base flex items-center justify-center gap-2 pt-2">
                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4" />
                    <span className="font-semibold">{selectedStopDetail.next.stop}</span>

@@ -906,7 +906,7 @@ const handleRouteSelection = (route: AlternativeRoute) => {
                     3. **Apskaičiuokite maršrutą:** Paspauskite mygtuką "Apskaičiuoti maršrutą". Tai sujungs ankstesnę stotelę su Jūsų naujai pažymėta vieta.<br/>
                     4. **Pasirinkite variantą:** Jei sistema ras kelis kelio variantus, jie bus atvaizduoti pilka spalva. Paspauskite ant norimos linijos, kad ją pasirinktumėte (ji nusidažys mėlynai).
                   </p>
-                  <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                       <Controller
                           control={control}
                           name="coords.lat"

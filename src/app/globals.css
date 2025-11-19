@@ -108,9 +108,6 @@ body {
   .large-text .text-lg {
     font-size: 1.25rem; /* Equivalent to text-xl */
   }
-  .large-text .text-base {
-     font-size: 1.125rem; /* Equivalent to text-lg */
-  }
 }
 
 /* Custom Leaflet icon styles */
