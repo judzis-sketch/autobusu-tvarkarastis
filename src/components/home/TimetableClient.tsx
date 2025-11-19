@@ -706,8 +706,8 @@ export default function TimetableClient() {
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
-                      <div className="text-sm text-muted-foreground">Maršrutas</div>
-                      <CardTitle className="text-2xl font-bold">
+                      <div className="text-base font-bold text-muted-foreground">Maršrutas</div>
+                      <CardTitle className="text-3xl font-bold">
                         {selectedRoute?.number && <span className="mr-2">{selectedRoute.number}</span>}
                         {selectedRoute?.name}
                       </CardTitle>
