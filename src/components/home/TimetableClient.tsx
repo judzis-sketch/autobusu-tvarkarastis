@@ -635,6 +635,9 @@ export default function TimetableClient() {
                       </TabsContent>
                       <TabsContent value="date" className="pt-4 flex flex-col items-center">
                           <Calendar
+                              captionLayout="dropdown-buttons"
+                              fromYear={new Date().getFullYear()}
+                              toYear={new Date().getFullYear() + 10}
                               mode="single"
                               selected={selectedDate}
                               onSelect={handleDateSelect}
