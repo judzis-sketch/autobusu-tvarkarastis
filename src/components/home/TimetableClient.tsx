@@ -732,7 +732,6 @@ export default function TimetableClient() {
                     </div>
                     <TabsList className='w-full sm:w-auto'>
                       <TabsTrigger value="list" className='flex-1 sm:flex-initial'><List className="h-4 w-4 mr-2" />Sąrašas</TabsTrigger>
-                      <TabsTrigger value="calendar" className='flex-1 sm:flex-initial'><CalendarDays className="h-4 w-4 mr-2" />Kalendorius</TabsTrigger>
                       <TabsTrigger value="map" className='flex-1 sm:flex-initial' disabled={timetableWithCoords.length === 0}><MapPin className="h-4 w-4 mr-2" />Žemėlapis</TabsTrigger>
                     </TabsList>
                   </div>
@@ -802,19 +801,6 @@ export default function TimetableClient() {
                         </p>
                       )}
                     </ScrollArea>
-                  </TabsContent>
-                   <TabsContent value="calendar">
-                    <div className="mt-4 flex justify-center">
-                        <Calendar
-                          mode="single"
-                          modifiers={{ active: activeDaysModifier }}
-                          modifiersClassNames={{ active: 'bg-primary/20 rounded-full' }}
-                          weekStartsOn={1}
-                          showOutsideDays
-                          fixedWeeks
-                          className="rounded-md border w-auto"
-                        />
-                    </div>
                   </TabsContent>
                   <TabsContent value="map">
                     <div className="h-[600px] mt-4 rounded-md overflow-hidden border">
