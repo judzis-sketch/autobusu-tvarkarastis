@@ -81,7 +81,9 @@ export default function TimetableClient() {
   const [activeSearch, setActiveSearch] = useState('');
   const [isFindingLocation, setIsFindingLocation] = useState(false);
   const [isSearchingStops, setIsSearchingStops] = useState(false);
-  const [nearbyRouteGroup, setNearbyRouteGroup] = useState<NearbyRouteGroup | null>(null);
+  const [nearbyRouteGroup, setNearbyRouteGroup] = useState<NearbyRouteGroup[] | null>(null);
+  const [searchDialogTitle, setSearchDialogTitle] = useState('Rasti maršrutai');
+
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -118,59 +120,83 @@ export default function TimetableClient() {
   const handleSearchSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!searchInput) {
-      setActiveSearch('');
-      return;
+        setActiveSearch('');
+        return;
     }
-    
+
     // If a route is already selected, search within it
-    if(selectedRouteId) {
-      setActiveSearch(searchInput);
-      return;
+    if (selectedRouteId) {
+        setActiveSearch(searchInput);
+        return;
     }
 
     // If no route is selected, search across all routes
     if (!firestore || !routes) {
-      toast({ title: 'Klaida', description: 'Maršrutų sąrašas dar neužkrautas.', variant: 'destructive'});
-      return;
+        toast({ title: 'Klaida', description: 'Maršrutų sąrašas dar neužkrautas.', variant: 'destructive' });
+        return;
     }
 
     setIsSearchingStops(true);
-    toast({ title: 'Ieškoma stotelės...', description: `Ieškoma "${searchInput}" visuose maršrutuose.`});
+    toast({ title: 'Ieškoma stotelės...', description: `Ieškoma "${searchInput}" visuose maršrutuose.` });
 
-    let foundStop = false;
+    let allFoundStops: (TimetableEntry & { routeId: string; routeName: string; routeNumber?: string })[] = [];
+
     for (const route of routes) {
-      if (!route.id) continue;
-      const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`));
-      const stopsSnapshot = await getDocs(stopsQuery);
-      
-      for (const doc of stopsSnapshot.docs) {
-        const stopData = doc.data() as TimetableEntry;
-        if (stopData.stop.toLowerCase().includes(searchInput.toLowerCase())) {
-          toast({
-            title: 'Stotelė rasta!',
-            description: `Stotelė "${stopData.stop}" rasta maršrute ${route.number}. Kraunamas tvarkaraštis...`,
-          });
-          setSelectedRouteId(route.id);
-          setActiveSearch(searchInput); // Set active search to filter the newly loaded timetable
-          foundStop = true;
-          break; // Exit inner loop
-        }
-      }
-      if (foundStop) {
-        break; // Exit outer loop
-      }
+        if (!route.id) continue;
+        const stopsQuery = query(collection(firestore, `routes/${route.id}/timetable`));
+        const stopsSnapshot = await getDocs(stopsQuery);
+
+        stopsSnapshot.forEach(doc => {
+            const stopData = doc.data() as TimetableEntry;
+            if (stopData.stop.toLowerCase().includes(searchInput.toLowerCase())) {
+                allFoundStops.push({
+                    ...stopData,
+                    id: doc.id,
+                    routeId: route.id!,
+                    routeName: route.name,
+                    routeNumber: route.number,
+                });
+            }
+        });
     }
 
-    if (!foundStop) {
-      toast({
-        title: 'Stotelė nerasta',
-        description: `Stotelė pavadinimu "${searchInput}" nerasta jokiame maršrute.`,
-        variant: 'destructive',
-      });
+    if (allFoundStops.length === 0) {
+        toast({
+            title: 'Stotelė nerasta',
+            description: `Stotelė pavadinimu "${searchInput}" nerasta jokiame maršrute.`,
+            variant: 'destructive',
+        });
+    } else {
+        const groupedByStopName: { [key: string]: NearbyRouteGroup } = allFoundStops.reduce((acc, stop) => {
+            if (!acc[stop.stop]) {
+                acc[stop.stop] = {
+                    stopName: stop.stop,
+                    distance: -1, // Not applicable for search by name
+                    routes: [],
+                };
+            }
+            acc[stop.stop].routes.push({
+                routeId: stop.routeId,
+                routeName: stop.routeName,
+                routeNumber: stop.routeNumber,
+                arrivalTimes: stop.arrivalTimes,
+                id: stop.id,
+            });
+            return acc;
+        }, {} as { [key: string]: NearbyRouteGroup });
+        
+        const resultGroups = Object.values(groupedByStopName);
+        toast({
+            title: 'Paieškos rezultatai',
+            description: `Rasta ${resultGroups.length} stotelių atitinkančių paiešką.`
+        })
+
+        setSearchDialogTitle(`Paieškos "${searchInput}" rezultatai`);
+        setNearbyRouteGroup(resultGroups);
     }
 
     setIsSearchingStops(false);
-  }
+};
 
   const handleClearSearch = () => {
     setSearchInput('');
@@ -259,12 +285,13 @@ export default function TimetableClient() {
           title: 'Stotelė rasta!',
           description: `Artimiausia stotelė yra "${nearestStop.stop}". Rasta maršrutų: ${routesForNearestStop.length}.`,
         });
-
-        setNearbyRouteGroup({
+        
+        setSearchDialogTitle('Artimiausi maršrutai');
+        setNearbyRouteGroup([{
             stopName: nearestStop.stop,
             distance: nearestStop.distance,
             routes: routesForNearestStop,
-        });
+        }]);
 
         setIsFindingLocation(false);
       },
@@ -362,7 +389,7 @@ export default function TimetableClient() {
     const distanceInKm = distanceInMeters / 1000;
     const timeHours = distanceInKm / averageSpeedKmh;
     const timeMinutes = Math.round(timeHours * 60);
-    if (timeMinutes < 1) return "< 1 min.";
+    if (timeMinutes < 1) return "&lt; 1 min.";
     return `~ ${timeMinutes} min.`;
   }
 
@@ -672,42 +699,53 @@ export default function TimetableClient() {
       <Dialog open={!!nearbyRouteGroup} onOpenChange={() => setNearbyRouteGroup(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rasti maršrutai</DialogTitle>
-             {nearbyRouteGroup && (
-                <DialogDescription>
-                    Artimiausia stotelė yra "{nearbyRouteGroup.stopName}" (už {(nearbyRouteGroup.distance * 1000).toFixed(0)} m). Pasirinkite norimą maršrutą iš sąrašo.
-                </DialogDescription>
-            )}
+            <DialogTitle>{searchDialogTitle}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            {nearbyRouteGroup && nearbyRouteGroup.routes.length > 0 ? (
-              <ul className="space-y-2">
-                {nearbyRouteGroup.routes.map((route, index) => (
-                  <li key={`${route.routeId}-${index}`}>
-                    <Button 
-                      variant="outline" 
-                      className="w-full h-auto justify-start text-left" 
-                      onClick={() => handleNearbyStopSelect(route, nearbyRouteGroup.stopName)}
-                    >
-                      <div className="flex-grow">
-                        <p className="font-semibold">Maršrutas {route.routeNumber}: {route.routeName}</p>
-                         <p className="text-sm text-muted-foreground flex items-center gap-2">
-                           <Clock className="h-4 w-4" />
-                           <span>Atvyksta: {(route.arrivalTimes || []).join(', ')}</span>
-                        </p>
-                      </div>
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-center text-muted-foreground">Maršrutų nerasta.</p>
-            )}
-          </div>
+          <ScrollArea className="max-h-[60vh] -mx-6 px-6">
+            <div className="py-4 space-y-4">
+              {nearbyRouteGroup && nearbyRouteGroup.length > 0 ? (
+                 nearbyRouteGroup.map((group) => (
+                    <div key={group.stopName}>
+                        <h3 className="font-semibold text-lg mb-2">
+                            {group.stopName}
+                            {group.distance !== -1 && (
+                                <span className="text-sm text-muted-foreground font-normal ml-2">
+                                    (už {(group.distance * 1000).toFixed(0)} m)
+                                </span>
+                            )}
+                        </h3>
+                        <ul className="space-y-2 border-l pl-4 ml-1">
+                            {group.routes.map((route, index) => (
+                            <li key={`${route.routeId}-${index}`}>
+                                <Button 
+                                variant="outline" 
+                                className="w-full h-auto justify-start text-left" 
+                                onClick={() => handleNearbyStopSelect(route, group.stopName)}
+                                >
+                                <div className="flex-grow">
+                                    <p className="font-semibold">Maršrutas {route.routeNumber}: {route.routeName}</p>
+                                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                    <Clock className="h-4 w-4" />
+                                    <span>Atvyksta: {(route.arrivalTimes || []).join(', ')}</span>
+                                    </p>
+                                </div>
+                                </Button>
+                            </li>
+                            ))}
+                        </ul>
+                    </div>
+                 ))
+              ) : (
+                <p className="text-center text-muted-foreground">Maršrutų nerasta.</p>
+              )}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </>
   );
 }
+
+    
 
     
