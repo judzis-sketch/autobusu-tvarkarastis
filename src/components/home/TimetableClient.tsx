@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, ArrowDown, Watch } from 'lucide-react';
+import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, Watch } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '../ui/button';
@@ -30,6 +30,8 @@ import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { getDistance } from '@/lib/distance';
 import { Badge } from '../ui/badge';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -46,11 +48,13 @@ const StopToStopMap = dynamic(() => import('./StopToStopMap'), {
 interface StopDetail {
   current: TimetableEntry;
   next: TimetableEntry;
+  remaining: TimetableEntry[];
 }
 
 export default function TimetableClient() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedStopDetail, setSelectedStopDetail] = useState<StopDetail | null>(null);
+  const [showFullPath, setShowFullPath] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [isFindingLocation, setIsFindingLocation] = useState(false);
@@ -241,19 +245,19 @@ export default function TimetableClient() {
     const currentIndex = timetable.findIndex(s => s.id === clickedStop.id);
     const isLastStop = currentIndex === timetable.length - 1;
   
-    // A stop is clickable if it's not the last one.
     if (isLastStop) {
       return;
     }
   
     const currentStop = timetable[currentIndex];
     const nextStop = timetable[currentIndex + 1];
+    const remainingStops = timetable.slice(currentIndex + 1);
   
-    // And has geometry data to the next stop.
     if (currentStop.routeGeometry && currentStop.coords && nextStop && nextStop.coords) {
       setSelectedStopDetail({
         current: currentStop,
         next: nextStop,
+        remaining: remainingStops,
       });
     } else {
       toast({
@@ -276,19 +280,19 @@ export default function TimetableClient() {
       newIndex = currentIndex - 1;
     }
   
-    // Check boundaries
     if (newIndex < 0 || newIndex >= timetable.length - 1) {
-      return; // Can't go before the first or past the second to last stop
+      return;
     }
   
     const newCurrentStop = timetable[newIndex];
     const newNextStop = timetable[newIndex + 1];
+    const newRemainingStops = timetable.slice(newIndex + 1);
   
-    // Ensure the new segment is valid before updating
     if (newCurrentStop.routeGeometry && newCurrentStop.coords && newNextStop.coords) {
       setSelectedStopDetail({
         current: newCurrentStop,
-        next: newNextStop
+        next: newNextStop,
+        remaining: newRemainingStops
       });
     } else {
        toast({
@@ -317,9 +321,28 @@ export default function TimetableClient() {
 
   const isLastStopInDialog = useMemo(() => {
       if (!selectedStopDetail || !timetable) return false;
-      // The "segment" is from current to next. The last valid segment starts at the second-to-last stop.
       return timetable.findIndex(s => s.id === selectedStopDetail.current.id) >= timetable.length - 2;
   }, [selectedStopDetail, timetable]);
+  
+  const finalDestination = useMemo(() => {
+    if (!selectedStopDetail || showFullPath === false) return null;
+    return selectedStopDetail.remaining[selectedStopDetail.remaining.length - 1];
+  }, [selectedStopDetail, showFullPath]);
+
+  const fullRemainingDistance = useMemo(() => {
+    if (!selectedStopDetail || showFullPath === false) return null;
+    
+    // Distance from current to next
+    let totalDistance = selectedStopDetail.current.distanceToNext || 0;
+    
+    // Sum of distances for the rest of the segments
+    // The last stop in 'remaining' doesn't have a `distanceToNext`, so we slice it off.
+    selectedStopDetail.remaining.slice(0, -1).forEach(stop => {
+      totalDistance += stop.distanceToNext || 0;
+    });
+
+    return totalDistance;
+  }, [selectedStopDetail, showFullPath]);
 
 
   if (isLoadingRoutes) {
@@ -513,19 +536,21 @@ export default function TimetableClient() {
         )}
       </div>
 
-      <Dialog open={!!selectedStopDetail} onOpenChange={(isOpen) => !isOpen && setSelectedStopDetail(null)}>
-        <DialogContent className="max-w-3xl h-auto sm:h-[85vh] flex flex-col">
+      <Dialog open={!!selectedStopDetail} onOpenChange={(isOpen) => {if (!isOpen) setSelectedStopDetail(null)}}>
+        <DialogContent className="max-w-3xl h-auto sm:h-[90vh] flex flex-col">
           {selectedStopDetail && (
             <>
               <DialogHeader>
-                <DialogTitle>Maršruto atkarpa</DialogTitle>
+                 <DialogTitle>
+                    {showFullPath ? 'Visas likęs maršrutas' : 'Maršruto atkarpa'}
+                 </DialogTitle>
                  <DialogDescription className="sr-only">
-                    Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {selectedStopDetail.next.stop}.
+                    Žemėlapis, rodantis maršrutą nuo {selectedStopDetail.current.stop} iki {finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}.
                  </DialogDescription>
                  <div className="text-center text-base flex items-center justify-center gap-2 pt-2">
                    <span className="font-semibold">{selectedStopDetail.current.stop}</span>
                    <ArrowRight className="h-4 w-4" />
-                   <span className="font-semibold">{selectedStopDetail.next.stop}</span>
+                   <span className="font-semibold">{finalDestination ? finalDestination.stop : selectedStopDetail.next.stop}</span>
                  </div>
                  <div className="grid grid-cols-3 items-center text-center py-2">
                     <div className="text-left">
@@ -534,12 +559,16 @@ export default function TimetableClient() {
                     </div>
                     <div className="flex flex-col items-center justify-center border-x">
                         <Watch className="h-5 w-5 text-primary" />
-                        <p className="font-bold text-lg text-primary">{calculateTravelTime(selectedStopDetail.current.distanceToNext)}</p>
-                        <p className="text-xs text-muted-foreground">({(selectedStopDetail.current.distanceToNext! / 1000).toFixed(2)} km)</p>
+                        <p className="font-bold text-lg text-primary">
+                          {calculateTravelTime(showFullPath ? fullRemainingDistance : selectedStopDetail.current.distanceToNext)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          ({((showFullPath ? fullRemainingDistance! : selectedStopDetail.current.distanceToNext!) / 1000).toFixed(2)} km)
+                        </p>
                     </div>
                     <div className="text-right">
                        <p className="text-xs text-muted-foreground">Atvyksta</p>
-                       <p className="font-bold text-lg">{((selectedStopDetail.next.arrivalTimes) || (selectedStopDetail.next as any).times || []).join(', ')}</p>
+                       <p className="font-bold text-lg">{((finalDestination ? finalDestination.arrivalTimes : selectedStopDetail.next.arrivalTimes) || (finalDestination || selectedStopDetail.next as any).times || []).join(', ')}</p>
                     </div>
                  </div>
               </DialogHeader>
@@ -547,17 +576,25 @@ export default function TimetableClient() {
                 <StopToStopMap 
                     currentStop={selectedStopDetail.current}
                     nextStop={selectedStopDetail.next}
+                    remainingStops={selectedStopDetail.remaining}
+                    showFullPath={showFullPath}
                 />
               </div>
-              <DialogFooter className="sm:justify-center pt-4">
-                  <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInDialog}>
-                      <ChevronLeft className="h-4 w-4 mr-2" />
-                      Ankstesnė stotelė
-                  </Button>
-                  <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInDialog}>
-                      Kita stotelė
-                      <ChevronRight className="h-4 w-4 ml-2" />
-                  </Button>
+              <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center pt-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch id="full-path-switch" checked={showFullPath} onCheckedChange={setShowFullPath} />
+                    <Label htmlFor="full-path-switch">Rodyti visą likusį maršrutą</Label>
+                  </div>
+                  <div className='flex gap-2'>
+                    <Button variant="outline" onClick={() => navigateStop('prev')} disabled={isFirstStopInDialog}>
+                        <ChevronLeft className="h-4 w-4 mr-2" />
+                        Ankstesnė
+                    </Button>
+                    <Button variant="outline" onClick={() => navigateStop('next')} disabled={isLastStopInDialog}>
+                        Kita
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
               </DialogFooter>
             </>
           )}
