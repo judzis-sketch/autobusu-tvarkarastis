@@ -32,6 +32,8 @@ import { getDistance } from '@/lib/distance';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import Image from 'next/image';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -80,6 +82,8 @@ export default function TimetableClient() {
 
   const selectedRoute = routes?.find((r) => r.id === selectedRouteId);
   const timetableWithCoords = timetable?.filter(s => s.coords && s.coords.length === 2) || [];
+  
+  const busStationImage = useMemo(() => PlaceHolderImages.find(p => p.id === 'bus-station'), []);
 
   const filteredTimetable = useMemo(() => {
     if (!timetable) return [];
@@ -356,6 +360,18 @@ export default function TimetableClient() {
   return (
     <>
       <div className="flex flex-col gap-8">
+        {busStationImage && (
+          <div className="relative h-48 md:h-64 w-full rounded-xl overflow-hidden shadow-lg">
+            <Image
+              src={busStationImage.imageUrl}
+              alt={busStationImage.description}
+              fill
+              className="object-cover"
+              data-ai-hint={busStationImage.imageHint}
+              priority
+            />
+          </div>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Maršruto ir stotelės paieška</CardTitle>
@@ -540,7 +556,7 @@ export default function TimetableClient() {
         <DialogContent className="max-w-4xl w-full h-screen p-4 flex flex-col">
           {selectedStopDetail && (
             <>
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 pt-2 pb-1">
                  <DialogHeader>
                     <DialogTitle>
                         {showFullPath ? 'Visas likęs maršrutas' : 'Maršruto atkarpa'}
@@ -583,7 +599,7 @@ export default function TimetableClient() {
                 />
               </div>
               <div className="flex-shrink-0 pt-2">
-                  <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center">
+                  <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between items-center pt-2">
                       <div className="flex items-center space-x-2">
                         <Switch id="full-path-switch" checked={showFullPath} onCheckedChange={setShowFullPath} />
                         <Label htmlFor="full-path-switch">Rodyti visą likusį maršrutą</Label>

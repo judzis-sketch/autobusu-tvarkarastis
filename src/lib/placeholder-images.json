@@ -1,3 +1,10 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "bus-station",
+      "description": "An image of a bus station.",
+      "imageUrl": "https://images.unsplash.com/photo-1621422921200-d2130dd7a368?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXMlMjBzdGF0aW9ufGVufDB8fHx8MTc2MzU1MjcyMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bus station"
+    }
+  ]
 }
