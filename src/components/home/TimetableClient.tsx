@@ -7,6 +7,8 @@ import type { Route, TimetableEntry } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { DayOfWeek, DayPicker } from 'react-day-picker';
+import { format } from 'date-fns';
+import { lt } from 'date-fns/locale';
 
 import {
   Accordion,
@@ -86,6 +88,16 @@ const dayNameToNumber: { [key: string]: number } = {
   "Šeštadienis": 6,
 };
 
+const dayNumberToName: { [key: number]: string } = {
+  0: "Sekmadienis",
+  1: "Pirmadienis",
+  2: "Antradienis",
+  3: "Trečiadienis",
+  4: "Ketvirtadienis",
+  5: "Penktadienis",
+  6: "Šeštadienis",
+};
+
 
 export default function TimetableClient() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
@@ -99,6 +111,7 @@ export default function TimetableClient() {
   const [searchDialogTitle, setSearchDialogTitle] = useState('Rasti maršrutai');
   const [isRouteSelectedFromDropdown, setIsRouteSelectedFromDropdown] = useState(false);
   const [highlightedStopId, setHighlightedStopId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -109,8 +122,18 @@ export default function TimetableClient() {
   }, [firestore]);
   const { data: routes, isLoading: isLoadingRoutes } = useCollection<Route>(routesQuery);
 
-  const localRoutes = useMemo(() => routes?.filter(r => r.type === 'Vietinio susisiekimo') || [], [routes]);
-  const longDistanceRoutes = useMemo(() => routes?.filter(r => r.type === 'Tolimojo susisiekimo') || [], [routes]);
+  const filteredRoutes = useMemo(() => {
+    if (!routes) return [];
+    if (!selectedDate) return routes;
+
+    const selectedDayName = dayNumberToName[selectedDate.getDay()];
+    if (!selectedDayName) return routes;
+
+    return routes.filter(route => route.days.includes(selectedDayName));
+  }, [routes, selectedDate]);
+  
+  const localRoutes = useMemo(() => filteredRoutes.filter(r => r.type === 'Vietinio susisiekimo') || [], [filteredRoutes]);
+  const longDistanceRoutes = useMemo(() => filteredRoutes.filter(r => r.type === 'Tolimojo susisiekimo') || [], [filteredRoutes]);
 
   const timetableQuery = useMemoFirebase(() => {
     if (!firestore || !selectedRouteId) return null;
@@ -480,8 +503,11 @@ export default function TimetableClient() {
     );
   }
 
-  const renderRouteList = (routesToList: Route[]) => {
+  const renderRouteList = (routesToList: Route[], type: string) => {
     if (routesToList.length === 0) {
+      if (selectedDate) {
+        return <p className="text-sm text-muted-foreground px-4">Pasirinktą dieną šio tipo maršrutų nėra.</p>;
+      }
       return <p className="text-sm text-muted-foreground px-4">Šio tipo maršrutų nėra.</p>;
     }
     return (
@@ -531,82 +557,112 @@ export default function TimetableClient() {
           </div>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-           <Card>
-             <CardHeader>
-                <CardTitle>Stotelės paieška</CardTitle>
-                <CardDescription>
-                  Ieškokite stotelės pagal pavadinimą visuose maršrutuose.
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-1">
+               <CardHeader>
+                <CardTitle>Filtruoti pagal datą</CardTitle>
+                 <CardDescription>
+                  Pasirinkite dieną ir matysite tik tą dieną kursuojančius maršrutus.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="stop-search-input">Stotelės pavadinimas</Label>
-                      <div className="relative flex-grow">
-                          <Input 
-                            id="stop-search-input"
-                            placeholder="pvz., Vinco Kudirkos aikštė"
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                          />
-                          {searchInput && !isRouteSelectedFromDropdown && (
-                          <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
-                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                              onClick={handleClearSearch}
-                          >
-                              <X className="h-4 w-4 text-muted-foreground"/>
-                          </Button>
-                          )}
-                      </div>
-                  </div>
-                   <Button type="submit" variant="secondary" disabled={isSearchingStops}>
-                      {isSearchingStops ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4 mr-2" />}
-                      Ieškoti stotelės
-                  </Button>
-                </form>
+              <CardContent className="flex flex-col gap-4 items-center">
+                 <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    locale={lt}
+                    weekStartsOn={1}
+                    className="rounded-md border p-0"
+                 />
+                 {selectedDate && (
+                    <Button variant="outline" size="sm" onClick={() => setSelectedDate(undefined)}>
+                        <X className="h-4 w-4 mr-2" />
+                        Išvalyti datą
+                    </Button>
+                 )}
               </CardContent>
-           </Card>
-           
-           <Card className="flex flex-col">
-             <CardHeader>
-                <CardTitle>Rasti artimiausią stotelę</CardTitle>
-                <CardDescription>
-                  Leiskite mums nustatyti jūsų vietą ir parodyti artimiausias stoteles.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col flex-grow justify-center">
-                 <Button 
-                    className="w-full" 
-                    variant="outline" 
-                    onClick={handleFindNearestStop}
-                    disabled={isFindingLocation}
-                >
-                    {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
-                    Naudoti mano lokaciją
-                </Button>
-              </CardContent>
-           </Card>
+            </Card>
+
+           <div className="lg:col-span-2 flex flex-col gap-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Stotelės paieška</CardTitle>
+                        <CardDescription>
+                        Ieškokite stotelės pagal pavadinimą visuose maršrutuose.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="stop-search-input">Stotelės pavadinimas</Label>
+                            <div className="relative flex-grow">
+                                <Input 
+                                    id="stop-search-input"
+                                    placeholder="pvz., Vinco Kudirkos aikštė"
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                />
+                                {searchInput && !isRouteSelectedFromDropdown && (
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                                    onClick={handleClearSearch}
+                                >
+                                    <X className="h-4 w-4 text-muted-foreground"/>
+                                </Button>
+                                )}
+                            </div>
+                        </div>
+                        <Button type="submit" variant="secondary" disabled={isSearchingStops}>
+                            {isSearchingStops ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4 mr-2" />}
+                            Ieškoti stotelės
+                        </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+                
+                <Card className="flex flex-col">
+                    <CardHeader>
+                        <CardTitle>Rasti artimiausią stotelę</CardTitle>
+                        <CardDescription>
+                        Leiskite mums nustatyti jūsų vietą ir parodyti artimiausias stoteles.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col flex-grow justify-center">
+                        <Button 
+                            className="w-full" 
+                            variant="outline" 
+                            onClick={handleFindNearestStop}
+                            disabled={isFindingLocation}
+                        >
+                            {isFindingLocation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <LocateFixed className="mr-2 h-4 w-4"/> }
+                            Naudoti mano lokaciją
+                        </Button>
+                    </CardContent>
+                </Card>
+           </div>
         </div>
 
 
         <Card>
           <CardHeader>
             <CardTitle>Maršrutų sąrašas</CardTitle>
-            <CardDescription>
-              Pasirinkite maršrutą iš sąrašo, kad pamatytumėte jo tvarkaraštį.
+             <CardDescription>
+              {selectedDate 
+                ? `Rodomi maršrutai, kursuojantys ${format(selectedDate, 'PPP', { locale: lt })}.`
+                : 'Pasirinkite maršrutą iš sąrašo, kad pamatytumėte jo tvarkaraštį.'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Accordion type="single" collapsible className="w-full">
+            <Accordion type="single" collapsible className="w-full" defaultValue="local">
               <AccordionItem value="local">
                 <AccordionTrigger>Vietinio susisiekimo maršrutai ({localRoutes.length})</AccordionTrigger>
                 <AccordionContent>
                   <ScrollArea className="h-60">
-                    {renderRouteList(localRoutes)}
+                    {renderRouteList(localRoutes, 'Vietinio susisiekimo')}
                   </ScrollArea>
                 </AccordionContent>
               </AccordionItem>
@@ -614,7 +670,7 @@ export default function TimetableClient() {
                 <AccordionTrigger>Tolimojo susisiekimo maršrutai ({longDistanceRoutes.length})</AccordionTrigger>
                 <AccordionContent>
                   <ScrollArea className="h-60">
-                    {renderRouteList(longDistanceRoutes)}
+                    {renderRouteList(longDistanceRoutes, 'Tolimojo susisiekimo')}
                   </ScrollArea>
                 </AccordionContent>
               </AccordionItem>
