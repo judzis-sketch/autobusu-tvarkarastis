@@ -641,6 +641,11 @@ export default function TimetableClient() {
                               locale={lt}
                               weekStartsOn={1}
                               className="rounded-md border p-0"
+                              modifiers={{ weekend: { daysOfWeek: [0, 6] } }}
+                              modifiersClassNames={{
+                                head_cell: 'weekend-head',
+                                day_weekend: 'day-weekend',
+                              }}
                           />
                           {selectedDate && (
                               <Button variant="outline" size="sm" onClick={() => setSelectedDate(undefined)} className="mt-4">
@@ -706,7 +711,7 @@ export default function TimetableClient() {
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
-                      <div className="text-base font-bold text-muted-foreground">Maršrutas</div>
+                      <div className="text-base font-semibold text-muted-foreground">Maršrutas</div>
                       <CardTitle className="text-3xl font-bold">
                         {selectedRoute?.number && <span className="mr-2">{selectedRoute.number}</span>}
                         {selectedRoute?.name}
