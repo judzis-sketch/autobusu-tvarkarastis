@@ -119,18 +119,18 @@ export default function TimetableClient() {
 
   const handleSearchSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!searchInput) {
+    if (!searchInput.trim()) {
         setActiveSearch('');
         return;
     }
 
-    // If a route is already selected, search within it
-    if (selectedRouteId) {
+    // If a route IS selected from the dropdown, search within it.
+    // Otherwise, always perform a global search.
+    if (selectedRouteId && !nearbyRouteGroup) { // Check if a global search result is not already open
         setActiveSearch(searchInput);
         return;
     }
 
-    // If no route is selected, search across all routes
     if (!firestore || !routes) {
         toast({ title: 'Klaida', description: 'Maršrutų sąrašas dar neužkrautas.', variant: 'destructive' });
         return;
@@ -148,7 +148,7 @@ export default function TimetableClient() {
 
         stopsSnapshot.forEach(doc => {
             const stopData = doc.data() as TimetableEntry;
-            if (stopData.stop.toLowerCase().includes(searchInput.toLowerCase())) {
+            if (stopData.stop.toLowerCase().includes(searchInput.trim().toLowerCase())) {
                 allFoundStops.push({
                     ...stopData,
                     id: doc.id,
@@ -168,14 +168,15 @@ export default function TimetableClient() {
         });
     } else {
         const groupedByStopName: { [key: string]: NearbyRouteGroup } = allFoundStops.reduce((acc, stop) => {
-            if (!acc[stop.stop]) {
-                acc[stop.stop] = {
+            const stopNameLower = stop.stop.toLowerCase();
+            if (!acc[stopNameLower]) {
+                acc[stopNameLower] = {
                     stopName: stop.stop,
                     distance: -1, // Not applicable for search by name
                     routes: [],
                 };
             }
-            acc[stop.stop].routes.push({
+            acc[stopNameLower].routes.push({
                 routeId: stop.routeId,
                 routeName: stop.routeName,
                 routeNumber: stop.routeNumber,
@@ -262,36 +263,54 @@ export default function TimetableClient() {
         }
 
         allStopsWithDistance.sort((a, b) => a.distance - b.distance);
-        const nearestStop = allStopsWithDistance[0];
+        
+        // Group by stop name and find the closest one
+        const stopsGroupedByName: { [key: string]: NearbyStop[] } = allStopsWithDistance.reduce((acc, stop) => {
+            const name = stop.stop.toLowerCase();
+            if (!acc[name]) {
+                acc[name] = [];
+            }
+            acc[name].push(stop);
+            return acc;
+        }, {} as { [key: string]: NearbyStop[] });
 
-        if (!nearestStop) {
-            toast({ title: 'Klaida', description: 'Nepavyko rasti artimiausios stotelės.', variant: 'destructive'});
+        const uniqueNearestStops = Object.values(stopsGroupedByName)
+            .map(group => group.sort((a, b) => a.distance - b.distance)[0]) // Get the closest stop for each name
+            .sort((a, b) => a.distance - b.distance) // Sort the unique stops by distance
+            .slice(0, 5); // Take top 5 unique nearest stops
+
+        if(uniqueNearestStops.length === 0) {
+            toast({ title: 'Nerasta stotelių', description: 'Nepavyko rasti artimiausių stotelių.', variant: 'destructive'});
             setIsFindingLocation(false);
             return;
         }
-        
-        // Find all routes that pass through a stop with the same name
-        const routesForNearestStop = allStopsWithDistance
-            .filter(stop => stop.stop === nearestStop.stop)
-            .map(stop => ({
-                routeId: stop.routeId,
-                routeName: stop.routeName,
-                routeNumber: stop.routeNumber,
-                arrivalTimes: stop.arrivalTimes,
-                id: stop.id,
-            }));
+
+        const resultGroups: NearbyRouteGroup[] = uniqueNearestStops.map(stop => {
+            // For each unique stop, find all routes that pass through it
+            const routesForThisStop = allStopsWithDistance
+                .filter(s => s.stop.toLowerCase() === stop.stop.toLowerCase())
+                .map(s => ({
+                    routeId: s.routeId,
+                    routeName: s.routeName,
+                    routeNumber: s.routeNumber,
+                    arrivalTimes: s.arrivalTimes,
+                    id: s.id,
+                }));
             
-        toast({
-          title: 'Stotelė rasta!',
-          description: `Artimiausia stotelė yra "${nearestStop.stop}". Rasta maršrutų: ${routesForNearestStop.length}.`,
+            return {
+                stopName: stop.stop,
+                distance: stop.distance,
+                routes: routesForThisStop
+            };
         });
         
-        setSearchDialogTitle('Artimiausi maršrutai');
-        setNearbyRouteGroup([{
-            stopName: nearestStop.stop,
-            distance: nearestStop.distance,
-            routes: routesForNearestStop,
-        }]);
+        toast({
+          title: 'Stotelės rastos!',
+          description: `Rastos ${resultGroups.length} artimiausios stotelės.`,
+        });
+        
+        setSearchDialogTitle('Artimiausios stotelės');
+        setNearbyRouteGroup(resultGroups);
 
         setIsFindingLocation(false);
       },
