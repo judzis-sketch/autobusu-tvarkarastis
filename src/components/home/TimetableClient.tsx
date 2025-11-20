@@ -643,8 +643,8 @@ export default function TimetableClient() {
                               onSelect={handleDateSelect}
                               locale={lt}
                               weekStartsOn={1}
-                              className="rounded-md border p-0"
-                              modifiers={{ weekend: { daysOfWeek: [0, 6] } }}
+                              className="rounded-md border"
+                              modifiers={{ weekend: [0, 6] }}
                               modifiersClassNames={{
                                 day_weekend: 'day-weekend',
                               }}
