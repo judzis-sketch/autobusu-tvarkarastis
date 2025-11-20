@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { AccessibilityProvider, useAccessibility } from '@/context/AccessibilityContext';
-import { ThemeProvider } from '@/context/ThemeContext';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
@@ -24,12 +24,18 @@ import { useEffect, useState } from 'react';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLargeText } = useAccessibility();
+  const { theme } = useTheme();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     document.title = 'Autobusų tvarkaraštis';
   }, []);
+
+  const themeClass = theme === 'system' 
+    ? (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : '')
+    : theme;
+
 
   if (!isMounted) {
     return (
@@ -42,7 +48,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <html lang="lt" className={cn({ 'large-text': isLargeText })} suppressHydrationWarning>
+    <html lang="lt" className={cn(themeClass, { 'large-text': isLargeText })} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
