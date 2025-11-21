@@ -40,6 +40,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { Calendar } from '../ui/calendar';
 import 'react-day-picker/dist/style.css';
+import { Separator } from '../ui/separator';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -78,6 +79,11 @@ interface NearbyRouteGroup {
     }[];
 }
 
+interface SearchResults {
+    foundRoutes: Route[];
+    foundStops: NearbyRouteGroup[];
+}
+
 const dayNameToNumber: { [key: string]: number } = {
   "Sekmadienis": 0,
   "Pirmadienis": 1,
@@ -106,9 +112,9 @@ export default function TimetableClient() {
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [isFindingLocation, setIsFindingLocation] = useState(false);
-  const [isSearchingStops, setIsSearchingStops] = useState(false);
-  const [nearbyRouteGroup, setNearbyRouteGroup] = useState<NearbyRouteGroup[] | null>(null);
-  const [searchDialogTitle, setSearchDialogTitle] = useState('Rasti maršrutai');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
+  const [searchDialogTitle, setSearchDialogTitle] = useState('Paieškos rezultatai');
   const [isRouteSelectedFromDropdown, setIsRouteSelectedFromDropdown] = useState(false);
   const [highlightedStopId, setHighlightedStopId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -173,12 +179,13 @@ export default function TimetableClient() {
     setIsRouteSelectedFromDropdown(true);
     setIsDateRoutesDialogOpen(false);
     setSelectedDate(undefined);
+    setSearchResults(null);
   };
 
 
   const handleSearchSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const searchTerm = searchInput.trim();
+    const searchTerm = searchInput.trim().toLowerCase();
     if (!searchTerm) {
         setActiveSearch('');
         setHighlightedStopId(null);
@@ -196,9 +203,16 @@ export default function TimetableClient() {
         return;
     }
 
-    setIsSearchingStops(true);
-    toast({ title: 'Ieškoma stotelės...', description: `Ieškoma "${searchTerm}" visuose maršrutuose.` });
+    setIsSearching(true);
+    toast({ title: 'Vykdoma paieška...', description: `Ieškoma "${searchInput.trim()}"...` });
+    
+    // Search for routes
+    const foundRoutes = routes.filter(route => 
+        (route.name.toLowerCase().includes(searchTerm)) || 
+        (route.number && route.number.toLowerCase().includes(searchTerm))
+    );
 
+    // Search for stops
     let allFoundStops: (TimetableEntry & { routeId: string; routeName: string; routeNumber?: string })[] = [];
 
     for (const route of routes) {
@@ -208,7 +222,7 @@ export default function TimetableClient() {
 
         stopsSnapshot.forEach(doc => {
             const stopData = doc.data() as TimetableEntry;
-            if (stopData.stop.toLowerCase().includes(searchTerm.toLowerCase())) {
+            if (stopData.stop.toLowerCase().includes(searchTerm)) {
                 allFoundStops.push({
                     ...stopData,
                     id: doc.id,
@@ -219,45 +233,47 @@ export default function TimetableClient() {
             }
         });
     }
+    
+    const groupedByStopName: { [key: string]: NearbyRouteGroup } = allFoundStops.reduce((acc, stop) => {
+        const stopNameLower = stop.stop.toLowerCase();
+        if (!acc[stopNameLower]) {
+            acc[stopNameLower] = {
+                stopName: stop.stop,
+                distance: -1, 
+                routes: [],
+            };
+        }
+        acc[stopNameLower].routes.push({
+            routeId: stop.routeId,
+            routeName: stop.routeName,
+            routeNumber: stop.routeNumber,
+            arrivalTimes: (stop.arrivalTimes || []),
+            id: stop.id,
+        });
+        return acc;
+    }, {} as { [key: string]: NearbyRouteGroup });
+    
+    const foundStops = Object.values(groupedByStopName);
 
-    if (allFoundStops.length === 0) {
+
+    if (foundRoutes.length === 0 && foundStops.length === 0) {
         toast({
-            title: 'Stotelė nerasta',
-            description: `Stotelė pavadinimu "${searchTerm}" nerasta jokiame maršrute.`,
+            title: 'Nieko nerasta',
+            description: `Nepavyko rasti maršrutų ar stotelių, atitinkančių "${searchInput.trim()}".`,
             variant: 'destructive',
         });
-        setNearbyRouteGroup(null);
+        setSearchResults(null);
     } else {
-        const groupedByStopName: { [key: string]: NearbyRouteGroup } = allFoundStops.reduce((acc, stop) => {
-            const stopNameLower = stop.stop.toLowerCase();
-            if (!acc[stopNameLower]) {
-                acc[stopNameLower] = {
-                    stopName: stop.stop,
-                    distance: -1, 
-                    routes: [],
-                };
-            }
-            acc[stopNameLower].routes.push({
-                routeId: stop.routeId,
-                routeName: stop.routeName,
-                routeNumber: stop.routeNumber,
-                arrivalTimes: (stop.arrivalTimes || []),
-                id: stop.id,
-            });
-            return acc;
-        }, {} as { [key: string]: NearbyRouteGroup });
-        
-        const resultGroups = Object.values(groupedByStopName);
         toast({
             title: 'Paieškos rezultatai',
-            description: `Rasta ${resultGroups.length} stotelių atitinkančių paiešką.`
+            description: `Rasta ${foundRoutes.length} maršrutų ir ${foundStops.length} stotelių.`
         })
 
-        setSearchDialogTitle(`Paieškos "${searchTerm}" rezultatai`);
-        setNearbyRouteGroup(resultGroups);
+        setSearchDialogTitle(`Paieškos "${searchInput.trim()}" rezultatai`);
+        setSearchResults({ foundRoutes, foundStops });
     }
 
-    setIsSearchingStops(false);
+    setIsSearching(false);
 };
 
   const handleClearSearch = () => {
@@ -371,7 +387,7 @@ export default function TimetableClient() {
         });
         
         setSearchDialogTitle('Artimiausios stotelės');
-        setNearbyRouteGroup(resultGroups);
+        setSearchResults({ foundRoutes: [], foundStops: resultGroups });
 
         setIsFindingLocation(false);
       },
@@ -386,16 +402,24 @@ export default function TimetableClient() {
     );
   };
   
-  const handleNearbyStopSelect = (route: NearbyRouteGroup['routes'][0], stopName: string) => {
-    setSelectedRouteId(route.routeId);
-    setSearchInput(stopName);
-    setActiveSearch(stopName);
-    setHighlightedStopId(route.id); 
-    setNearbyRouteGroup(null);
-    setIsRouteSelectedFromDropdown(false); 
+  const handleSearchResultSelect = (routeId: string, stopId?: string, stopName?: string) => {
+    setSelectedRouteId(routeId);
+    if(stopName) {
+      setSearchInput(stopName);
+      setActiveSearch(stopName);
+    } else {
+       handleClearSearch();
+    }
+
+    if (stopId) {
+       setHighlightedStopId(stopId); 
+    }
+    
+    setSearchResults(null);
+    setIsRouteSelectedFromDropdown(false);
     toast({
       title: 'Maršrutas parinktas',
-      description: `Kraunamas maršrutas "${route.routeNumber} - ${route.routeName}"`,
+      description: `Kraunamas pasirinktas maršrutas.`,
     });
   }
 
@@ -594,23 +618,23 @@ export default function TimetableClient() {
           <Card>
               <CardHeader>
                   <CardTitle>Maršruto paieška</CardTitle>
-                  <CardDescription>Raskite maršrutą pagal stotelę, datą arba savo buvimo vietą.</CardDescription>
+                  <CardDescription>Raskite maršrutą pagal pavadinimą, stotelę, datą arba savo buvimo vietą.</CardDescription>
               </CardHeader>
               <CardContent>
                   <Tabs defaultValue="stop" className="w-full">
                       <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="stop"><Search className="h-4 w-4 mr-2" />Pagal stotelę</TabsTrigger>
+                          <TabsTrigger value="stop"><Search className="h-4 w-4 mr-2" />Pagal pavadinimą</TabsTrigger>
                           <TabsTrigger value="date"><CalendarIcon className="h-4 w-4 mr-2" />Pagal datą</TabsTrigger>
                           <TabsTrigger value="location"><LocateFixed className="h-4 w-4 mr-2" />Pagal vietovę</TabsTrigger>
                       </TabsList>
                       <TabsContent value="stop" className="pt-4">
                           <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
                           <div className="space-y-2">
-                              <Label htmlFor="stop-search-input">Stotelės pavadinimas</Label>
+                              <Label htmlFor="stop-search-input">Maršruto pavadinimas arba stotelė</Label>
                               <div className="relative flex-grow">
                                   <Input 
                                       id="stop-search-input"
-                                      placeholder="pvz., Vinco Kudirkos aikštė"
+                                      placeholder="pvz., Stotis arba 10G"
                                       value={searchInput}
                                       onChange={(e) => setSearchInput(e.target.value)}
                                   />
@@ -627,9 +651,9 @@ export default function TimetableClient() {
                                   )}
                               </div>
                           </div>
-                          <Button type="submit" variant="secondary" disabled={isSearchingStops}>
-                              {isSearchingStops ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4 mr-2" />}
-                              Ieškoti stotelės
+                          <Button type="submit" variant="secondary" disabled={isSearching}>
+                              {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4 mr-2" />}
+                              Ieškoti
                           </Button>
                           </form>
                       </TabsContent>
@@ -644,10 +668,6 @@ export default function TimetableClient() {
                               locale={lt}
                               weekStartsOn={1}
                               className="rounded-md border"
-                              modifiers={{ weekend: [0, 6] }}
-                              modifiersClassNames={{
-                                day_weekend: 'day-weekend',
-                              }}
                           />
                           {selectedDate && (
                               <Button variant="outline" size="sm" onClick={() => setSelectedDate(undefined)} className="mt-4">
@@ -878,47 +898,77 @@ export default function TimetableClient() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={!!nearbyRouteGroup} onOpenChange={() => setNearbyRouteGroup(null)}>
-        <DialogContent>
+      <Dialog open={!!searchResults} onOpenChange={() => setSearchResults(null)}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{searchDialogTitle}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] -mx-6 px-6">
-            <div className="py-4 space-y-4">
-              {nearbyRouteGroup && nearbyRouteGroup.length > 0 ? (
-                 nearbyRouteGroup.map((group) => (
-                    <div key={group.stopName}>
-                        <h3 className="font-semibold text-lg mb-2">
-                            {group.stopName}
-                            {group.distance !== -1 && (
-                                <span className="text-sm text-muted-foreground font-normal ml-2">
-                                    (už {(group.distance * 1000).toFixed(0)} m)
-                                </span>
-                            )}
-                        </h3>
-                        <ul className="space-y-2 border-l pl-4 ml-1">
-                            {group.routes.map((route) => (
-                            <li key={route.routeId + route.id}>
-                                <Button 
-                                variant="outline" 
-                                className="w-full h-auto justify-start text-left" 
-                                onClick={() => handleNearbyStopSelect(route, group.stopName)}
-                                >
-                                <div className="flex-grow">
-                                    <p className="font-semibold">Maršrutas {route.routeNumber}: {route.routeName}</p>
-                                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                    <Clock className="h-4 w-4" />
-                                    <span>Atvyksta: {route.arrivalTimes.join(', ')}</span>
-                                    </p>
-                                </div>
-                                </Button>
-                            </li>
-                            ))}
-                        </ul>
+            <div className="py-4 space-y-6">
+              {searchResults?.foundRoutes && searchResults.foundRoutes.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Rasti maršrutai ({searchResults.foundRoutes.length})</h3>
+                  <div className="space-y-2">
+                    {searchResults.foundRoutes.map(route => (
+                      <Button key={route.id} variant="secondary" className="w-full h-auto justify-start text-left" onClick={() => handleSearchResultSelect(route.id!)}>
+                        <div className="flex flex-col">
+                            <p className="font-semibold">
+                                {route.number && <span className="font-bold mr-2">{route.number}</span>}
+                                {route.name}
+                            </p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                                {route.days.map(day => <Badge key={day} variant="outline" className="text-xs">{day.slice(0,3)}</Badge>)}
+                            </div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {searchResults?.foundRoutes.length > 0 && searchResults?.foundStops.length > 0 && <Separator />}
+
+              {searchResults?.foundStops && searchResults.foundStops.length > 0 && (
+                 <div>
+                    <h3 className="text-lg font-semibold mb-3">Rastos stotelės ({searchResults.foundStops.length})</h3>
+                    <div className="space-y-4">
+                    {searchResults.foundStops.map((group) => (
+                        <div key={group.stopName}>
+                            <h4 className="font-semibold text-md mb-2">
+                                {group.stopName}
+                                {group.distance !== -1 && (
+                                    <span className="text-sm text-muted-foreground font-normal ml-2">
+                                        (už {(group.distance * 1000).toFixed(0)} m)
+                                    </span>
+                                )}
+                            </h4>
+                            <ul className="space-y-2 border-l pl-4 ml-1">
+                                {group.routes.map((route) => (
+                                <li key={route.routeId + route.id}>
+                                    <Button 
+                                    variant="outline" 
+                                    className="w-full h-auto justify-start text-left" 
+                                    onClick={() => handleSearchResultSelect(route.routeId, route.id, group.stopName)}
+                                    >
+                                    <div className="flex-grow">
+                                        <p className="font-semibold">Maršrutas {route.routeNumber}: {route.routeName}</p>
+                                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                        <Clock className="h-4 w-4" />
+                                        <span>Atvyksta: {route.arrivalTimes.join(', ')}</span>
+                                        </p>
+                                    </div>
+                                    </Button>
+                                </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
                     </div>
-                 ))
-              ) : (
-                <p className="text-center text-muted-foreground">Maršrutų nerasta.</p>
+                </div>
+              )}
+
+              {(!searchResults?.foundRoutes || searchResults.foundRoutes.length === 0) && (!searchResults?.foundStops || searchResults.foundStops.length === 0) && (
+                 <p className="text-center text-muted-foreground">Nieko nerasta.</p>
               )}
             </div>
           </ScrollArea>
