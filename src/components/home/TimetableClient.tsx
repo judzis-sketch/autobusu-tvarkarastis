@@ -41,6 +41,7 @@ import Image from 'next/image';
 import { Calendar } from '../ui/calendar';
 import 'react-day-picker/dist/style.css';
 import { Separator } from '../ui/separator';
+import { normalizeText } from '@/lib/utils';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -152,8 +153,9 @@ export default function TimetableClient() {
   const filteredTimetable = useMemo(() => {
     if (!timetable) return [];
     if (!activeSearch) return timetable;
+    const normalizedSearch = normalizeText(activeSearch);
     return timetable.filter(stop =>
-      stop.stop.toLowerCase().includes(activeSearch.toLowerCase())
+      normalizeText(stop.stop).includes(normalizedSearch)
     );
   }, [timetable, activeSearch]);
 
@@ -178,41 +180,44 @@ export default function TimetableClient() {
     handleClearSearch();
     setIsRouteSelectedFromDropdown(true);
     setIsDateRoutesDialogOpen(false);
-    setSelectedDate(undefined);
     setSearchResults(null);
   };
 
 
   const handleSearchSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const searchTerm = searchInput.trim().toLowerCase();
+    const searchTerm = searchInput.trim();
     if (!searchTerm) {
         setActiveSearch('');
         setHighlightedStopId(null);
         return;
     }
 
+    // If a route is already selected, just filter stops within that route
     if (isRouteSelectedFromDropdown && selectedRouteId) {
         setActiveSearch(searchTerm);
-        setHighlightedStopId(null);
+        setHighlightedStopId(null); // Clear any previous highlight
         return;
     }
 
+    // If no route is selected, perform a global search for routes and stops
     if (!firestore || !routes) {
         toast({ title: 'Klaida', description: 'Maršrutų sąrašas dar neužkrautas.', variant: 'destructive' });
         return;
     }
 
     setIsSearching(true);
-    toast({ title: 'Vykdoma paieška...', description: `Ieškoma "${searchInput.trim()}"...` });
+    toast({ title: 'Vykdoma paieška...', description: `Ieškoma "${searchTerm}"...` });
+    
+    const normalizedSearch = normalizeText(searchTerm);
     
     // Search for routes
     const foundRoutes = routes.filter(route => 
-        (route.name.toLowerCase().includes(searchTerm)) || 
-        (route.number && route.number.toLowerCase().includes(searchTerm))
+        (normalizeText(route.name).includes(normalizedSearch)) || 
+        (route.number && normalizeText(route.number).includes(normalizedSearch))
     );
 
-    // Search for stops
+    // Search for stops across all routes
     let allFoundStops: (TimetableEntry & { routeId: string; routeName: string; routeNumber?: string })[] = [];
 
     for (const route of routes) {
@@ -222,7 +227,7 @@ export default function TimetableClient() {
 
         stopsSnapshot.forEach(doc => {
             const stopData = doc.data() as TimetableEntry;
-            if (stopData.stop.toLowerCase().includes(searchTerm)) {
+            if (normalizeText(stopData.stop).includes(normalizedSearch)) {
                 allFoundStops.push({
                     ...stopData,
                     id: doc.id,
@@ -235,15 +240,15 @@ export default function TimetableClient() {
     }
     
     const groupedByStopName: { [key: string]: NearbyRouteGroup } = allFoundStops.reduce((acc, stop) => {
-        const stopNameLower = stop.stop.toLowerCase();
-        if (!acc[stopNameLower]) {
-            acc[stopNameLower] = {
+        const stopNameKey = normalizeText(stop.stop);
+        if (!acc[stopNameKey]) {
+            acc[stopNameKey] = {
                 stopName: stop.stop,
                 distance: -1, 
                 routes: [],
             };
         }
-        acc[stopNameLower].routes.push({
+        acc[stopNameKey].routes.push({
             routeId: stop.routeId,
             routeName: stop.routeName,
             routeNumber: stop.routeNumber,
@@ -259,7 +264,7 @@ export default function TimetableClient() {
     if (foundRoutes.length === 0 && foundStops.length === 0) {
         toast({
             title: 'Nieko nerasta',
-            description: `Nepavyko rasti maršrutų ar stotelių, atitinkančių "${searchInput.trim()}".`,
+            description: `Nepavyko rasti maršrutų ar stotelių, atitinkančių "${searchTerm}".`,
             variant: 'destructive',
         });
         setSearchResults(null);
@@ -269,7 +274,7 @@ export default function TimetableClient() {
             description: `Rasta ${foundRoutes.length} maršrutų ir ${foundStops.length} stotelių.`
         })
 
-        setSearchDialogTitle(`Paieškos "${searchInput.trim()}" rezultatai`);
+        setSearchDialogTitle(`Paieškos "${searchTerm}" rezultatai`);
         setSearchResults({ foundRoutes, foundStops });
     }
 
@@ -416,7 +421,7 @@ export default function TimetableClient() {
     }
     
     setSearchResults(null);
-    setIsRouteSelectedFromDropdown(false);
+    setIsRouteSelectedFromDropdown(true); // Treat this as a selection to enable filtering within the route
     toast({
       title: 'Maršrutas parinktas',
       description: `Kraunamas pasirinktas maršrutas.`,
@@ -638,7 +643,7 @@ export default function TimetableClient() {
                                       value={searchInput}
                                       onChange={(e) => setSearchInput(e.target.value)}
                                   />
-                                  {searchInput && !isRouteSelectedFromDropdown && (
+                                  {searchInput && (
                                   <Button 
                                       type="button" 
                                       variant="ghost" 
@@ -668,6 +673,8 @@ export default function TimetableClient() {
                               locale={lt}
                               weekStartsOn={1}
                               className="rounded-md border"
+                              modifiers={{ weekend: { dayOfWeek: [6, 0] } }}
+                              modifiersClassNames={{ weekend: 'day-weekend' }}
                           />
                           {selectedDate && (
                               <Button variant="outline" size="sm" onClick={() => setSelectedDate(undefined)} className="mt-4">
