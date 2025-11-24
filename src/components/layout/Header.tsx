@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bus, Cog, LogIn, LogOut, User as UserIcon, Accessibility, Sun, Moon } from 'lucide-react';
+import { Bus, Cog, LogOut, User as UserIcon, Accessibility, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -103,8 +103,8 @@ export default function Header() {
               </Tooltip>
 
               {isUserLoading ? (
-                <Skeleton className="h-9 w-24 rounded-md" />
-              ) : user ? (
+                <Skeleton className="h-9 w-9 rounded-md" />
+              ) : user && (
                 <>
                   {isAdmin && (
                      <Tooltip>
@@ -133,21 +133,7 @@ export default function Header() {
                       </TooltipContent>
                     </Tooltip>
                 </>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href="/login">
-                            <UserIcon className="h-5 w-5" />
-                            <span className="sr-only">Admin prisijungimas</span>
-                        </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Administratoriaus prisijungimas</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              ) }
             </TooltipProvider>
           </div>
         </div>
