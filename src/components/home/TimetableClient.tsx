@@ -2,10 +2,10 @@
 
 'use client';
 
-import { useState, useMemo, FormEvent, useCallback } from 'react';
+import { useState, useMemo, FormEvent, useCallback, useEffect } from 'react';
 import type { Route, TimetableEntry } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
 import { DayOfWeek, DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
 import { lt } from 'date-fns/locale';
@@ -103,6 +103,98 @@ const dayNumberToName: { [key: number]: string } = {
   4: "Ketvirtadienis",
   5: "Penktadienis",
   6: "Šeštadienis",
+};
+
+
+// Helper component for route list item to manage its own state
+const RouteListItem = ({ route, selectedRouteId, onSelect }: { route: Route, selectedRouteId: string | null, onSelect: (id: string) => void }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [times, setTimes] = useState<{ start: TimetableEntry | null, end: TimetableEntry | null } | null>(null);
+    const [isLoadingTimes, setIsLoadingTimes] = useState(false);
+    const firestore = useFirestore();
+
+    const fetchTimes = async () => {
+        if (!route.id || !firestore) return;
+        setIsLoadingTimes(true);
+        try {
+            const timetableRef = collection(firestore, 'routes', route.id, 'timetable');
+            const qFirst = query(timetableRef, orderBy('createdAt', 'asc'), limit(1));
+            const qLast = query(timetableRef, orderBy('createdAt', 'desc'), limit(1));
+
+            const [firstSnap, lastSnap] = await Promise.all([getDocs(qFirst), getDocs(qLast)]);
+            
+            const start = firstSnap.empty ? null : firstSnap.docs[0].data() as TimetableEntry;
+            const end = lastSnap.empty ? null : lastSnap.docs[0].data() as TimetableEntry;
+
+            setTimes({ start, end });
+        } catch (error) {
+            console.error("Failed to fetch route times:", error);
+            setTimes(null); // Reset on error
+        } finally {
+            setIsLoadingTimes(false);
+        }
+    };
+
+    const handleToggle = () => {
+        const nextState = !isExpanded;
+        setIsExpanded(nextState);
+        if (nextState && !times) { // Fetch only if expanding and not already fetched
+            fetchTimes();
+        }
+    };
+
+    const getDisplayTimes = (stop: TimetableEntry | null) => {
+        if (!stop) return null;
+        const departure = stop.departureTimes && stop.departureTimes.length > 0 ? stop.departureTimes : stop.arrivalTimes;
+        return (departure || []).slice(0, 5).join(', '); // Show up to 5 times
+    }
+    
+    return (
+        <div className='flex flex-col border-b'>
+             <Button
+                variant={selectedRouteId === route.id ? 'default' : 'ghost'}
+                className="w-full justify-start h-auto text-left"
+                onClick={() => onSelect(route.id!)}
+            >
+                <div className="flex flex-col flex-grow">
+                    <p className="font-semibold">
+                        <span className="font-bold mr-2">{route.number}</span> —{' '}
+                        <span>{route.name}</span>
+                    </p>
+                    {route.days && route.days.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                            {route.days.map(day => <Badge key={day} variant={selectedRouteId === route.id ? 'secondary' : 'outline'} className="text-xs">{day.slice(0, 3)}</Badge>)}
+                        </div>
+                    )}
+                </div>
+                 <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleToggle(); }}>
+                    <Clock className="h-4 w-4" />
+                </Button>
+            </Button>
+            {isExpanded && (
+                <div className="text-sm text-muted-foreground p-2 pl-4">
+                    {isLoadingTimes && <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span>Kraunami laikai...</span></div>}
+                    {times && (
+                        <div className='space-y-1'>
+                             {times.start ? (
+                                <div>
+                                    <strong>Išvyksta iš: {times.start.stop}</strong><br/>
+                                    {getDisplayTimes(times.start)}
+                                </div>
+                            ) : <p>Pradinė stotelė nerasta.</p>}
+                            {times.end && times.start?.id !== times.end?.id && (
+                                <div>
+                                    <strong>Atvyksta į: {times.end.stop}</strong><br/>
+                                    {getDisplayTimes(times.end)}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {!isLoadingTimes && !times && <p>Laikų nepavyko užkrauti.</p>}
+                </div>
+            )}
+        </div>
+    );
 };
 
 
@@ -548,30 +640,18 @@ export default function TimetableClient() {
       return <p className="text-sm text-muted-foreground px-4">Šio tipo maršrutų nėra.</p>;
     }
     return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col">
         {routesToList.map((r) => (
-          <Button
-            key={r.id}
-            variant={selectedRouteId === r.id ? 'default' : 'ghost'}
-            className="w-full justify-start h-auto text-left"
-            onClick={() => {
-              setSelectedRouteId(r.id!);
+          <RouteListItem 
+            key={r.id} 
+            route={r} 
+            selectedRouteId={selectedRouteId} 
+            onSelect={(id) => {
+              setSelectedRouteId(id);
               handleClearSearch();
               setIsRouteSelectedFromDropdown(true);
-            }}
-          >
-            <div className="flex flex-col">
-              <p className="font-semibold">
-                <span className="font-bold mr-2">{r.number}</span> —{' '}
-                <span>{r.name}</span>
-              </p>
-              {r.days && r.days.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {r.days.map(day => <Badge key={day} variant={selectedRouteId === r.id ? 'secondary' : 'outline'} className="text-xs">{day.slice(0,3)}</Badge>)}
-                </div>
-              )}
-            </div>
-          </Button>
+            }} 
+          />
         ))}
       </div>
     );
