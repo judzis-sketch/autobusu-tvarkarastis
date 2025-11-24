@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -141,15 +142,15 @@ body {
     color: hsl(var(--destructive));
   }
 
-  .day-weekend {
-    color: hsl(var(--destructive));
+  .day-weekend:not(.day-outside) {
+    color: hsl(var(--destructive)) !important;
   }
   .day-weekend:hover {
     background-color: hsl(var(--destructive) / 0.1);
   }
 
-  .dark .day-weekend {
-    color: hsl(var(--destructive));
+  .dark .day-weekend:not(.day-outside) {
+    color: hsl(var(--destructive)) !important;
   }
   .dark .day-weekend:hover {
     background-color: hsl(var(--destructive) / 0.2);
