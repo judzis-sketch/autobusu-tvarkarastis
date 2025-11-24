@@ -1,7 +1,6 @@
 
 'use client';
 
-import Link from 'next/link';
 import { Bus, Cog, LogOut, User as UserIcon, Accessibility, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +24,7 @@ import { signOut } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { useTheme } from '@/context/ThemeContext';
+import Link from 'next/link';
 
 export default function Header() {
   const { user, isUserLoading } = useUser();
@@ -58,12 +58,12 @@ export default function Header() {
     <header className="bg-card border-b sticky top-0 z-10">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          <Link href="/" className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3">
             <div className="bg-primary text-primary-foreground p-2 rounded-lg">
               <Bus className="h-6 w-6" />
             </div>
             <h1 className="text-xl font-bold text-foreground font-headline">Autobusų tvarkaraštis</h1>
-          </Link>
+          </a>
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
