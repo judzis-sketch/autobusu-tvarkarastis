@@ -406,14 +406,16 @@ const handleRouteSelection = (route: AlternativeRoute) => {
         
         const parsedDepartureTimes = departureTimes?.split(',').map((t) => t.trim()).filter(Boolean) || [];
 
-        // This is the new stop we are about to create.
         const newStopPayload: Omit<TimetableEntry, 'id' > = {
             stop,
             arrivalTimes: parsedArrivalTimes,
-            departureTimes: parsedDepartureTimes.length > 0 ? parsedDepartureTimes : undefined,
             createdAt: serverTimestamp(),
             coords: newStopCoords,
         };
+
+        if (parsedDepartureTimes.length > 0) {
+            newStopPayload.departureTimes = parsedDepartureTimes;
+        }
 
         try {
             // If there was a previous stop, we must first UPDATE it with the distance/geometry info.
