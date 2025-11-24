@@ -619,7 +619,7 @@ export default function TimetableClient() {
           </div>
         )}
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
           <Card>
               <CardHeader>
                   <CardTitle>Maršruto paieška</CardTitle>
@@ -627,10 +627,11 @@ export default function TimetableClient() {
               </CardHeader>
               <CardContent>
                   <Tabs defaultValue="stop" className="w-full">
-                      <TabsList className="grid w-full grid-cols-3">
+                      <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
                           <TabsTrigger value="stop"><Search className="h-4 w-4 mr-2" />Pagal pavadinimą</TabsTrigger>
                           <TabsTrigger value="date"><CalendarIcon className="h-4 w-4 mr-2" />Pagal datą</TabsTrigger>
                           <TabsTrigger value="location"><LocateFixed className="h-4 w-4 mr-2" />Pagal vietovę</TabsTrigger>
+                          <TabsTrigger value="list"><List className="h-4 w-4 mr-2" />Sąrašas</TabsTrigger>
                       </TabsList>
                       <TabsContent value="stop" className="pt-4">
                           <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
@@ -699,37 +700,28 @@ export default function TimetableClient() {
                               </Button>
                           </div>
                       </TabsContent>
+                      <TabsContent value="list" className="pt-4">
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value="local">
+                            <AccordionTrigger>Vietinio susisiekimo maršrutai ({localRoutes.length})</AccordionTrigger>
+                            <AccordionContent>
+                              <ScrollArea className="h-60">
+                                {renderRouteList(localRoutes, 'Vietinio susisiekimo')}
+                              </ScrollArea>
+                            </AccordionContent>
+                          </AccordionItem>
+                          <AccordionItem value="long-distance">
+                            <AccordionTrigger>Tolimojo susisiekimo maršrutai ({longDistanceRoutes.length})</AccordionTrigger>
+                            <AccordionContent>
+                              <ScrollArea className="h-60">
+                                {renderRouteList(longDistanceRoutes, 'Tolimojo susisiekimo')}
+                              </ScrollArea>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </TabsContent>
                   </Tabs>
               </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Maršrutų sąrašas</CardTitle>
-              <CardDescription>
-                Pasirinkite maršrutą iš sąrašo, kad pamatytumėte jo tvarkaraštį.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="local">
-                  <AccordionTrigger>Vietinio susisiekimo maršrutai ({localRoutes.length})</AccordionTrigger>
-                  <AccordionContent>
-                    <ScrollArea className="h-60">
-                      {renderRouteList(localRoutes, 'Vietinio susisiekimo')}
-                    </ScrollArea>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="long-distance">
-                  <AccordionTrigger>Tolimojo susisiekimo maršrutai ({longDistanceRoutes.length})</AccordionTrigger>
-                  <AccordionContent>
-                    <ScrollArea className="h-60">
-                      {renderRouteList(longDistanceRoutes, 'Tolimojo susisiekimo')}
-                    </ScrollArea>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </CardContent>
           </Card>
         </div>
 
