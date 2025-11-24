@@ -29,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Clock, Loader2, MapPin, List, ArrowRight, Search, LocateFixed, X, Route as RouteIcon, ChevronLeft, ChevronRight, Watch, CalendarDays, Calendar as CalendarIcon, Map as MapIcon, Star } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '../ui/button';
+import { Button, buttonVariants } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { getDistance } from '@/lib/distance';
@@ -41,7 +41,7 @@ import Image from 'next/image';
 import { Calendar } from '../ui/calendar';
 import 'react-day-picker/dist/style.css';
 import { Separator } from '../ui/separator';
-import { normalizeText } from '@/lib/utils';
+import { cn, normalizeText } from '@/lib/utils';
 
 
 // Dynamically import the map to avoid SSR issues with Leaflet
@@ -151,9 +151,8 @@ const RouteListItem = ({ route, selectedRouteId, onSelect }: { route: Route, sel
     
     return (
         <div className='flex flex-col border-b'>
-             <Button
-                variant={selectedRouteId === route.id ? 'default' : 'ghost'}
-                className="w-full justify-start h-auto text-left"
+             <div
+                className={cn(buttonVariants({ variant: selectedRouteId === route.id ? 'default' : 'ghost' }), "w-full justify-start h-auto text-left cursor-pointer flex")}
                 onClick={() => onSelect(route.id!)}
             >
                 <div className="flex flex-col flex-grow">
@@ -170,7 +169,7 @@ const RouteListItem = ({ route, selectedRouteId, onSelect }: { route: Route, sel
                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleToggle(); }}>
                     <Clock className="h-4 w-4" />
                 </Button>
-            </Button>
+            </div>
             {isExpanded && (
                 <div className="text-sm text-muted-foreground p-2 pl-4">
                     {isLoadingTimes && <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span>Kraunami laikai...</span></div>}
