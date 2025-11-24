@@ -66,6 +66,12 @@ function Calendar({
         head_cell_weekend: "!text-destructive",
         ...classNames,
       }}
+      modifiers={{
+        weekend: { dayOfWeek: [0, 6] } 
+      }}
+      modifiersClassNames={{
+        weekend: 'day-weekend'
+      }}
       components={{
         IconLeft: ({ className, ...props }) => (
           <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
