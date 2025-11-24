@@ -108,7 +108,6 @@ const dayNumberToName: { [key: number]: string } = {
 
 // Helper component for route list item to manage its own state
 const RouteListItem = ({ route, selectedRouteId, onSelect }: { route: Route, selectedRouteId: string | null, onSelect: (id: string) => void }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
     const [times, setTimes] = useState<{ start: TimetableEntry | null, end: TimetableEntry | null } | null>(null);
     const [isLoadingTimes, setIsLoadingTimes] = useState(false);
     const firestore = useFirestore();
@@ -135,13 +134,9 @@ const RouteListItem = ({ route, selectedRouteId, onSelect }: { route: Route, sel
         }
     };
 
-    const handleToggle = () => {
-        const nextState = !isExpanded;
-        setIsExpanded(nextState);
-        if (nextState && !times) { // Fetch only if expanding and not already fetched
-            fetchTimes();
-        }
-    };
+    useEffect(() => {
+        fetchTimes();
+    }, [route.id, firestore]);
 
     const getDisplayTimes = (stop: TimetableEntry | null) => {
         if (!stop) return null;
@@ -150,10 +145,15 @@ const RouteListItem = ({ route, selectedRouteId, onSelect }: { route: Route, sel
     }
     
     return (
-        <div className='flex flex-col border-b'>
+        <div 
+            className={cn(
+                'flex flex-col border-b p-2 cursor-pointer',
+                selectedRouteId === route.id ? 'bg-primary/10' : 'hover:bg-muted/50'
+            )}
+            onClick={() => onSelect(route.id!)}
+        >
              <div
-                className={cn(buttonVariants({ variant: selectedRouteId === route.id ? 'default' : 'ghost' }), "w-full justify-start h-auto text-left cursor-pointer flex")}
-                onClick={() => onSelect(route.id!)}
+                className="w-full justify-start text-left flex"
             >
                 <div className="flex flex-col flex-grow">
                     <p className="font-semibold">
@@ -166,32 +166,28 @@ const RouteListItem = ({ route, selectedRouteId, onSelect }: { route: Route, sel
                         </div>
                     )}
                 </div>
-                 <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleToggle(); }}>
-                    <Clock className="h-4 w-4" />
-                </Button>
             </div>
-            {isExpanded && (
-                <div className="text-sm text-muted-foreground p-2 pl-4">
-                    {isLoadingTimes && <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span>Kraunami laikai...</span></div>}
-                    {times && (
-                        <div className='space-y-1'>
-                             {times.start ? (
-                                <div>
-                                    <strong>Išvyksta iš: {times.start.stop}</strong><br/>
-                                    {getDisplayTimes(times.start)}
-                                </div>
-                            ) : <p>Pradinė stotelė nerasta.</p>}
-                            {times.end && times.start?.id !== times.end?.id && (
-                                <div>
-                                    <strong>Atvyksta į: {times.end.stop}</strong><br/>
-                                    {getDisplayTimes(times.end)}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {!isLoadingTimes && !times && <p>Laikų nepavyko užkrauti.</p>}
-                </div>
-            )}
+            
+            <div className="text-sm text-muted-foreground pt-2 pl-1">
+                {isLoadingTimes && <div className="flex items-center gap-2 text-xs"><Loader2 className="h-3 w-3 animate-spin" /><span>Kraunami laikai...</span></div>}
+                {times && (
+                    <div className='space-y-1 text-xs'>
+                         {times.start ? (
+                            <div>
+                                <strong>Išvyksta iš: {times.start.stop}</strong><br/>
+                                {getDisplayTimes(times.start)}
+                            </div>
+                        ) : !isLoadingTimes && <p>Maršrutas neturi stotelių.</p>}
+                        {times.end && times.start?.id !== times.end?.id && (
+                            <div>
+                                <strong>Atvyksta į: {times.end.stop}</strong><br/>
+                                {getDisplayTimes(times.end)}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {!isLoadingTimes && !times && <p className="text-xs">Laikų nepavyko užkrauti.</p>}
+            </div>
         </div>
     );
 };
